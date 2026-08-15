@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block title %}صفحه پیدا نشد — {{ site_name }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="setup-card error-page">
+        <p class="error-code">۴۰۴</p>
+        <h1>این صفحه پیدا نشد</h1>
+        <p class="lead">ممکن است آدرس را اشتباه وارد کرده باشید یا این صفحه حذف شده باشد.</p>
+        <div class="actions">
+            <a class="btn btn-primary" href="{% url 'core:home' %}">بازگشت به صفحه اصلی</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

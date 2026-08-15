@@ -1,0 +1,42 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.Python
+
+# --- Virtual Environment ---
+.venv/
+venv/
+env/
+
+# --- Django ---
+*.log
+db.sqlite3
+db.sqlite3-journal
+staticfiles/
+media/*
+!media/.gitkeep
+logs/*
+!logs/.gitkeep
+
+# --- تنظیمات محیطی (هرگز نباید در گیت باشد) ---
+.env
+.env.local
+.env.production
+
+# --- ابزارها ---
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+*.swp
+
+# --- سیستم‌عامل ---
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- تست و پوشش کد ---
+.pytest_cache/
+.coverage
+htmlcov/

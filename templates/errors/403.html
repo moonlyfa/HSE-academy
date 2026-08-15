@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block title %}دسترسی مجاز نیست — {{ site_name }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="setup-card error-page">
+        <p class="error-code">۴۰۳</p>
+        <h1>اجازه دسترسی به این بخش را ندارید</h1>
+        <p class="lead">اگر فکر می‌کنید این پیام اشتباه است، با پشتیبانی تماس بگیرید.</p>
+        <div class="actions">
+            <a class="btn btn-primary" href="{% url 'core:home' %}">بازگشت به صفحه اصلی</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block title %}خطای سرور — {{ site_name }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="setup-card error-page">
+        <p class="error-code">۵۰۰</p>
+        <h1>مشکلی در سرور پیش آمده است</h1>
+        <p class="lead">تیم فنی در جریان قرار گرفت. لطفاً چند دقیقه دیگر دوباره تلاش کنید.</p>
+        <div class="actions">
+            <a class="btn btn-primary" href="/">بازگشت به صفحه اصلی</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

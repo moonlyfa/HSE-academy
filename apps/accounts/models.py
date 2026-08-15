@@ -1,0 +1,151 @@
+"""
+مدل کاربر سفارشی پروژه.
+
+چرا از همین فاز ۱؟
+Django اجازه نمی‌دهد بعد از اجرای اولین migrate، مدل کاربر را به‌راحتی عوض کنید.
+تغییر AUTH_USER_MODEL در پروژه‌ای که دیتابیس دارد یعنی پاک کردن دیتابیس یا
+نوشتن Migration دستی و پیچیده. پس مدل کاربر را قبل از اولین migrate می‌سازیم.
+
+در فاز ۳ به این اپ فرم‌ها، Viewها و صفحات ورود/ثبت‌نام اضافه می‌شود و در
+فاز ۴ و ۵ مدل‌های OTP و IdentityVerification به آن اضافه می‌شوند.
+"""
+
+from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
+from django.db import models
+from django.utils import timezone
+
+from .managers import UserManager
+from .validators import validate_iranian_mobile, validate_national_code
+
+
+class UserRole(models.TextChoices):
+    """
+    نقش کاربر.
+
+    این فیلد فقط یک «برچسب» است تا در پنل و منطق برنامه سریع بفهمیم کاربر
+    چه‌کاره است. کنترل دسترسی واقعی با Group و Permission استاندارد Django
+    انجام می‌شود (فاز ۳)، نه با مقایسه رشته‌ای این فیلد.
+    """
+
+    SUPER_ADMIN = "super_admin", "مدیر ارشد"
+    ADMIN = "admin", "مدیر"
+    INSTRUCTOR = "instructor", "مدرس"
+    STUDENT = "student", "دانشجو"
+    FINANCE = "finance", "مالی"
+    SUPPORT = "support", "پشتیبانی"
+    CONTENT_MANAGER = "content_manager", "مدیر محتوا"
+
+
+class User(AbstractBaseUser, PermissionsMixin):
+    """
+    کاربر سایت.
+
+    AbstractBaseUser: امکانات پایه احراز هویت (رمز هش‌شده، last_login) را می‌دهد.
+    PermissionsMixin: سیستم گروه و دسترسی استاندارد Django را اضافه می‌کند.
+    """
+
+    mobile = models.CharField(
+        "شماره موبایل",
+        max_length=11,
+        unique=True,
+        validators=[validate_iranian_mobile],
+        help_text="شماره موبایل به شکل 09xxxxxxxxx — همین شماره نام کاربری شماست.",
+    )
+    national_code = models.CharField(
+        "کد ملی",
+        max_length=10,
+        unique=True,
+        null=True,
+        blank=True,
+        validators=[validate_national_code],
+        help_text="تا زمان تکمیل احراز هویت می‌تواند خالی باشد.",
+    )
+    first_name = models.CharField("نام", max_length=50, blank=True)
+    last_name = models.CharField("نام خانوادگی", max_length=50, blank=True)
+    email = models.EmailField("ایمیل", blank=True)
+
+    # وضعیت احراز هویت
+    is_mobile_verified = models.BooleanField(
+        "موبایل تأیید شده",
+        default=False,
+        help_text="بعد از تأیید موفق کد پیامکی True می‌شود.",
+    )
+    is_identity_verified = models.BooleanField(
+        "هویت تأیید شده",
+        default=False,
+        help_text="بعد از تطبیق موفق شماره موبایل و کد ملی True می‌شود.",
+    )
+
+    # اشتراک ویژه
+    is_vip = models.BooleanField("کاربر ویژه", default=False)
+    vip_expires_at = models.DateTimeField("انقضای اشتراک ویژه", null=True, blank=True)
+
+    role = models.CharField(
+        "نقش",
+        max_length=20,
+        choices=UserRole.choices,
+        default=UserRole.STUDENT,
+    )
+
+    # فیلدهای لازم برای پنل مدیریت Django
+    is_active = models.BooleanField("فعال", default=True)
+    is_staff = models.BooleanField(
+        "دسترسی به پنل مدیریت",
+        default=False,
+        help_text="اگر فعال باشد، کاربر می‌تواند وارد پنل مدیریت شود.",
+    )
+
+    created_at = models.DateTimeField("تاریخ ثبت‌نام", auto_now_add=True)
+    updated_at = models.DateTimeField("آخرین بروزرسانی", auto_now=True)
+
+    objects = UserManager()
+
+    # نام کاربری سایت، شماره موبایل است.
+    USERNAME_FIELD = "mobile"
+    # فیلدهایی که هنگام createsuperuser علاوه بر USERNAME_FIELD پرسیده می‌شوند.
+    REQUIRED_FIELDS: list[str] = []
+
+    class Meta:
+        verbose_name = "کاربر"
+        verbose_name_plural = "کاربران"
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return self.full_name or self.mobile
+
+    @property
+    def full_name(self) -> str:
+        """نام کامل کاربر؛ اگر نام ثبت نشده باشد رشته خالی برمی‌گرداند."""
+        return f"{self.first_name} {self.last_name}".strip()
+
+    def get_full_name(self) -> str:
+        """Django در بعضی قسمت‌ها (مثل پنل ادمین) این متد را صدا می‌زند."""
+        return self.full_name or self.mobile
+
+    def get_short_name(self) -> str:
+        return self.first_name or self.mobile
+
+    @property
+    def masked_mobile(self) -> str:
+        """
+        شماره موبایل به شکل ماسک‌شده: 0912***4567
+
+        در صفحه استعلام گواهی و هر جای عمومی دیگر، هرگز شماره کامل نمایش داده نمی‌شود.
+        """
+        if len(self.mobile) != 11:
+            return self.mobile
+        return f"{self.mobile[:4]}***{self.mobile[-4:]}"
+
+    @property
+    def has_active_vip(self) -> bool:
+        """آیا اشتراک ویژه کاربر هم‌اکنون معتبر است؟"""
+        if not self.is_vip:
+            return False
+        if self.vip_expires_at is None:
+            return True
+        return self.vip_expires_at > timezone.now()
+
+    @property
+    def is_fully_verified(self) -> bool:
+        """کاربری که هم موبایل و هم هویتش تأیید شده است."""
+        return self.is_mobile_verified and self.is_identity_verified

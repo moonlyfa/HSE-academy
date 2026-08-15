@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block title %}{{ site_name }} — نصب با موفقیت انجام شد{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="setup-card">
+        <span class="badge">فاز ۱ — راه‌اندازی پروژه</span>
+
+        <h1>پروژه {{ site_name }} با موفقیت اجرا شد</h1>
+
+        <p class="lead">
+            اگر این صفحه را می‌بینید یعنی Python، Django، تنظیمات، فایل‌های استاتیک
+            و دیتابیس همگی درست پیکربندی شده‌اند. صفحه اصلی واقعی سایت در فاز ۲ ساخته می‌شود.
+        </p>
+
+        <ul class="checklist">
+            <li>ساختار پروژه و تنظیمات چندمحیطی (dev / prod)</li>
+            <li>خواندن تنظیمات حساس از فایل <code>.env</code></li>
+            <li>زبان فارسی و چیدمان راست‌به‌چپ</li>
+            <li>مدل کاربر سفارشی بر پایه شماره موبایل</li>
+            <li>فایل‌های استاتیک محلی، بدون وابستگی به CDN خارجی</li>
+        </ul>
+
+        <div class="actions">
+            <a class="btn btn-primary" href="/{{ admin_url }}/">ورود به پنل مدیریت</a>
+            <a class="btn btn-outline" href="{% url 'core:health' %}">بررسی سلامت سرویس</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
