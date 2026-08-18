@@ -1,15 +1,20 @@
 {% extends "base.html" %}
+{% load core_extras %}
 
-{% block title %}دسترسی مجاز نیست — {{ site_name }}{% endblock %}
+{% block title %}دسترسی مجاز نیست — {{ site.site_name }}{% endblock %}
 
 {% block content %}
 <div class="container">
-    <div class="setup-card error-page">
+    <div class="error-page">
         <p class="error-code">۴۰۳</p>
         <h1>اجازه دسترسی به این بخش را ندارید</h1>
         <p class="lead">اگر فکر می‌کنید این پیام اشتباه است، با پشتیبانی تماس بگیرید.</p>
-        <div class="actions">
-            <a class="btn btn-primary" href="{% url 'core:home' %}">بازگشت به صفحه اصلی</a>
+        <div class="d-flex justify-content-center gap-3 flex-wrap mt-4">
+            <a class="btn btn-primary" href="/">
+                {% icon "arrow-left" size=18 %}
+                <span>بازگشت به صفحه اصلی</span>
+            </a>
+            <a class="btn btn-outline-brand" href="/#contact">تماس با پشتیبانی</a>
         </div>
     </div>
 </div>

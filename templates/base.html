@@ -4,25 +4,43 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
-    {# هر صفحه می‌تواند عنوان و توضیحات مخصوص خودش را تعریف کند (مهم برای سئو). #}
-    <title>{% block title %}{{ site_name }}{% endblock %}</title>
-    <meta name="description" content="{% block meta_description %}آموزش تخصصی ایمنی، بهداشت و محیط زیست{% endblock %}">
+    {# --- سئو: هر صفحه عنوان و توضیح مخصوص خودش را می‌دهد --- #}
+    <title>{% block title %}{{ site.site_name }}{% endblock %}</title>
+    <meta name="description" content="{% block meta_description %}{{ site.meta_description|default:site.site_tagline }}{% endblock %}">
+    <link rel="canonical" href="{% block canonical %}{{ request.build_absolute_uri }}{% endblock %}">
+
+    {# --- OpenGraph: ظاهر لینک هنگام اشتراک‌گذاری در شبکه‌های اجتماعی --- #}
+    <meta property="og:site_name" content="{{ site.site_name }}">
+    <meta property="og:type" content="{% block og_type %}website{% endblock %}">
+    <meta property="og:title" content="{% block og_title %}{{ site.site_name }}{% endblock %}">
+    <meta property="og:description" content="{% block og_description %}{{ site.site_tagline }}{% endblock %}">
+    {% block og_image %}{% endblock %}
+
+    {% if site.favicon %}
+        <link rel="icon" href="{{ site.favicon.url }}">
+    {% endif %}
+
+    {# --- همه فایل‌ها محلی هستند؛ هیچ CDN خارجی در مسیر بحرانی سایت نیست --- #}
+    <link rel="stylesheet" href="{% static 'vendor/bootstrap/css/bootstrap.rtl.min.css' %}">
+    <link rel="stylesheet" href="{% static 'css/main.css' %}">
 
     {% block extra_head %}{% endblock %}
-
-    {# همه فایل‌های CSS و JS به‌صورت محلی سرو می‌شوند؛ هیچ وابستگی به CDN خارجی نداریم. #}
-    <link rel="stylesheet" href="{% static 'css/main.css' %}">
 </head>
 <body>
     <a class="skip-link" href="#main-content">پرش به محتوای اصلی</a>
 
-    {% block header %}{% endblock %}
+    {% include "partials/header.html" %}
+
+    {% block breadcrumb %}{% endblock %}
 
     <main id="main-content">
         {% if messages %}
-            <div class="container">
+            <div class="container mt-4">
                 {% for message in messages %}
-                    <div class="alert alert-{{ message.tags }}" role="alert">{{ message }}</div>
+                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="بستن"></button>
+                    </div>
                 {% endfor %}
             </div>
         {% endif %}
@@ -30,7 +48,10 @@
         {% block content %}{% endblock %}
     </main>
 
-    {% block footer %}{% endblock %}
+    {% include "partials/footer.html" %}
+
+    <script src="{% static 'vendor/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
+    <script src="{% static 'js/main.js' %}"></script>
 
     {% block extra_js %}{% endblock %}
 </body>

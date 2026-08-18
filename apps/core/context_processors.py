@@ -1,23 +1,20 @@
 """
-Context Processor: داده‌هایی که باید در همه قالب‌های سایت در دسترس باشند.
+Context Processor: داده‌هایی که در همه قالب‌های سایت لازم‌اند.
 
-به‌جای اینکه در هر View نام سایت و شماره تماس را دستی بفرستیم، اینجا یک‌بار
-تعریف می‌کنیم و در همه قالب‌ها با {{ site_name }} قابل استفاده است.
-
-در فاز ۲ این مقادیر از مدل SiteSetting در دیتابیس خوانده می‌شوند تا ادمین
-بتواند بدون تغییر کد آن‌ها را ویرایش کند.
+به‌جای فرستادن نام سایت و اطلاعات تماس در تک‌تک Viewها، اینجا یک‌بار
+تعریف می‌کنیم و در همه قالب‌ها با {{ site }} در دسترس است.
 """
 
 from django.conf import settings
 from django.http import HttpRequest
 
+from .models import SiteSetting
+
 
 def site_context(request: HttpRequest) -> dict:
     return {
-        "site_name": settings.SITE_NAME,
-        "site_domain": settings.SITE_DOMAIN,
-        "site_support_phone": settings.SITE_SUPPORT_PHONE,
-        "site_support_email": settings.SITE_SUPPORT_EMAIL,
-        "blog_enabled": settings.BLOG_ENABLED,
+        # آبجکت کامل تنظیمات سایت؛ در قالب‌ها: {{ site.site_name }}
+        "site": SiteSetting.load(),
         "admin_url": settings.ADMIN_URL,
+        "blog_enabled": settings.BLOG_ENABLED,
     }

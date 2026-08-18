@@ -1,0 +1,94 @@
+{% load core_extras %}
+<footer class="site-footer">
+    <div class="container">
+        <div class="row g-4">
+
+            {# --- معرفی --- #}
+            <div class="col-lg-4 col-md-6">
+                <h5>{{ site.site_name }}</h5>
+                <p>{{ site.about_short }}</p>
+
+                {% if site.instagram_url or site.telegram_url or site.linkedin_url or site.whatsapp_url %}
+                    <div class="social-links mt-3">
+                        {% if site.instagram_url %}
+                            <a href="{{ site.instagram_url }}" target="_blank" rel="noopener" aria-label="اینستاگرام">{% icon "users" size=20 %}</a>
+                        {% endif %}
+                        {% if site.telegram_url %}
+                            <a href="{{ site.telegram_url }}" target="_blank" rel="noopener" aria-label="تلگرام">{% icon "mail" size=20 %}</a>
+                        {% endif %}
+                        {% if site.linkedin_url %}
+                            <a href="{{ site.linkedin_url }}" target="_blank" rel="noopener" aria-label="لینکدین">{% icon "chart" size=20 %}</a>
+                        {% endif %}
+                        {% if site.whatsapp_url %}
+                            <a href="{{ site.whatsapp_url }}" target="_blank" rel="noopener" aria-label="واتساپ">{% icon "phone" size=20 %}</a>
+                        {% endif %}
+                    </div>
+                {% endif %}
+            </div>
+
+            {# --- دسترسی سریع --- #}
+            <div class="col-lg-2 col-md-6 col-6">
+                <h5>دسترسی سریع</h5>
+                <ul class="footer-links">
+                    <li><a href="#courses">دوره‌ها</a></li>
+                    <li><a href="#calendar">تقویم آموزشی</a></li>
+                    <li><a href="#verify">استعلام گواهی</a></li>
+                    <li><a href="#about">درباره ما</a></li>
+                    <li><a href="#faq">سؤالات متداول</a></li>
+                </ul>
+            </div>
+
+            {# --- خدمات --- #}
+            <div class="col-lg-2 col-md-6 col-6">
+                <h5>خدمات</h5>
+                <ul class="footer-links">
+                    <li><a href="#courses">دوره‌های آنلاین</a></li>
+                    <li><a href="#courses">دوره‌های آفلاین</a></li>
+                    <li><a href="#courses">دوره‌های سازمانی</a></li>
+                    <li><a href="#contact">مشاوره آموزشی</a></li>
+                </ul>
+            </div>
+
+            {# --- تماس --- #}
+            <div class="col-lg-4 col-md-6">
+                <h5>ارتباط با ما</h5>
+
+                {% if site.phone %}
+                    <div class="footer-contact-item">
+                        {% icon "phone" size=18 %}
+                        <span class="ltr">{{ site.phone }}</span>
+                    </div>
+                {% endif %}
+
+                {% if site.email %}
+                    <div class="footer-contact-item">
+                        {% icon "mail" size=18 %}
+                        <span class="ltr">{{ site.email }}</span>
+                    </div>
+                {% endif %}
+
+                {% if site.address %}
+                    <div class="footer-contact-item">
+                        {% icon "location" size=18 %}
+                        <span>{{ site.address }}</span>
+                    </div>
+                {% endif %}
+
+                {% if site.working_hours %}
+                    <div class="footer-contact-item">
+                        {% icon "clock" size=18 %}
+                        <span>{{ site.working_hours }}</span>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="footer-bottom d-flex flex-wrap justify-content-between gap-2">
+            <span>© تمامی حقوق برای {{ site.site_name }} محفوظ است.</span>
+            <span class="d-flex gap-3">
+                <a href="#privacy">حریم خصوصی</a>
+                <a href="#terms">قوانین و مقررات</a>
+            </span>
+        </div>
+    </div>
+</footer>

@@ -1,3 +1,323 @@
-from django.db import models  # noqa: F401
+"""
+مدل‌های عمومی سایت.
 
-# مدل‌های عمومی سایت (SiteSetting، FAQ، ContactMessage و ...) در فازهای بعدی اینجا اضافه می‌شوند.
+همه محتوای صفحه اصلی از این مدل‌ها خوانده می‌شود تا ادمین بتواند بدون
+دست‌زدن به کد، متن‌ها، بنرها و بخش‌های سایت را تغییر دهد.
+"""
+
+from django.core.exceptions import ValidationError
+from django.db import models
+from django.utils import timezone
+
+
+class ActiveOrderedQuerySet(models.QuerySet):
+    """کوئری‌ست مشترک: فقط موارد فعال، مرتب‌شده بر اساس ترتیب نمایش."""
+
+    def active(self):
+        return self.filter(is_active=True)
+
+
+class BaseContentBlock(models.Model):
+    """
+    فیلدهای مشترک همه بخش‌های قابل مدیریت صفحه اصلی.
+
+    مدل Abstract یعنی برای خودش جدول نمی‌سازد؛ فقط فیلدهایش را به
+    مدل‌های فرزند قرض می‌دهد تا کد تکراری ننویسیم.
+    """
+
+    is_active = models.BooleanField(
+        "فعال",
+        default=True,
+        help_text="اگر خاموش باشد، در سایت نمایش داده نمی‌شود.",
+    )
+    order = models.PositiveIntegerField(
+        "ترتیب نمایش",
+        default=0,
+        help_text="عدد کوچک‌تر بالاتر نمایش داده می‌شود.",
+    )
+    created_at = models.DateTimeField("تاریخ ایجاد", auto_now_add=True)
+    updated_at = models.DateTimeField("آخرین بروزرسانی", auto_now=True)
+
+    objects = ActiveOrderedQuerySet.as_manager()
+
+    class Meta:
+        abstract = True
+        ordering = ["order", "-created_at"]
+
+
+class SiteSetting(models.Model):
+    """
+    تنظیمات کلی سایت — فقط یک ردیف در دیتابیس دارد.
+
+    چرا مدل و نه فایل settings.py؟ چون ادمین باید بتواند شماره تماس یا متن
+    Hero را از پنل عوض کند، بدون اینکه به کد و ری‌استارت سرور نیاز باشد.
+    """
+
+    # --- هویت سایت ---
+    site_name = models.CharField("نام سایت", max_length=100, default="آکادمی HSE")
+    site_tagline = models.CharField(
+        "شعار سایت",
+        max_length=200,
+        blank=True,
+        default="آموزش تخصصی ایمنی، بهداشت و محیط زیست",
+    )
+    logo = models.ImageField("لوگو", upload_to="site/", blank=True, null=True)
+    favicon = models.ImageField("آیکون مرورگر", upload_to="site/", blank=True, null=True)
+
+    # --- بخش Hero صفحه اصلی ---
+    hero_title = models.CharField(
+        "عنوان اصلی صفحه نخست",
+        max_length=200,
+        default="آموزش تخصصی HSE با گواهی معتبر و قابل استعلام",
+    )
+    hero_subtitle = models.TextField(
+        "زیرعنوان صفحه نخست",
+        blank=True,
+        default=(
+            "دوره‌های کاربردی ایمنی، بهداشت حرفه‌ای و محیط زیست، "
+            "زیر نظر مدرسان صنعت و متناسب با نیاز واقعی سازمان‌ها."
+        ),
+    )
+    hero_image = models.ImageField("تصویر صفحه نخست", upload_to="site/", blank=True, null=True)
+
+    # --- اطلاعات تماس ---
+    phone = models.CharField("تلفن تماس", max_length=30, blank=True, default="021-00000000")
+    mobile = models.CharField("موبایل پشتیبانی", max_length=30, blank=True)
+    email = models.EmailField("ایمیل", blank=True, default="info@example.com")
+    address = models.TextField("آدرس", blank=True)
+    working_hours = models.CharField(
+        "ساعات کاری",
+        max_length=120,
+        blank=True,
+        default="شنبه تا چهارشنبه، ۹ تا ۱۷",
+    )
+
+    # --- شبکه‌های اجتماعی ---
+    instagram_url = models.URLField("اینستاگرام", blank=True)
+    telegram_url = models.URLField("تلگرام", blank=True)
+    linkedin_url = models.URLField("لینکدین", blank=True)
+    whatsapp_url = models.URLField("واتساپ", blank=True)
+
+    # --- درباره ما ---
+    about_short = models.TextField(
+        "معرفی کوتاه (فوتر)",
+        blank=True,
+        default="آکادمی تخصصی آموزش ایمنی، بهداشت و محیط زیست.",
+    )
+    about_full = models.TextField("متن کامل درباره ما", blank=True)
+
+    # --- کنترل نمایش بخش‌های صفحه اصلی ---
+    # ادمین می‌تواند هر بخش را بدون تغییر کد خاموش کند.
+    show_categories_section = models.BooleanField("نمایش بخش دسته‌بندی‌ها", default=True)
+    show_banner_section = models.BooleanField("نمایش بنر ماهانه", default=True)
+    show_featured_courses = models.BooleanField("نمایش دوره‌های منتخب", default=True)
+    show_upcoming_courses = models.BooleanField("نمایش دوره‌های پیش‌رو", default=True)
+    show_features_section = models.BooleanField("نمایش بخش چرا ما", default=True)
+    show_certificate_cta = models.BooleanField("نمایش استعلام گواهی", default=True)
+    show_instructors_section = models.BooleanField("نمایش مدرسان", default=True)
+    show_testimonials_section = models.BooleanField("نمایش نظرات", default=True)
+    show_partners_section = models.BooleanField("نمایش همکاران", default=True)
+    show_faq_section = models.BooleanField("نمایش سؤالات متداول", default=True)
+    show_articles_section = models.BooleanField(
+        "نمایش مقالات",
+        default=False,
+        help_text="بخش مقالات در نسخه اول منتشر نمی‌شود.",
+    )
+
+    # --- سئو ---
+    meta_title = models.CharField("عنوان سئو", max_length=70, blank=True)
+    meta_description = models.CharField("توضیحات سئو", max_length=160, blank=True)
+
+    updated_at = models.DateTimeField("آخرین بروزرسانی", auto_now=True)
+
+    class Meta:
+        verbose_name = "تنظیمات سایت"
+        verbose_name_plural = "تنظیمات سایت"
+
+    def __str__(self) -> str:
+        return self.site_name
+
+    def clean(self):
+        """اجازه ساخت بیش از یک ردیف تنظیمات را نمی‌دهیم."""
+        if not self.pk and SiteSetting.objects.exists():
+            raise ValidationError("فقط یک ردیف تنظیمات سایت می‌تواند وجود داشته باشد.")
+
+    @classmethod
+    def load(cls) -> "SiteSetting":
+        """
+        تنظیمات سایت را برمی‌گرداند و اگر وجود نداشته باشد می‌سازد.
+
+        این‌طوری سایت حتی روی دیتابیس خالی هم بدون خطا بالا می‌آید.
+        """
+        setting, _ = cls.objects.get_or_create(pk=1)
+        return setting
+
+
+class Banner(BaseContentBlock):
+    """
+    بنر بزرگ صفحه اصلی — مثلاً «دوره ویژه این ماه».
+
+    ادمین می‌تواند چند بنر بسازد و با فیلدهای تاریخ، فقط بازه مشخصی
+    نمایش داده شود.
+    """
+
+    label = models.CharField(
+        "برچسب کوچک",
+        max_length=50,
+        blank=True,
+        help_text="متن کوتاه بالای عنوان، مثل «دوره ویژه این ماه»",
+    )
+    title = models.CharField("عنوان بنر", max_length=150)
+    subtitle = models.TextField("توضیح کوتاه", blank=True)
+    image = models.ImageField("تصویر بنر", upload_to="banners/", blank=True, null=True)
+
+    cta_text = models.CharField("متن دکمه", max_length=50, blank=True, default="مشاهده دوره")
+    cta_url = models.CharField(
+        "لینک دکمه",
+        max_length=300,
+        blank=True,
+        help_text="مثلاً /courses/hse-officer/",
+    )
+
+    date_text = models.CharField(
+        "متن تاریخ",
+        max_length=100,
+        blank=True,
+        help_text="مثلاً «شروع: ۱۵ مهر ۱۴۰۴»",
+    )
+
+    starts_at = models.DateTimeField(
+        "نمایش از تاریخ",
+        null=True,
+        blank=True,
+        help_text="خالی یعنی بدون محدودیت شروع.",
+    )
+    ends_at = models.DateTimeField(
+        "نمایش تا تاریخ",
+        null=True,
+        blank=True,
+        help_text="خالی یعنی بدون محدودیت پایان.",
+    )
+
+    class Meta(BaseContentBlock.Meta):
+        verbose_name = "بنر"
+        verbose_name_plural = "بنرها"
+
+    def __str__(self) -> str:
+        return self.title
+
+    @property
+    def is_visible_now(self) -> bool:
+        """آیا بنر با توجه به بازه تاریخ، همین الان باید نمایش داده شود؟"""
+        if not self.is_active:
+            return False
+        now = timezone.now()
+        if self.starts_at and now < self.starts_at:
+            return False
+        if self.ends_at and now > self.ends_at:
+            return False
+        return True
+
+
+class Feature(BaseContentBlock):
+    """یک مورد از بخش «چرا ما» در صفحه اصلی."""
+
+    ICON_CHOICES = [
+        ("shield", "سپر ایمنی"),
+        ("certificate", "گواهی"),
+        ("users", "مدرسان"),
+        ("video", "کلاس آنلاین"),
+        ("download", "محتوای آفلاین"),
+        ("lock", "پرداخت امن"),
+        ("headset", "پشتیبانی"),
+        ("chart", "کاربردی"),
+    ]
+
+    icon = models.CharField("آیکون", max_length=20, choices=ICON_CHOICES, default="shield")
+    title = models.CharField("عنوان", max_length=100)
+    description = models.TextField("توضیح", blank=True)
+
+    class Meta(BaseContentBlock.Meta):
+        verbose_name = "مزیت (چرا ما)"
+        verbose_name_plural = "مزیت‌ها (چرا ما)"
+
+    def __str__(self) -> str:
+        return self.title
+
+
+class Testimonial(BaseContentBlock):
+    """نظر یک دانشجو درباره دوره‌ها."""
+
+    full_name = models.CharField("نام و نام خانوادگی", max_length=100)
+    job_title = models.CharField(
+        "سمت یا سازمان",
+        max_length=120,
+        blank=True,
+        help_text="مثلاً «کارشناس HSE، شرکت پتروشیمی»",
+    )
+    avatar = models.ImageField("عکس", upload_to="testimonials/", blank=True, null=True)
+    quote = models.TextField("متن نظر")
+
+    class Meta(BaseContentBlock.Meta):
+        verbose_name = "نظر دانشجو"
+        verbose_name_plural = "نظرات دانشجویان"
+
+    def __str__(self) -> str:
+        return self.full_name
+
+
+class Partner(BaseContentBlock):
+    """سازمان، شرکت یا دانشگاه همکار."""
+
+    name = models.CharField("نام سازمان", max_length=120)
+    logo = models.ImageField("لوگو", upload_to="partners/", blank=True, null=True)
+    website = models.URLField("وب‌سایت", blank=True)
+
+    class Meta(BaseContentBlock.Meta):
+        verbose_name = "همکار"
+        verbose_name_plural = "سازمان‌های همکار"
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class FAQ(BaseContentBlock):
+    """سؤال متداول."""
+
+    question = models.CharField("سؤال", max_length=250)
+    answer = models.TextField("پاسخ")
+    show_on_homepage = models.BooleanField(
+        "نمایش در صفحه اصلی",
+        default=True,
+        help_text="اگر خاموش باشد فقط در صفحه سؤالات متداول دیده می‌شود.",
+    )
+
+    class Meta(BaseContentBlock.Meta):
+        verbose_name = "سؤال متداول"
+        verbose_name_plural = "سؤالات متداول"
+
+    def __str__(self) -> str:
+        return self.question
+
+
+class ContactMessage(models.Model):
+    """پیام ارسال‌شده از فرم تماس با ما."""
+
+    full_name = models.CharField("نام و نام خانوادگی", max_length=100)
+    mobile = models.CharField("شماره تماس", max_length=20)
+    email = models.EmailField("ایمیل", blank=True)
+    subject = models.CharField("موضوع", max_length=150)
+    message = models.TextField("متن پیام")
+
+    is_read = models.BooleanField("خوانده شده", default=False)
+    admin_note = models.TextField("یادداشت داخلی", blank=True)
+
+    created_at = models.DateTimeField("تاریخ ارسال", auto_now_add=True)
+
+    class Meta:
+        verbose_name = "پیام تماس"
+        verbose_name_plural = "پیام‌های تماس"
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"{self.full_name} — {self.subject}"

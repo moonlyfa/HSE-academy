@@ -1,0 +1,53 @@
+{% load static core_extras %}
+<header class="site-header">
+    <nav class="navbar navbar-expand-lg" aria-label="منوی اصلی">
+        <div class="container">
+
+            {# --- لوگو --- #}
+            <a class="brand-logo" href="{% url 'core:home' %}">
+                {% if site.logo %}
+                    <img src="{{ site.logo.url }}" alt="{{ site.site_name }}">
+                {% else %}
+                    <span class="brand-mark" aria-hidden="true">HSE</span>
+                    <span>{{ site.site_name }}</span>
+                {% endif %}
+            </a>
+
+            <button class="navbar-toggler border-0" type="button"
+                    data-bs-toggle="collapse" data-bs-target="#mainNav"
+                    aria-controls="mainNav" aria-expanded="false" aria-label="باز کردن منو">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse" id="mainNav">
+                <ul class="navbar-nav site-nav mx-lg-auto mb-2 mb-lg-0">
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'home' %}active{% endif %}"
+                           href="{% url 'core:home' %}">صفحه اصلی</a>
+                    </li>
+                    <li class="nav-item"><a class="nav-link" href="#courses">دوره‌ها</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#calendar">تقویم آموزشی</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#verify">استعلام گواهی</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#about">درباره ما</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#contact">تماس با ما</a></li>
+                    {% if blog_enabled %}
+                        <li class="nav-item"><a class="nav-link" href="#articles">مقالات</a></li>
+                    {% endif %}
+                </ul>
+
+                <div class="header-actions d-flex align-items-center gap-2">
+                    {% if user.is_authenticated %}
+                        <a class="btn btn-outline-brand btn-sm" href="#dashboard">
+                            {% icon "users" size=18 %}
+                            <span>داشبورد من</span>
+                        </a>
+                    {% else %}
+                        <a class="btn btn-outline-brand btn-sm" href="#login">ورود</a>
+                        <a class="btn btn-primary btn-sm" href="#register">ثبت‌نام</a>
+                    {% endif %}
+                </div>
+            </div>
+
+        </div>
+    </nav>
+</header>

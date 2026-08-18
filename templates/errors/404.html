@@ -1,15 +1,20 @@
 {% extends "base.html" %}
+{% load core_extras %}
 
-{% block title %}صفحه پیدا نشد — {{ site_name }}{% endblock %}
+{% block title %}صفحه پیدا نشد — {{ site.site_name }}{% endblock %}
 
 {% block content %}
 <div class="container">
-    <div class="setup-card error-page">
+    <div class="error-page">
         <p class="error-code">۴۰۴</p>
         <h1>این صفحه پیدا نشد</h1>
         <p class="lead">ممکن است آدرس را اشتباه وارد کرده باشید یا این صفحه حذف شده باشد.</p>
-        <div class="actions">
-            <a class="btn btn-primary" href="{% url 'core:home' %}">بازگشت به صفحه اصلی</a>
+        <div class="d-flex justify-content-center gap-3 flex-wrap mt-4">
+            <a class="btn btn-primary" href="/">
+                {% icon "arrow-left" size=18 %}
+                <span>بازگشت به صفحه اصلی</span>
+            </a>
+            <a class="btn btn-outline-brand" href="/#contact">تماس با پشتیبانی</a>
         </div>
     </div>
 </div>
