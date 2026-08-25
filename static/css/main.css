@@ -549,7 +549,7 @@ img { max-width: 100%; height: auto; }
 
 /* مدت محو شدن از پنل مدیریت خوانده می‌شود و روی همین بخش تزریق می‌شود. */
 .hero-slider {
-    --slider-fade: 1100ms;
+    --slider-fade: 1400ms;
 }
 
 .hero-slider__slide {

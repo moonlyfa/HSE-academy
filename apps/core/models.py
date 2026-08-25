@@ -115,7 +115,7 @@ class SiteSetting(models.Model):
     )
     hero_slider_transition_ms = models.PositiveIntegerField(
         "مدت محو شدن اسلاید (میلی‌ثانیه)",
-        default=1100,
+        default=1400,
         help_text=(
             "عدد بزرگ‌تر یعنی جابه‌جایی نرم‌تر و کندتر. "
             "مقدار پیشنهادی بین ۸۰۰ تا ۱۵۰۰."

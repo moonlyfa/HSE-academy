@@ -1,4 +1,4 @@
-{% load static %}<!DOCTYPE html>
+{% load static core_extras %}<!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -24,8 +24,8 @@
     {% endif %}
 
     {# --- همه فایل‌ها محلی هستند؛ هیچ CDN خارجی در مسیر بحرانی سایت نیست --- #}
-    <link rel="stylesheet" href="{% static 'vendor/bootstrap/css/bootstrap.rtl.min.css' %}">
-    <link rel="stylesheet" href="{% static 'css/main.css' %}">
+    <link rel="stylesheet" href="{% static_v 'vendor/bootstrap/css/bootstrap.rtl.min.css' %}">
+    <link rel="stylesheet" href="{% static_v 'css/main.css' %}">
 
     {% block extra_head %}{% endblock %}
 </head>
@@ -53,8 +53,8 @@
 
     {% include "partials/footer.html" %}
 
-    <script src="{% static 'vendor/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
-    <script src="{% static 'js/main.js' %}"></script>
+    <script src="{% static_v 'vendor/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
+    <script src="{% static_v 'js/main.js' %}"></script>
 
     {% block extra_js %}{% endblock %}
 </body>

@@ -5,7 +5,12 @@
 مزیت: هیچ درخواست اضافه‌ای به شبکه زده نمی‌شود و رنگ آیکون از CSS ارث می‌برد.
 """
 
+import os
+
 from django import template
+from django.conf import settings
+from django.contrib.staticfiles import finders
+from django.templatetags.static import static
 from django.utils.safestring import mark_safe
 
 from apps.core.jalali import PERSIAN_DIGITS as PERSIAN_TRANSLATION
@@ -124,3 +129,27 @@ def toman(value) -> str:
     except (TypeError, ValueError):
         return to_persian_digits(value)
     return f"{number:,}".translate(PERSIAN_TRANSLATION)
+
+
+@register.simple_tag
+def static_v(path: str) -> str:
+    """
+    آدرس فایل استاتیک به همراه «شماره نسخه» بر اساس زمان آخرین تغییر فایل.
+
+    چرا لازم است؟
+    مرورگر فایل CSS و JS را کش می‌کند. در محیط توسعه این باعث می‌شود بعد از
+    تغییر استایل، مرورگر همچنان نسخه قدیمی را نشان بدهد و فکر کنید تغییر
+    اعمال نشده است. با افزودن ?v=<زمان تغییر> هر بار که فایل عوض شود،
+    آدرس هم عوض می‌شود و مرورگر مجبور به دانلود نسخه جدید می‌شود.
+
+    در Production لازم نیست: نام فایل‌ها توسط WhiteNoise هش‌دار می‌شود.
+    """
+    url = static(path)
+
+    if not settings.DEBUG:
+        return url
+
+    absolute_path = finders.find(path)
+    if absolute_path:
+        url = f"{url}?v={int(os.path.getmtime(absolute_path))}"
+    return url

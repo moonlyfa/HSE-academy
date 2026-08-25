@@ -177,6 +177,8 @@ class Command(BaseCommand):
         site.email = "info@hsetech.ir"
         site.address = "تهران، خیابان ولیعصر، پلاک ۱۰۰، واحد ۵"
         site.working_hours = "شنبه تا چهارشنبه، ۹ تا ۱۷"
+        site.hero_slider_interval_seconds = 6
+        site.hero_slider_transition_ms = 1400
         site.about_short = (
             "آکادمی تخصصی آموزش ایمنی، بهداشت و محیط زیست با هدف ارتقای "
             "سطح دانش کارشناسان HSE در صنایع کشور."

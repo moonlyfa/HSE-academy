@@ -288,3 +288,34 @@ class HeroSliderTests(TestCase):
         self.assertIn('alt="اسلاید 1"', content)
         self.assertNotIn("<h1>اسلاید 1</h1>", content)
         self.assertNotIn("<h2>اسلاید 1</h2>", content)
+
+
+class TemplateSyntaxGuardTests(TestCase):
+    """
+    نگهبان خودکار قالب‌ها.
+
+    در جنگو، {# ... #} فقط کامنت تک‌خطی است. اگر کامنتی به خط بعد برود،
+    دیگر کامنت نیست و متنش عیناً روی صفحه سایت چاپ می‌شود.
+    این تست همه قالب‌ها را بررسی می‌کند تا این اشتباه دوباره تکرار نشود.
+    """
+
+    def test_no_multiline_django_comments(self):
+        import pathlib
+
+        from django.conf import settings
+
+        broken = []
+        for template_dir in settings.TEMPLATES[0]["DIRS"]:
+            for path in pathlib.Path(template_dir).rglob("*.html"):
+                for number, line in enumerate(
+                    path.read_text(encoding="utf-8").splitlines(), start=1
+                ):
+                    if line.count("{#") != line.count("#}"):
+                        broken.append(f"{path.name}:{number} → {line.strip()[:70]}")
+
+        self.assertEqual(
+            broken,
+            [],
+            "کامنت چندخطی پیدا شد. در جنگو {# #} فقط تک‌خطی است و متن "
+            "کامنت چندخطی روی صفحه سایت چاپ می‌شود.\n" + "\n".join(broken),
+        )

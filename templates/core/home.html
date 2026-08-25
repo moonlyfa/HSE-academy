@@ -24,8 +24,7 @@
                  {% if not forloop.first %}aria-hidden="true"{% endif %}>
 
                 {% if slide.link_url %}<a href="{{ slide.link_url }}">{% endif %}
-                    {# فقط دو اسلاید اول فوراً دانلود می‌شوند؛ بقیه درست قبل از
-                       نمایش بارگذاری می‌شوند تا صفحه اصلی روی اینترنت کند سنگین نشود. #}
+                    {# دو اسلاید اول فوراً دانلود می‌شوند و بقیه هنگام نمایش #}
                     <picture>
                         {% if slide.image_mobile %}
                             <source media="(max-width: 767px)"
