@@ -1,0 +1,21 @@
+{# آکاردئون سؤالات متداول — در صفحه اصلی و صفحه سؤالات متداول استفاده می‌شود #}
+<div class="accordion" id="faqAccordion">
+    {% for faq in faqs %}
+        <div class="faq-item accordion-item border-0">
+            <h3 class="accordion-header" id="faqHeading{{ faq.pk }}">
+                <button class="accordion-button collapsed" type="button"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#faqBody{{ faq.pk }}"
+                        aria-expanded="false"
+                        aria-controls="faqBody{{ faq.pk }}">
+                    {{ faq.question }}
+                </button>
+            </h3>
+            <div id="faqBody{{ faq.pk }}" class="accordion-collapse collapse"
+                 aria-labelledby="faqHeading{{ faq.pk }}"
+                 data-bs-parent="#faqAccordion">
+                <div class="accordion-body">{{ faq.answer|linebreaks }}</div>
+            </div>
+        </div>
+    {% endfor %}
+</div>

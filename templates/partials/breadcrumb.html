@@ -1,0 +1,12 @@
+{# مسیر راهنما — برای سئو و جهت‌یابی کاربر در صفحات داخلی #}
+<nav class="breadcrumb-bar" aria-label="مسیر صفحه">
+    <div class="container">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'core:home' %}">صفحه اصلی</a></li>
+            {% for item in items %}
+                <li class="breadcrumb-item"><a href="{{ item.url }}">{{ item.label }}</a></li>
+            {% endfor %}
+            <li class="breadcrumb-item active" aria-current="page">{{ current }}</li>
+        </ol>
+    </div>
+</nav>

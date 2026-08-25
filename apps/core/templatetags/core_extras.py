@@ -8,6 +8,9 @@
 from django import template
 from django.utils.safestring import mark_safe
 
+from apps.core.jalali import PERSIAN_DIGITS as PERSIAN_TRANSLATION
+from apps.core.jalali import to_jalali_string, to_persian_digits
+
 register = template.Library()
 
 # هر آیکون فقط مسیر داخلی SVG است؛ قاب بیرونی را در تگ می‌سازیم.
@@ -41,6 +44,11 @@ _ICON_PATHS = {
         '<path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v18H6.5A2.5 2.5 0 0 0 4 22.5Z"/>'
         '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>'
     ),
+    "close": '<path d="M6 6l12 12"/><path d="M18 6 6 18"/>',
+    "chevron-right": '<path d="m9 6 6 6-6 6"/>',
+    "chevron-left": '<path d="m15 6-6 6 6 6"/>',
+    "filter": '<path d="M3 5h18"/><path d="M6 12h12"/><path d="M10 19h4"/>',
+    "star": '<path d="m12 3 2.6 5.6 6 .8-4.4 4.2 1.1 6L12 16.8 6.7 19.6l1.1-6L3.4 9.4l6-.8Z"/>',
     "search": '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
     "check": '<path d="m4 12 5 5L20 6"/>',
     "arrow-left": '<path d="M19 12H5"/><path d="m11 6-6 6 6 6"/>',
@@ -76,3 +84,43 @@ def icon(name: str, size: int = 24, css_class: str = "") -> str:
         f'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" '
         f'focusable="false">{path}</svg>'
     )
+
+
+@register.filter(name="jalali")
+def jalali(value, with_weekday: bool = False) -> str:
+    """
+    تبدیل تاریخ میلادی به شمسی در قالب.
+
+    نمونه: {{ course.start_date|jalali }}  →  ۱۱ شهریور ۱۴۰۵
+    """
+    if value is None:
+        return ""
+    return to_jalali_string(value, with_weekday=with_weekday)
+
+
+@register.filter(name="fa_digits")
+def fa_digits(value) -> str:
+    """
+    تبدیل اعداد انگلیسی به فارسی.
+
+    نمونه: {{ course.duration_hours|fa_digits }}  →  ۴۰
+    """
+    return to_persian_digits(value)
+
+
+@register.filter(name="toman")
+def toman(value) -> str:
+    """
+    نمایش قیمت با جداکننده هزارگان و ارقام فارسی.
+
+    چرا از intcomma استفاده نمی‌کنیم؟
+    فیلتر intcomma به تنظیمات محلی (locale) وابسته است و در locale فارسی
+    مقدار NUMBER_GROUPING برابر صفر است؛ یعنی جداکننده هزارگان اصلاً اعمال
+    نمی‌شود و قیمت به شکل «۹۵۰۰۰۰» نمایش داده می‌شود که خوانا نیست.
+    این فیلتر گروه‌بندی را خودش انجام می‌دهد تا مستقل از locale درست کار کند.
+    """
+    try:
+        number = int(value)
+    except (TypeError, ValueError):
+        return to_persian_digits(value)
+    return f"{number:,}".translate(PERSIAN_TRANSLATION)

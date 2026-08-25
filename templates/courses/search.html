@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% load core_extras %}
+
+{% block title %}جست‌وجو{% if query %}: {{ query }}{% endif %} — {{ site.site_name }}{% endblock %}
+{% block extra_head %}<meta name="robots" content="noindex">{% endblock %}
+
+{% block breadcrumb %}
+    {% include "partials/breadcrumb.html" with current="نتایج جست‌وجو" %}
+{% endblock %}
+
+{% block content %}
+<section class="section pt-4">
+    <div class="container">
+        <div class="section-head">
+            <h1 class="h2">نتایج جست‌وجو</h1>
+            {% if query %}
+                <p class="m-0">{{ total_count }} نتیجه برای «{{ query }}»</p>
+            {% else %}
+                <p class="m-0">عبارتی برای جست‌وجو وارد کنید.</p>
+            {% endif %}
+        </div>
+
+        <form action="{% url 'core:search' %}" method="get" class="search-page-form mb-4">
+            <label for="searchPageInput" class="visually-hidden">عبارت جست‌وجو</label>
+            <input type="search" id="searchPageInput" name="q" class="form-control"
+                   value="{{ query }}" placeholder="نام دوره یا موضوع مورد نظر…">
+            <button type="submit" class="btn btn-primary">جست‌وجو</button>
+        </form>
+
+        {% if courses %}
+            <div class="row g-4">
+                {% for course in courses %}
+                    <div class="col-lg-4 col-md-6">
+                        {% include "courses/partials/course_card.html" with course=course %}
+                    </div>
+                {% endfor %}
+            </div>
+            {% include "partials/pagination.html" with page_obj=page_obj querystring=querystring %}
+        {% elif query %}
+            <div class="empty-state">
+                {% icon "search" size=40 %}
+                <h2 class="h5 mt-3">نتیجه‌ای پیدا نشد</h2>
+                <p>عبارت دیگری امتحان کنید یا فهرست کامل دوره‌ها را ببینید.</p>
+                <a href="{% url 'courses:list' %}" class="btn btn-primary mt-2">همه دوره‌ها</a>
+            </div>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

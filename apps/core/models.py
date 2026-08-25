@@ -54,7 +54,7 @@ class SiteSetting(models.Model):
     """
 
     # --- هویت سایت ---
-    site_name = models.CharField("نام سایت", max_length=100, default="آکادمی HSE")
+    site_name = models.CharField("نام سایت", max_length=100, default="HSE Tech")
     site_tagline = models.CharField(
         "شعار سایت",
         max_length=200,
@@ -63,22 +63,6 @@ class SiteSetting(models.Model):
     )
     logo = models.ImageField("لوگو", upload_to="site/", blank=True, null=True)
     favicon = models.ImageField("آیکون مرورگر", upload_to="site/", blank=True, null=True)
-
-    # --- بخش Hero صفحه اصلی ---
-    hero_title = models.CharField(
-        "عنوان اصلی صفحه نخست",
-        max_length=200,
-        default="آموزش تخصصی HSE با گواهی معتبر و قابل استعلام",
-    )
-    hero_subtitle = models.TextField(
-        "زیرعنوان صفحه نخست",
-        blank=True,
-        default=(
-            "دوره‌های کاربردی ایمنی، بهداشت حرفه‌ای و محیط زیست، "
-            "زیر نظر مدرسان صنعت و متناسب با نیاز واقعی سازمان‌ها."
-        ),
-    )
-    hero_image = models.ImageField("تصویر صفحه نخست", upload_to="site/", blank=True, null=True)
 
     # --- اطلاعات تماس ---
     phone = models.CharField("تلفن تماس", max_length=30, blank=True, default="021-00000000")
@@ -108,12 +92,11 @@ class SiteSetting(models.Model):
 
     # --- کنترل نمایش بخش‌های صفحه اصلی ---
     # ادمین می‌تواند هر بخش را بدون تغییر کد خاموش کند.
+    show_hero_slider = models.BooleanField("نمایش اسلایدر بالای صفحه", default=True)
+    show_calendar_section = models.BooleanField("نمایش تقویم دوره‌های آموزشی", default=True)
     show_categories_section = models.BooleanField("نمایش بخش دسته‌بندی‌ها", default=True)
-    show_banner_section = models.BooleanField("نمایش بنر ماهانه", default=True)
     show_featured_courses = models.BooleanField("نمایش دوره‌های منتخب", default=True)
-    show_upcoming_courses = models.BooleanField("نمایش دوره‌های پیش‌رو", default=True)
     show_features_section = models.BooleanField("نمایش بخش چرا ما", default=True)
-    show_certificate_cta = models.BooleanField("نمایش استعلام گواهی", default=True)
     show_instructors_section = models.BooleanField("نمایش مدرسان", default=True)
     show_testimonials_section = models.BooleanField("نمایش نظرات", default=True)
     show_partners_section = models.BooleanField("نمایش همکاران", default=True)
@@ -122,6 +105,14 @@ class SiteSetting(models.Model):
         "نمایش مقالات",
         default=False,
         help_text="بخش مقالات در نسخه اول منتشر نمی‌شود.",
+    )
+
+    # --- تعداد آیتم‌های صفحه اصلی ---
+    homepage_calendar_count = models.PositiveIntegerField(
+        "تعداد ردیف تقویم آموزشی در صفحه اصلی", default=6
+    )
+    homepage_category_count = models.PositiveIntegerField(
+        "تعداد دسته‌بندی در صفحه اصلی", default=8
     )
 
     # --- سئو ---
@@ -153,37 +144,38 @@ class SiteSetting(models.Model):
         return setting
 
 
-class Banner(BaseContentBlock):
+class HeroSlide(BaseContentBlock):
     """
-    بنر بزرگ صفحه اصلی — مثلاً «دوره ویژه این ماه».
+    یک اسلاید از بنر بزرگ بالای صفحه اصلی.
 
-    ادمین می‌تواند چند بنر بسازد و با فیلدهای تاریخ، فقط بازه مشخصی
-    نمایش داده شود.
+    طبق خواسته کارفرما این بخش فقط تصویر است و هیچ متنی روی آن نوشته نمی‌شود.
+    فیلد title فقط برای دو کار استفاده می‌شود:
+      ۱. شناسایی اسلاید در پنل مدیریت
+      ۲. متن جایگزین تصویر (alt) — که برای سئو و دسترس‌پذیری الزامی است
     """
 
-    label = models.CharField(
-        "برچسب کوچک",
-        max_length=50,
-        blank=True,
-        help_text="متن کوتاه بالای عنوان، مثل «دوره ویژه این ماه»",
+    title = models.CharField(
+        "عنوان (فقط برای پنل و متن جایگزین تصویر)",
+        max_length=150,
+        help_text="روی تصویر نمایش داده نمی‌شود.",
     )
-    title = models.CharField("عنوان بنر", max_length=150)
-    subtitle = models.TextField("توضیح کوتاه", blank=True)
-    image = models.ImageField("تصویر بنر", upload_to="banners/", blank=True, null=True)
-
-    cta_text = models.CharField("متن دکمه", max_length=50, blank=True, default="مشاهده دوره")
-    cta_url = models.CharField(
-        "لینک دکمه",
+    image = models.ImageField(
+        "تصویر اسلاید",
+        upload_to="slides/",
+        help_text="اندازه پیشنهادی: ۱۹۲۰×۶۵۰ پیکسل.",
+    )
+    image_mobile = models.ImageField(
+        "تصویر نسخه موبایل",
+        upload_to="slides/",
+        blank=True,
+        null=True,
+        help_text="اختیاری. اگر خالی باشد، همان تصویر اصلی استفاده می‌شود.",
+    )
+    link_url = models.CharField(
+        "لینک اسلاید",
         max_length=300,
         blank=True,
-        help_text="مثلاً /courses/hse-officer/",
-    )
-
-    date_text = models.CharField(
-        "متن تاریخ",
-        max_length=100,
-        blank=True,
-        help_text="مثلاً «شروع: ۱۵ مهر ۱۴۰۴»",
+        help_text="با کلیک روی تصویر کاربر به این آدرس می‌رود. خالی یعنی بدون لینک.",
     )
 
     starts_at = models.DateTimeField(
@@ -200,15 +192,15 @@ class Banner(BaseContentBlock):
     )
 
     class Meta(BaseContentBlock.Meta):
-        verbose_name = "بنر"
-        verbose_name_plural = "بنرها"
+        verbose_name = "اسلاید صفحه اصلی"
+        verbose_name_plural = "اسلایدهای صفحه اصلی"
 
     def __str__(self) -> str:
         return self.title
 
     @property
     def is_visible_now(self) -> bool:
-        """آیا بنر با توجه به بازه تاریخ، همین الان باید نمایش داده شود؟"""
+        """آیا اسلاید با توجه به بازه تاریخ، همین الان باید نمایش داده شود؟"""
         if not self.is_active:
             return False
         now = timezone.now()

@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% load core_extras %}
+
+{% block title %}تماس با ما — {{ site.site_name }}{% endblock %}
+{% block meta_description %}راه‌های ارتباط با {{ site.site_name }}: تلفن، ایمیل، آدرس و فرم ارسال پیام.{% endblock %}
+
+{% block breadcrumb %}
+    {% include "partials/breadcrumb.html" with current="تماس با ما" %}
+{% endblock %}
+
+{% block content %}
+<section class="section pt-4">
+    <div class="container">
+        <div class="section-head">
+            <h1 class="h2">تماس با ما</h1>
+            <p class="m-0">سؤال یا درخواستی دارید؟ پیام بگذارید تا همکاران ما پاسخ دهند.</p>
+        </div>
+
+        <div class="row g-4">
+            <div class="col-lg-7">
+                <div class="verify-box">
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+
+                        {% if form.non_field_errors %}
+                            <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+                        {% endif %}
+
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="{{ form.full_name.id_for_label }}" class="form-label">
+                                    {{ form.full_name.label }}
+                                </label>
+                                {{ form.full_name }}
+                                {% for error in form.full_name.errors %}
+                                    <div class="form-error">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+
+                            <div class="col-md-6">
+                                <label for="{{ form.mobile.id_for_label }}" class="form-label">
+                                    {{ form.mobile.label }}
+                                </label>
+                                {{ form.mobile }}
+                                {% for error in form.mobile.errors %}
+                                    <div class="form-error">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+
+                            <div class="col-md-6">
+                                <label for="{{ form.email.id_for_label }}" class="form-label">
+                                    {{ form.email.label }}
+                                </label>
+                                {{ form.email }}
+                                {% for error in form.email.errors %}
+                                    <div class="form-error">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+
+                            <div class="col-md-6">
+                                <label for="{{ form.subject.id_for_label }}" class="form-label">
+                                    {{ form.subject.label }}
+                                </label>
+                                {{ form.subject }}
+                                {% for error in form.subject.errors %}
+                                    <div class="form-error">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+
+                            <div class="col-12">
+                                <label for="{{ form.message.id_for_label }}" class="form-label">
+                                    {{ form.message.label }}
+                                </label>
+                                {{ form.message }}
+                                {% for error in form.message.errors %}
+                                    <div class="form-error">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-primary">ارسال پیام</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="col-lg-5">
+                <div class="verify-box h-100">
+                    <h2 class="h5 mb-3">اطلاعات تماس</h2>
+
+                    {% if site.phone %}
+                        <div class="footer-contact-item text-dark">
+                            {% icon "phone" size=18 %}<span class="ltr">{{ site.phone }}</span>
+                        </div>
+                    {% endif %}
+                    {% if site.email %}
+                        <div class="footer-contact-item text-dark">
+                            {% icon "mail" size=18 %}<span class="ltr">{{ site.email }}</span>
+                        </div>
+                    {% endif %}
+                    {% if site.address %}
+                        <div class="footer-contact-item text-dark">
+                            {% icon "location" size=18 %}<span>{{ site.address }}</span>
+                        </div>
+                    {% endif %}
+                    {% if site.working_hours %}
+                        <div class="footer-contact-item text-dark">
+                            {% icon "clock" size=18 %}<span>{{ site.working_hours }}</span>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

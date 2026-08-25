@@ -16,8 +16,11 @@
     <meta property="og:description" content="{% block og_description %}{{ site.site_tagline }}{% endblock %}">
     {% block og_image %}{% endblock %}
 
+    {# آیکون مرورگر: اگر ادمین آپلود نکرده باشد، از نسخه پیش‌فرض پروژه استفاده می‌شود #}
     {% if site.favicon %}
         <link rel="icon" href="{{ site.favicon.url }}">
+    {% else %}
+        <link rel="icon" href="{% static 'img/favicon.png' %}">
     {% endif %}
 
     {# --- همه فایل‌ها محلی هستند؛ هیچ CDN خارجی در مسیر بحرانی سایت نیست --- #}

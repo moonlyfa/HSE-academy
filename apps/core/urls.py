@@ -1,6 +1,8 @@
-"""آدرس‌های اپلیکیشن core."""
+"""آدرس‌های صفحات عمومی سایت."""
 
 from django.urls import path
+
+from apps.courses import views as course_views
 
 from . import views
 
@@ -8,5 +10,17 @@ app_name = "core"
 
 urlpatterns = [
     path("", views.home, name="home"),
+    # صفحات ثابت
+    path("about/", views.about, name="about"),
+    path("contact/", views.contact, name="contact"),
+    path("faq/", views.faq, name="faq"),
+    path("privacy/", views.privacy, name="privacy"),
+    path("terms/", views.terms, name="terms"),
+    # استعلام گواهی — صفحه مستقل، نه بخشی از صفحه اصلی
+    path("certificate/verify/", views.certificate_verify, name="certificate_verify"),
+    # تقویم آموزشی و جست‌وجو در اپ دوره‌ها پیاده شده‌اند
+    path("calendar/", course_views.training_calendar, name="calendar"),
+    path("search/", course_views.search, name="search"),
+    # بررسی سلامت سرویس
     path("health/", views.health, name="health"),
 ]

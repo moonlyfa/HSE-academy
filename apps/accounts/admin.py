@@ -9,7 +9,7 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.forms import AdminPasswordChangeForm
 
-from .models import User
+from .models import InstructorProfile, User
 
 
 @admin.register(User)
@@ -85,3 +85,24 @@ class UserAdmin(BaseUserAdmin):
         self.message_user(request, f"{updated} کاربر تأیید شد.")
 
     actions = ("mark_mobile_verified",)
+
+
+@admin.register(InstructorProfile)
+class InstructorProfileAdmin(admin.ModelAdmin):
+    list_display = ("display_name", "specialty", "course_count", "show_on_homepage", "is_active", "order")
+    list_editable = ("show_on_homepage", "is_active", "order")
+    list_filter = ("is_active", "show_on_homepage")
+    search_fields = ("display_name", "specialty", "bio")
+    ordering = ("order", "display_name")
+    readonly_fields = ("created_at", "updated_at")
+
+    fieldsets = (
+        ("اطلاعات مدرس", {"fields": ("display_name", "specialty", "bio", "avatar")}),
+        ("حساب کاربری", {"fields": ("user", "linkedin_url")}),
+        ("نمایش", {"fields": ("show_on_homepage", "is_active", "order")}),
+        ("تاریخ‌ها", {"fields": ("created_at", "updated_at")}),
+    )
+
+    @admin.display(description="تعداد دوره")
+    def course_count(self, obj: "InstructorProfile") -> int:
+        return obj.published_course_count

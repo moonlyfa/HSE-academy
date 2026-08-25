@@ -1,0 +1,54 @@
+{% load core_extras humanize %}
+{# تقویم آموزشی — روی دسکتاپ جدول، روی موبایل کارت #}
+<div class="calendar-table">
+    <div class="calendar-table__head" role="row" aria-hidden="true">
+        <span>نام دوره</span>
+        <span>تاریخ شروع</span>
+        <span>مدت</span>
+        <span>شیوه برگزاری</span>
+        <span>هزینه</span>
+        <span></span>
+    </div>
+
+    {% for course in courses %}
+        <div class="calendar-table__row">
+            <div class="calendar-table__cell" data-label="نام دوره">
+                <a href="{{ course.get_absolute_url }}" class="calendar-table__title">{{ course.title }}</a>
+                <span class="calendar-table__category">{{ course.category.name }}</span>
+            </div>
+
+            <div class="calendar-table__cell" data-label="تاریخ شروع">
+                {% if course.start_date %}
+                    {{ course.start_date|jalali }}
+                {% else %}
+                    <span class="text-muted">در حال ثبت‌نام</span>
+                {% endif %}
+            </div>
+
+            <div class="calendar-table__cell" data-label="مدت">
+                {% if course.duration_hours %}{{ course.duration_hours|fa_digits }} ساعت{% else %}—{% endif %}
+            </div>
+
+            <div class="calendar-table__cell" data-label="شیوه برگزاری">
+                <span class="chip chip-sm">{{ course.get_course_type_display }}</span>
+            </div>
+
+            <div class="calendar-table__cell" data-label="هزینه">
+                {% if course.is_free %}
+                    <strong class="text-success">رایگان</strong>
+                {% else %}
+                    <strong>{{ course.final_price|toman }}</strong>
+                    <span class="course-card__currency">تومان</span>
+                {% endif %}
+            </div>
+
+            <div class="calendar-table__cell calendar-table__cell--action">
+                {% if course.registration_open %}
+                    <a href="{{ course.get_absolute_url }}" class="btn btn-accent btn-sm">ثبت‌نام</a>
+                {% else %}
+                    <span class="chip chip-sm">ثبت‌نام بسته</span>
+                {% endif %}
+            </div>
+        </div>
+    {% endfor %}
+</div>

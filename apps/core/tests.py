@@ -8,7 +8,7 @@
 from django.test import TestCase
 from django.utils import timezone
 
-from apps.core.models import FAQ, Banner, Feature, Partner, SiteSetting, Testimonial
+from apps.core.models import FAQ, Feature, HeroSlide, Partner, SiteSetting, Testimonial
 
 
 class HealthAndHomeTests(TestCase):
@@ -86,42 +86,42 @@ class SectionToggleTests(TestCase):
         self.assertNotContains(response, "مزیت-یکتای-تستی")
 
 
-class BannerVisibilityTests(TestCase):
-    """بنر فقط باید در بازه تاریخی تعیین‌شده نمایش داده شود."""
+class HeroSlideVisibilityTests(TestCase):
+    """اسلاید فقط باید در بازه تاریخی تعیین‌شده نمایش داده شود."""
 
     def setUp(self):
         self.now = timezone.now()
 
     def _make_banner(self, **kwargs):
-        return Banner.objects.create(title="بنر آزمایشی", **kwargs)
+        return HeroSlide.objects.create(title="اسلاید آزمایشی", image="slides/test.jpg", **kwargs)
 
-    def test_banner_without_dates_is_visible(self):
+    def test_slide_without_dates_is_visible(self):
         banner = self._make_banner()
         self.assertTrue(banner.is_visible_now)
 
-    def test_banner_inside_date_range_is_visible(self):
+    def test_slide_inside_date_range_is_visible(self):
         banner = self._make_banner(
             starts_at=self.now - timezone.timedelta(days=1),
             ends_at=self.now + timezone.timedelta(days=1),
         )
         self.assertTrue(banner.is_visible_now)
 
-    def test_future_banner_is_not_visible(self):
+    def test_future_slide_is_not_visible(self):
         banner = self._make_banner(starts_at=self.now + timezone.timedelta(days=3))
         self.assertFalse(banner.is_visible_now)
 
-    def test_expired_banner_is_not_visible(self):
+    def test_expired_slide_is_not_visible(self):
         banner = self._make_banner(ends_at=self.now - timezone.timedelta(days=1))
         self.assertFalse(banner.is_visible_now)
 
-    def test_inactive_banner_is_not_visible(self):
+    def test_inactive_slide_is_not_visible(self):
         banner = self._make_banner(is_active=False)
         self.assertFalse(banner.is_visible_now)
 
-    def test_expired_banner_is_not_rendered_on_homepage(self):
+    def test_expired_slide_is_not_rendered_on_homepage(self):
         self._make_banner(ends_at=self.now - timezone.timedelta(days=1))
         response = self.client.get("/")
-        self.assertNotContains(response, "بنر آزمایشی")
+        self.assertNotContains(response, "اسلاید آزمایشی")
 
 
 class OrderingTests(TestCase):
@@ -178,3 +178,60 @@ class TemplateRenderingTests(TestCase):
         self.assertNotIn("#}", content)
         # خط‌های تزئینی کامنت نباید در خروجی باشند
         self.assertNotIn("==================", content)
+
+
+class JalaliDateTests(TestCase):
+    """تبدیل تاریخ میلادی به شمسی باید دقیق باشد."""
+
+    def test_known_conversions(self):
+        from apps.core.jalali import gregorian_to_jalali
+
+        cases = [
+            ((2026, 3, 21), (1405, 1, 1)),    # نوروز ۱۴۰۵
+            ((2025, 3, 21), (1404, 1, 1)),    # نوروز ۱۴۰۴
+            ((2024, 3, 20), (1403, 1, 1)),    # نوروز ۱۴۰۳ (سال کبیسه میلادی)
+            ((2000, 1, 1), (1378, 10, 11)),
+            ((1979, 2, 11), (1357, 11, 22)),
+            ((2021, 12, 31), (1400, 10, 10)),
+        ]
+        for gregorian, expected in cases:
+            with self.subTest(date=gregorian):
+                self.assertEqual(gregorian_to_jalali(*gregorian), expected)
+
+    def test_string_output_is_persian(self):
+        from datetime import date
+
+        from apps.core.jalali import to_jalali_string
+
+        self.assertEqual(to_jalali_string(date(2026, 9, 2)), "۱۱ شهریور ۱۴۰۵")
+
+    def test_none_returns_empty_string(self):
+        from apps.core.jalali import to_jalali_string
+
+        self.assertEqual(to_jalali_string(None), "")
+
+
+class PriceFormattingTests(TestCase):
+    """
+    تست رگرسیون.
+
+    فیلتر intcomma در locale فارسی جداکننده هزارگان را حذف می‌کند
+    (NUMBER_GROUPING صفر است) و قیمت به شکل «۹۵۰۰۰۰» نمایش داده می‌شود.
+    فیلتر toman باید مستقل از locale درست کار کند.
+    """
+
+    def _render(self, value):
+        from django.template import Context, Template
+
+        return Template("{% load core_extras %}{{ v|toman }}").render(Context({"v": value}))
+
+    def test_thousand_separator_is_applied(self):
+        self.assertEqual(self._render(950000), "۹۵۰,۰۰۰")
+        self.assertEqual(self._render(3900000), "۳,۹۰۰,۰۰۰")
+
+    def test_zero_and_small_numbers(self):
+        self.assertEqual(self._render(0), "۰")
+        self.assertEqual(self._render(500), "۵۰۰")
+
+    def test_non_numeric_value_does_not_crash(self):
+        self.assertEqual(self._render("رایگان"), "رایگان")

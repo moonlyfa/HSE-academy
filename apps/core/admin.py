@@ -9,9 +9,9 @@ from django.utils.html import format_html
 
 from .models import (
     FAQ,
-    Banner,
     ContactMessage,
     Feature,
+    HeroSlide,
     Partner,
     SiteSetting,
     Testimonial,
@@ -34,10 +34,6 @@ class SiteSettingAdmin(admin.ModelAdmin):
     fieldsets = (
         ("هویت سایت", {"fields": ("site_name", "site_tagline", "logo", "favicon")}),
         (
-            "صفحه نخست — بخش بالایی",
-            {"fields": ("hero_title", "hero_subtitle", "hero_image")},
-        ),
-        (
             "اطلاعات تماس",
             {"fields": ("phone", "mobile", "email", "address", "working_hours")},
         ),
@@ -54,17 +50,18 @@ class SiteSettingAdmin(admin.ModelAdmin):
             {
                 "description": "با خاموش کردن هر گزینه، آن بخش از صفحه اصلی حذف می‌شود.",
                 "fields": (
+                    "show_hero_slider",
+                    "show_calendar_section",
                     "show_categories_section",
-                    "show_banner_section",
                     "show_featured_courses",
-                    "show_upcoming_courses",
                     "show_features_section",
-                    "show_certificate_cta",
                     "show_instructors_section",
                     "show_testimonials_section",
                     "show_partners_section",
                     "show_faq_section",
                     "show_articles_section",
+                    "homepage_calendar_count",
+                    "homepage_category_count",
                 ),
             },
         ),
@@ -80,21 +77,26 @@ class SiteSettingAdmin(admin.ModelAdmin):
         return False
 
 
-@admin.register(Banner)
-class BannerAdmin(ActiveOrderAdminMixin, admin.ModelAdmin):
-    list_display = ("title", "label", "preview", "visible_now", "is_active", "order")
-    search_fields = ("title", "label", "subtitle")
+@admin.register(HeroSlide)
+class HeroSlideAdmin(ActiveOrderAdminMixin, admin.ModelAdmin):
+    list_display = ("title", "preview", "visible_now", "is_active", "order")
+    search_fields = ("title",)
     list_filter = ("is_active", "starts_at", "ends_at")
     readonly_fields = ("created_at", "updated_at", "preview")
 
     fieldsets = (
-        ("محتوا", {"fields": ("label", "title", "subtitle", "date_text")}),
-        ("تصویر", {"fields": ("image", "preview")}),
-        ("دکمه", {"fields": ("cta_text", "cta_url")}),
+        (
+            "تصویر اسلاید",
+            {
+                "description": "روی اسلاید هیچ متنی نوشته نمی‌شود؛ کل پیام باید داخل خود تصویر باشد.",
+                "fields": ("title", "image", "preview", "image_mobile"),
+            },
+        ),
+        ("لینک", {"fields": ("link_url",)}),
         (
             "زمان‌بندی نمایش",
             {
-                "description": "برای بنر ماهانه، تاریخ شروع و پایان را مشخص کنید.",
+                "description": "برای بنر مناسبتی می‌توانید بازه نمایش تعیین کنید.",
                 "fields": ("starts_at", "ends_at"),
             },
         ),
@@ -102,15 +104,15 @@ class BannerAdmin(ActiveOrderAdminMixin, admin.ModelAdmin):
     )
 
     @admin.display(description="پیش‌نمایش")
-    def preview(self, obj: Banner):
+    def preview(self, obj: HeroSlide):
         if obj.image:
             return format_html(
-                '<img src="{}" style="max-height:70px;border-radius:8px;">', obj.image.url
+                '<img src="{}" style="max-height:80px;border-radius:8px;">', obj.image.url
             )
         return "—"
 
     @admin.display(boolean=True, description="الان نمایش داده می‌شود؟")
-    def visible_now(self, obj: Banner) -> bool:
+    def visible_now(self, obj: HeroSlide) -> bool:
         return obj.is_visible_now
 
 
@@ -181,6 +183,6 @@ class ContactMessageAdmin(admin.ModelAdmin):
 
 
 # --- شخصی‌سازی عنوان‌های پنل مدیریت ---
-admin.site.site_header = "پنل مدیریت آکادمی HSE"
-admin.site.site_title = "آکادمی HSE"
+admin.site.site_header = "پنل مدیریت HSE Tech"
+admin.site.site_title = "HSE Tech"
 admin.site.index_title = "مدیریت سایت"

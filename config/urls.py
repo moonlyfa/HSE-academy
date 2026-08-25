@@ -14,6 +14,7 @@ urlpatterns = [
     # آدرس پنل مدیریت از طریق .env قابل تغییر است تا در Production
     # آدرس /admin/ حدس‌زدنی نباشد.
     path(f"{settings.ADMIN_URL}/", admin.site.urls),
+    path("courses/", include("apps.courses.urls")),
     path("", include("apps.core.urls")),
 ]
 

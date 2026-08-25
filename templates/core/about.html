@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% load core_extras %}
+
+{% block title %}درباره ما — {{ site.site_name }}{% endblock %}
+{% block meta_description %}معرفی {{ site.site_name }}، رویکرد آموزشی و حوزه فعالیت در آموزش ایمنی، بهداشت و محیط زیست.{% endblock %}
+
+{% block breadcrumb %}
+    {% include "partials/breadcrumb.html" with current="درباره ما" %}
+{% endblock %}
+
+{% block content %}
+<section class="section pt-4">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-9">
+                <h1 class="h2">درباره {{ site.site_name }}</h1>
+
+                <div class="content-block mt-3">
+                    {% if site.about_full %}
+                        {{ site.about_full|linebreaks }}
+                    {% else %}
+                        <p>{{ site.about_short }}</p>
+                        <p class="text-muted small">
+                            متن کامل این صفحه از پنل مدیریت ← تنظیمات سایت ← «متن کامل درباره ما» قابل ویرایش است.
+                        </p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        {% if features %}
+            <div class="section-head text-center mt-5">
+                <h2>رویکرد آموزشی ما</h2>
+            </div>
+            <div class="row g-4">
+                {% for feature in features %}
+                    <div class="col-lg-3 col-md-6">
+                        <div class="feature-card h-100">
+                            <span class="feature-icon">{% icon feature.icon size=26 %}</span>
+                            <h3 class="h6">{{ feature.title }}</h3>
+                            <p class="small mb-0">{{ feature.description }}</p>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

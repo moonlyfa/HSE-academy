@@ -22,20 +22,45 @@
             <div class="collapse navbar-collapse" id="mainNav">
                 <ul class="navbar-nav site-nav mx-lg-auto mb-2 mb-lg-0">
                     <li class="nav-item">
-                        <a class="nav-link {% if request.resolver_match.url_name == 'home' %}active{% endif %}"
+                        <a class="nav-link {% if nav_active == 'home' %}active{% endif %}"
                            href="{% url 'core:home' %}">صفحه اصلی</a>
                     </li>
-                    <li class="nav-item"><a class="nav-link" href="#courses">دوره‌ها</a></li>
-                    <li class="nav-item"><a class="nav-link" href="#calendar">تقویم آموزشی</a></li>
-                    <li class="nav-item"><a class="nav-link" href="#verify">استعلام گواهی</a></li>
-                    <li class="nav-item"><a class="nav-link" href="#about">درباره ما</a></li>
-                    <li class="nav-item"><a class="nav-link" href="#contact">تماس با ما</a></li>
+                    <li class="nav-item">
+                        {# همین آدرس، مقصد دکمه «همه دسته‌بندی‌ها» در صفحه اصلی هم هست #}
+                        <a class="nav-link {% if nav_active == 'courses' %}active{% endif %}"
+                           href="{% url 'courses:list' %}">دوره‌ها</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if nav_active == 'calendar' %}active{% endif %}"
+                           href="{% url 'core:calendar' %}">تقویم آموزشی</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if nav_active == 'verify' %}active{% endif %}"
+                           href="{% url 'core:certificate_verify' %}">استعلام گواهی</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if nav_active == 'about' %}active{% endif %}"
+                           href="{% url 'core:about' %}">درباره ما</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if nav_active == 'contact' %}active{% endif %}"
+                           href="{% url 'core:contact' %}">تماس با ما</a>
+                    </li>
                     {% if blog_enabled %}
                         <li class="nav-item"><a class="nav-link" href="#articles">مقالات</a></li>
                     {% endif %}
                 </ul>
 
                 <div class="header-actions d-flex align-items-center gap-2">
+                    {# --- دکمه جست‌وجو --- #}
+                    <button class="btn-icon" type="button"
+                            data-search-toggle
+                            aria-expanded="false"
+                            aria-controls="site-search"
+                            aria-label="جست‌وجو در دوره‌ها">
+                        {% icon "search" size=20 %}
+                    </button>
+
                     {% if user.is_authenticated %}
                         <a class="btn btn-outline-brand btn-sm" href="#dashboard">
                             {% icon "users" size=18 %}
@@ -50,4 +75,27 @@
 
         </div>
     </nav>
+
+    {# --- نوار جست‌وجو: پیش‌فرض بسته است و با دکمه بالا باز می‌شود --- #}
+    <div class="search-bar" id="site-search" hidden>
+        <div class="container">
+            <form action="{% url 'core:search' %}" method="get" role="search">
+                <div class="search-bar__inner">
+                    <label for="site-search-input" class="visually-hidden">جست‌وجو در دوره‌ها</label>
+                    {% icon "search" size=20 css_class="search-bar__icon" %}
+                    <input type="search"
+                           id="site-search-input"
+                           name="q"
+                           class="form-control"
+                           placeholder="نام دوره یا موضوع مورد نظر را بنویسید…"
+                           value="{{ request.GET.q|default:'' }}"
+                           autocomplete="off">
+                    <button type="submit" class="btn btn-primary">جست‌وجو</button>
+                    <button type="button" class="btn-icon" data-search-close aria-label="بستن جست‌وجو">
+                        {% icon "close" size=20 %}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 </header>

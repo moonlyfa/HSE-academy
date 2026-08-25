@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% load core_extras %}
+
+{% block title %}استعلام اصالت گواهی — {{ site.site_name }}{% endblock %}
+{% block meta_description %}اصالت گواهی‌های صادرشده {{ site.site_name }} را با وارد کردن کد گواهی بررسی کنید.{% endblock %}
+
+{% block breadcrumb %}
+    {% include "partials/breadcrumb.html" with current="استعلام گواهی" %}
+{% endblock %}
+
+{% block content %}
+<section class="section pt-4">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+
+                <div class="verify-box text-center">
+                    <span class="chip mb-3">{% icon "certificate" size=16 %}<span>اعتبارسنجی</span></span>
+
+                    <h1 class="h2">استعلام اصالت گواهی</h1>
+                    <p class="mb-4">
+                        کد گواهی را وارد کنید تا وضعیت اعتبار آن بررسی شود.
+                        کارفرمایان نیز می‌توانند از همین صفحه اصالت گواهی را تأیید کنند.
+                    </p>
+
+                    <form class="row g-2 justify-content-center" method="get">
+                        <div class="col-md-7">
+                            <label for="certificate-code" class="visually-hidden">کد گواهی</label>
+                            <input type="text"
+                                   class="form-control text-center ltr"
+                                   id="certificate-code"
+                                   name="code"
+                                   data-digits="en"
+                                   value="{{ code }}"
+                                   placeholder="مثال: HSE-1404-00123"
+                                   autocomplete="off">
+                        </div>
+                        <div class="col-md-4 d-grid">
+                            <button type="submit" class="btn btn-primary">
+                                {% icon "search" size=18 %}
+                                <span>استعلام گواهی</span>
+                            </button>
+                        </div>
+                    </form>
+
+                    <p class="small mt-3 mb-0">
+                        کد گواهی روی نسخه چاپی و فایل PDF گواهی درج شده است.
+                    </p>
+                </div>
+
+                {% if searched %}
+                    {# سامانه گواهی در فاز ۱۷ و ۱۸ ساخته می‌شود.
+                       تا آن زمان پیام صادقانه می‌دهیم، نه نتیجه ساختگی. #}
+                    <div class="alert alert-info mt-4" role="alert">
+                        <strong>سامانه استعلام هنوز فعال نشده است.</strong>
+                        <p class="mb-0 mt-2">
+                            صدور گواهی و استعلام آنلاین در مرحله بعدی توسعه سایت راه‌اندازی می‌شود.
+                            تا آن زمان برای بررسی اصالت گواهی با شماره
+                            <span class="ltr">{{ site.phone }}</span> تماس بگیرید.
+                        </p>
+                    </div>
+                {% endif %}
+
+                <div class="row g-3 mt-4">
+                    <div class="col-md-4">
+                        <div class="feature-card h-100">
+                            <span class="feature-icon">{% icon "shield" size=24 %}</span>
+                            <h2 class="h6">کد یکتا</h2>
+                            <p class="small mb-0">هر گواهی کد اختصاصی و غیرقابل تکرار دارد.</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="feature-card h-100">
+                            <span class="feature-icon">{% icon "search" size=24 %}</span>
+                            <h2 class="h6">استعلام عمومی</h2>
+                            <p class="small mb-0">کارفرما بدون نیاز به حساب کاربری می‌تواند بررسی کند.</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="feature-card h-100">
+                            <span class="feature-icon">{% icon "lock" size=24 %}</span>
+                            <h2 class="h6">حریم خصوصی</h2>
+                            <p class="small mb-0">اطلاعات شخصی دارنده گواهی نمایش داده نمی‌شود.</p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

@@ -1,5 +1,5 @@
 /* =========================================================================
-   آکادمی HSE — شیوه‌نامه طراحی (Design System)
+   HSE Tech — شیوه‌نامه طراحی (Design System)
    -------------------------------------------------------------------------
    ترتیب فایل:
      ۱. فونت محلی
@@ -458,68 +458,479 @@ img { max-width: 100%; height: auto; }
     color: var(--color-text-muted);
 }
 
-/* --- Hero --- */
-.hero {
-    background:
-        radial-gradient(ellipse at 20% 0%, rgba(29, 90, 125, 0.35), transparent 55%),
-        linear-gradient(135deg, var(--color-primary-dark), var(--color-secondary));
-    color: var(--color-white);
-    padding-block: var(--space-3xl);
+/* --- دکمه آیکونی (جست‌وجو، بستن) --- */
+.btn-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: var(--radius-md);
+    border: 1.5px solid var(--color-border);
+    background: var(--color-surface);
+    color: var(--color-text);
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    transition: background-color var(--transition-fast), color var(--transition-fast),
+                border-color var(--transition-fast);
+}
+
+.btn-icon:hover {
+    background: var(--color-primary-soft);
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+}
+
+/* --- نوار جست‌وجوی هدر --- */
+.search-bar {
+    background: var(--color-surface);
+    border-top: 1px solid var(--color-border);
+    border-bottom: 1px solid var(--color-border);
+    padding-block: var(--space-md);
+    animation: search-slide var(--transition-base);
+}
+
+@keyframes search-slide {
+    from { opacity: 0; transform: translateY(-8px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.search-bar__inner {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
     position: relative;
+}
+
+.search-bar__icon {
+    position: absolute;
+    inset-inline-start: var(--space-md);
+    color: var(--color-text-light);
+    pointer-events: none;
+}
+
+.search-bar .form-control {
+    padding-inline-start: 3rem;
+    border-radius: var(--radius-md);
+    border: 1.5px solid var(--color-border-strong);
+    font-family: var(--font-family-base);
+}
+
+.search-bar .form-control:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 4px var(--color-primary-soft);
+}
+
+.search-page-form {
+    display: flex;
+    gap: var(--space-sm);
+    max-width: 640px;
+}
+
+.search-page-form .form-control {
+    border-radius: var(--radius-md);
+    border: 1.5px solid var(--color-border-strong);
+    padding: 0.7rem 1rem;
+}
+
+/* =========================================================================
+   اسلایدر تصویری صفحه اصلی — فقط تصویر، بدون متن
+   ========================================================================= */
+.hero-slider {
+    position: relative;
+    background: var(--color-surface-alt);
     overflow: hidden;
 }
 
-.hero h1 { color: var(--color-white); margin-bottom: var(--space-md); }
-
-.hero p {
-    color: rgba(255, 255, 255, 0.85);
-    font-size: 1.08rem;
-    max-width: 560px;
+.hero-slider__track {
+    position: relative;
+    /* نسبت تصویر ثابت است تا هنگام بارگذاری، صفحه نپرد (جلوگیری از Layout Shift) */
+    aspect-ratio: 1920 / 650;
+    width: 100%;
 }
 
-.hero-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-md);
-    margin-top: var(--space-xl);
+.hero-slider__slide {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity var(--transition-slow), visibility var(--transition-slow);
 }
 
-.hero-stats {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-xl);
-    margin-top: var(--space-2xl);
-    padding-top: var(--space-lg);
-    border-top: 1px solid rgba(255, 255, 255, 0.15);
+.hero-slider__slide.is-active {
+    opacity: 1;
+    visibility: visible;
 }
 
-.hero-stat-value {
-    font-size: 1.6rem;
-    font-weight: 700;
-    color: var(--color-white);
-    line-height: 1.3;
+.hero-slider__slide a,
+.hero-slider__slide picture {
+    display: block;
+    width: 100%;
+    height: 100%;
 }
 
-.hero-stat-label { font-size: 0.9rem; color: rgba(255, 255, 255, 0.7); }
-
-.hero-visual {
-    background: rgba(255, 255, 255, 0.07);
-    border: 1px solid rgba(255, 255, 255, 0.14);
-    border-radius: var(--radius-xl);
-    padding: var(--space-lg);
-    backdrop-filter: blur(4px);
+.hero-slider__slide img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
 }
 
-.hero-visual img { border-radius: var(--radius-lg); display: block; }
-
-.hero-visual-placeholder {
+.hero-slider__nav {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 48px;
+    height: 48px;
+    border: none;
+    border-radius: var(--radius-full);
+    background: rgba(255, 255, 255, 0.85);
+    color: var(--color-primary-dark);
     display: grid;
     place-items: center;
-    gap: var(--space-md);
-    min-height: 280px;
-    text-align: center;
-    color: rgba(255, 255, 255, 0.75);
+    cursor: pointer;
+    box-shadow: var(--shadow-md);
+    transition: background-color var(--transition-fast), transform var(--transition-fast);
+    z-index: 2;
 }
+
+.hero-slider__nav:hover {
+    background: var(--color-white);
+    transform: translateY(-50%) scale(1.06);
+}
+
+.hero-slider__nav--prev { inset-inline-start: var(--space-lg); }
+.hero-slider__nav--next { inset-inline-end: var(--space-lg); }
+
+.hero-slider__dots {
+    position: absolute;
+    bottom: var(--space-lg);
+    inset-inline: 0;
+    display: flex;
+    justify-content: center;
+    gap: var(--space-sm);
+    z-index: 2;
+}
+
+.hero-slider__dot {
+    width: 10px;
+    height: 10px;
+    border-radius: var(--radius-full);
+    border: none;
+    background: rgba(255, 255, 255, 0.55);
+    cursor: pointer;
+    padding: 0;
+    transition: width var(--transition-base), background-color var(--transition-base);
+}
+
+.hero-slider__dot.is-active {
+    width: 28px;
+    background: var(--color-white);
+}
+
+/* =========================================================================
+   تقویم دوره‌های آموزشی
+   ========================================================================= */
+.calendar-table {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+}
+
+.calendar-table__head,
+.calendar-table__row {
+    display: grid;
+    grid-template-columns: 2.4fr 1fr 0.8fr 1.1fr 1.1fr 1fr;
+    gap: var(--space-md);
+    align-items: center;
+    padding: var(--space-md) var(--space-lg);
+}
+
+.calendar-table__head {
+    background: var(--color-surface-alt);
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--color-text-muted);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.calendar-table__row {
+    border-bottom: 1px solid var(--color-border);
+    transition: background-color var(--transition-fast);
+}
+
+.calendar-table__row:last-child { border-bottom: none; }
+.calendar-table__row:hover { background: var(--color-primary-soft); }
+
+.calendar-table__title {
+    font-weight: 600;
+    color: var(--color-text);
+    display: block;
+}
+
+.calendar-table__title:hover { color: var(--color-primary); }
+
+.calendar-table__category {
+    font-size: 0.85rem;
+    color: var(--color-text-light);
+}
+
+.calendar-table__cell--action { text-align: end; }
+
+.chip-sm { font-size: 0.78rem; padding: 0.15rem 0.7rem; }
+
+/* روی موبایل جدول به کارت تبدیل می‌شود */
+@media (max-width: 991.98px) {
+    .calendar-table__head { display: none; }
+
+    .calendar-table__row {
+        grid-template-columns: 1fr;
+        gap: var(--space-sm);
+        padding: var(--space-lg);
+    }
+
+    .calendar-table__cell[data-label]::before {
+        content: attr(data-label) ": ";
+        color: var(--color-text-light);
+        font-size: 0.85rem;
+    }
+
+    .calendar-table__cell--action { text-align: start; }
+    .calendar-table__cell--action .btn { width: 100%; }
+}
+
+/* =========================================================================
+   کارت دوره
+   ========================================================================= */
+.course-card { display: flex; flex-direction: column; }
+
+.course-card__link {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    color: inherit;
+}
+
+.course-card .card-media { position: relative; }
+
+.card-media__placeholder {
+    width: 100%;
+    height: 100%;
+    display: grid;
+    place-items: center;
+    color: var(--color-text-light);
+    background: var(--color-surface-alt);
+}
+
+.course-card__badge {
+    position: absolute;
+    top: var(--space-sm);
+    inset-inline-start: var(--space-sm);
+    background: var(--color-accent);
+    color: var(--color-white);
+    border-radius: var(--radius-full);
+    padding: 0.15rem 0.7rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.course-card__body {
+    padding: var(--space-lg);
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    gap: var(--space-sm);
+}
+
+.course-card__category {
+    font-size: 0.82rem;
+    color: var(--color-primary);
+    font-weight: 600;
+}
+
+.course-card__title {
+    font-size: 1.02rem;
+    margin: 0;
+    color: var(--color-text);
+}
+
+.course-card__desc {
+    font-size: 0.9rem;
+    margin: 0;
+    flex: 1;
+}
+
+.course-card__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-md);
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+}
+
+.course-card__meta span { display: inline-flex; align-items: center; gap: 0.3rem; }
+
+.course-card__footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--space-sm);
+    padding-top: var(--space-md);
+    border-top: 1px solid var(--color-border);
+}
+
+.course-card__instructor { font-size: 0.85rem; color: var(--color-text-light); }
+.course-card__price { color: var(--color-text); font-size: 1rem; }
+.course-card__currency { font-size: 0.8rem; color: var(--color-text-muted); }
+
+.course-card__old-price {
+    color: var(--color-text-light);
+    font-size: 0.85rem;
+    margin-inline-end: 0.3rem;
+}
+
+/* =========================================================================
+   نوار فیلتر صفحه دوره‌ها
+   ========================================================================= */
+.filter-panel {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-lg);
+    position: sticky;
+    top: calc(var(--header-height) + var(--space-md));
+}
+
+.filter-group { margin-bottom: var(--space-lg); }
+
+.filter-group__title {
+    font-size: 0.95rem;
+    margin-bottom: var(--space-sm);
+    padding-bottom: var(--space-sm);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.filter-option {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: 0.35rem 0;
+    cursor: pointer;
+    font-size: 0.93rem;
+    color: var(--color-text-muted);
+    transition: color var(--transition-fast);
+}
+
+.filter-option:hover { color: var(--color-primary); }
+
+.filter-option input { accent-color: var(--color-primary); flex-shrink: 0; }
+
+.filter-option__count {
+    margin-inline-start: auto;
+    font-size: 0.8rem;
+    color: var(--color-text-light);
+    background: var(--color-surface-alt);
+    border-radius: var(--radius-full);
+    padding: 0 0.5rem;
+}
+
+.filter-actions { margin-top: var(--space-lg); }
+
+.list-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--space-md);
+    flex-wrap: wrap;
+    margin-bottom: var(--space-lg);
+}
+
+.list-toolbar__count { color: var(--color-text-muted); font-size: 0.92rem; }
+.list-toolbar__sort .form-select {
+    border-radius: var(--radius-md);
+    border: 1.5px solid var(--color-border-strong);
+    font-family: var(--font-family-base);
+    min-width: 190px;
+}
+
+/* --- صفحه‌بندی --- */
+.pagination-nav { display: flex; justify-content: center; margin-top: var(--space-xl); }
+
+.pagination { gap: var(--space-xs); flex-wrap: wrap; }
+
+.page-link {
+    border-radius: var(--radius-md) !important;
+    border: 1px solid var(--color-border);
+    color: var(--color-text);
+    min-width: 42px;
+    text-align: center;
+    display: grid;
+    place-items: center;
+}
+
+.page-link:hover { background: var(--color-primary-soft); color: var(--color-primary); }
+
+.page-item.active .page-link {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+    color: var(--color-white);
+}
+
+/* =========================================================================
+   صفحه جزئیات دوره
+   ========================================================================= */
+.course-hero-media {
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    border: 1px solid var(--color-border);
+}
+
+.content-block { margin-block: var(--space-xl); }
+.content-block h2 { margin-bottom: var(--space-md); }
+
+.syllabus-list { padding-inline-start: var(--space-lg); color: var(--color-text-muted); }
+.syllabus-list li { margin-bottom: var(--space-sm); }
+
+.purchase-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    padding: var(--space-lg);
+    position: sticky;
+    top: calc(var(--header-height) + var(--space-md));
+}
+
+.purchase-card__price { font-size: 1.35rem; }
+
+.purchase-card__specs {
+    list-style: none;
+    padding: 0;
+    margin: var(--space-lg) 0 0;
+    border-top: 1px solid var(--color-border);
+}
+
+.purchase-card__specs li {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-sm) 0;
+    border-bottom: 1px solid var(--color-border);
+    font-size: 0.92rem;
+    color: var(--color-text-muted);
+}
+
+.purchase-card__specs li strong { margin-inline-start: auto; color: var(--color-text); }
+.purchase-card__specs .icon { color: var(--color-primary); }
+
+.purchase-card__instructor {
+    margin-top: var(--space-lg);
+    padding-top: var(--space-lg);
+    border-top: 1px solid var(--color-border);
+}
+
+/* --- خطای فرم --- */
+.form-error { color: var(--color-danger); font-size: 0.85rem; margin-top: var(--space-xs); }
+.form-label { font-weight: 600; font-size: 0.92rem; margin-bottom: var(--space-xs); }
 
 /* --- دسته‌بندی --- */
 .category-card {
@@ -552,34 +963,9 @@ img { max-width: 100%; height: auto; }
     flex-shrink: 0;
 }
 
+.category-card__text { display: flex; flex-direction: column; min-width: 0; }
 .category-card__title { font-weight: 600; color: var(--color-text); }
 .category-card__count { font-size: 0.85rem; color: var(--color-text-light); }
-
-/* --- بنر ماهانه --- */
-.monthly-banner {
-    background: linear-gradient(120deg, var(--color-secondary), var(--color-primary));
-    border-radius: var(--radius-xl);
-    color: var(--color-white);
-    overflow: hidden;
-    box-shadow: var(--shadow-lg);
-}
-
-.monthly-banner h2 { color: var(--color-white); }
-.monthly-banner p { color: rgba(255, 255, 255, 0.85); }
-
-.monthly-banner__body { padding: var(--space-xl); }
-
-.monthly-banner__media {
-    min-height: 100%;
-    background: rgba(0, 0, 0, 0.12);
-}
-
-.monthly-banner__media img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    min-height: 240px;
-}
 
 /* --- مزیت‌ها (چرا ما) --- */
 .feature-card {

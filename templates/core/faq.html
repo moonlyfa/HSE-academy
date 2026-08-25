@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% load core_extras %}
+
+{% block title %}سؤالات متداول — {{ site.site_name }}{% endblock %}
+{% block meta_description %}پاسخ پرتکرارترین پرسش‌های دانشجویان درباره دوره‌ها، گواهی و شیوه برگزاری کلاس‌ها.{% endblock %}
+
+{% block breadcrumb %}
+    {% include "partials/breadcrumb.html" with current="سؤالات متداول" %}
+{% endblock %}
+
+{% block content %}
+<section class="section pt-4">
+    <div class="container">
+        <div class="section-head text-center">
+            <h1 class="h2">سؤالات متداول</h1>
+            <p>اگر پاسخ سؤالتان اینجا نبود، از صفحه تماس با ما بپرسید.</p>
+        </div>
+
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                {% if faqs %}
+                    {% include "core/partials/faq_accordion.html" with faqs=faqs %}
+                {% else %}
+                    <div class="empty-state">
+                        {% icon "headset" size=40 %}
+                        <p class="mt-3 mb-0">هنوز سؤالی ثبت نشده است.</p>
+                    </div>
+                {% endif %}
+
+                <div class="text-center mt-4">
+                    <a href="{% url 'core:contact' %}" class="btn btn-primary">پرسش خود را بفرستید</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block title %}حریم خصوصی — {{ site.site_name }}{% endblock %}
+
+{% block breadcrumb %}
+    {% include "partials/breadcrumb.html" with current="حریم خصوصی" %}
+{% endblock %}
+
+{% block content %}
+<section class="section pt-4">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-9">
+                <h1 class="h2">سیاست حفظ حریم خصوصی</h1>
+                <div class="content-block mt-3">
+                    <p class="text-muted">
+                        متن این صفحه هنوز نهایی نشده است. پیش از انتشار عمومی سایت،
+                        متن حقوقی مورد تأیید کارفرما در این بخش قرار می‌گیرد.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

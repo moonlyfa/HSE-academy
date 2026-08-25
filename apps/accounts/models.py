@@ -149,3 +149,53 @@ class User(AbstractBaseUser, PermissionsMixin):
     def is_fully_verified(self) -> bool:
         """کاربری که هم موبایل و هم هویتش تأیید شده است."""
         return self.is_mobile_verified and self.is_identity_verified
+
+
+class InstructorProfile(models.Model):
+    """
+    پروفایل مدرس.
+
+    چرا جدا از User؟ چون فقط بخش کوچکی از کاربران مدرس هستند و بی‌دلیل
+    جدول کاربران را با فیلدهای بیوگرافی و عکس سنگین نمی‌کنیم.
+    """
+
+    user = models.OneToOneField(
+        "accounts.User",
+        verbose_name="کاربر",
+        on_delete=models.CASCADE,
+        related_name="instructor_profile",
+        null=True,
+        blank=True,
+        help_text="اگر مدرس حساب کاربری دارد، اینجا وصل کنید.",
+    )
+
+    display_name = models.CharField("نام نمایشی", max_length=120)
+    specialty = models.CharField(
+        "تخصص",
+        max_length=150,
+        blank=True,
+        help_text="مثلاً «کارشناس ارشد HSE، مدرس ارزیابی ریسک»",
+    )
+    bio = models.TextField("بیوگرافی", blank=True)
+    avatar = models.ImageField("عکس", upload_to="instructors/", blank=True, null=True)
+
+    linkedin_url = models.URLField("لینکدین", blank=True)
+
+    is_active = models.BooleanField("فعال", default=True)
+    show_on_homepage = models.BooleanField("نمایش در صفحه اصلی", default=True)
+    order = models.PositiveIntegerField("ترتیب نمایش", default=0)
+
+    created_at = models.DateTimeField("تاریخ ایجاد", auto_now_add=True)
+    updated_at = models.DateTimeField("آخرین بروزرسانی", auto_now=True)
+
+    class Meta:
+        verbose_name = "مدرس"
+        verbose_name_plural = "مدرسان"
+        ordering = ["order", "display_name"]
+
+    def __str__(self) -> str:
+        return self.display_name
+
+    @property
+    def published_course_count(self) -> int:
+        return self.courses.filter(is_published=True).count()

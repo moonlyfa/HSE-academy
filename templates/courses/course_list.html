@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+{% load static core_extras %}
+
+{% block title %}
+    {% if active_category %}{{ active_category.name }} — {{ site.site_name }}
+    {% else %}همه دوره‌ها — {{ site.site_name }}{% endif %}
+{% endblock %}
+
+{% block meta_description %}
+    {% if active_category %}{{ active_category.meta_description|default:active_category.description }}
+    {% else %}فهرست کامل دوره‌های تخصصی ایمنی، بهداشت و محیط زیست با امکان فیلتر بر اساس دسته‌بندی، شیوه برگزاری و سطح.{% endif %}
+{% endblock %}
+
+{% block breadcrumb %}
+    {% include "partials/breadcrumb.html" with items=breadcrumb_items current="همه دوره‌ها" %}
+{% endblock %}
+
+{% block content %}
+<section class="section pt-4">
+    <div class="container">
+
+        <div class="section-head">
+            <h1 class="h2">
+                {% if active_category %}{{ active_category.name }}{% else %}همه دوره‌ها{% endif %}
+            </h1>
+            <p class="m-0">
+                {% if active_category and active_category.description %}
+                    {{ active_category.description }}
+                {% else %}
+                    {{ total_count|fa_digits }} دوره یافت شد.
+                {% endif %}
+            </p>
+        </div>
+
+        <div class="row g-4">
+
+            {# --- نوار فیلتر --- #}
+            <div class="col-lg-3">
+                <button class="btn btn-outline-brand w-100 d-lg-none mb-3" type="button"
+                        data-bs-toggle="collapse" data-bs-target="#filterPanel"
+                        aria-expanded="false" aria-controls="filterPanel">
+                    {% icon "filter" size=18 %}
+                    <span>فیلترها</span>
+                </button>
+
+                <div class="collapse d-lg-block" id="filterPanel">
+                    <form method="get" class="filter-panel" id="courseFilters">
+                        {# عبارت جست‌وجو در فیلترها حفظ می‌شود تا با تغییر فیلتر از بین نرود #}
+                        {% if query %}<input type="hidden" name="q" value="{{ query }}">{% endif %}
+
+                        <div class="filter-group">
+                            <h3 class="filter-group__title">دسته‌بندی</h3>
+                            <label class="filter-option">
+                                <input type="radio" name="category" value=""
+                                       {% if not selected_category %}checked{% endif %}>
+                                <span>همه دسته‌بندی‌ها</span>
+                            </label>
+                            {% for category in categories %}
+                                <label class="filter-option">
+                                    <input type="radio" name="category" value="{{ category.slug }}"
+                                           {% if selected_category == category.slug %}checked{% endif %}>
+                                    <span>{{ category.name }}</span>
+                                    <span class="filter-option__count">{{ category.num_courses|fa_digits }}</span>
+                                </label>
+                            {% endfor %}
+                        </div>
+
+                        <div class="filter-group">
+                            <h3 class="filter-group__title">شیوه برگزاری</h3>
+                            <label class="filter-option">
+                                <input type="radio" name="type" value=""
+                                       {% if not selected_type %}checked{% endif %}>
+                                <span>همه</span>
+                            </label>
+                            {% for value, label in course_types %}
+                                <label class="filter-option">
+                                    <input type="radio" name="type" value="{{ value }}"
+                                           {% if selected_type == value %}checked{% endif %}>
+                                    <span>{{ label }}</span>
+                                </label>
+                            {% endfor %}
+                        </div>
+
+                        <div class="filter-group">
+                            <h3 class="filter-group__title">سطح دوره</h3>
+                            <label class="filter-option">
+                                <input type="radio" name="level" value=""
+                                       {% if not selected_level %}checked{% endif %}>
+                                <span>همه</span>
+                            </label>
+                            {% for value, label in levels %}
+                                <label class="filter-option">
+                                    <input type="radio" name="level" value="{{ value }}"
+                                           {% if selected_level == value %}checked{% endif %}>
+                                    <span>{{ label }}</span>
+                                </label>
+                            {% endfor %}
+                        </div>
+
+                        <div class="filter-group">
+                            <h3 class="filter-group__title">هزینه</h3>
+                            <label class="filter-option">
+                                <input type="radio" name="price" value=""
+                                       {% if not selected_price %}checked{% endif %}>
+                                <span>همه</span>
+                            </label>
+                            <label class="filter-option">
+                                <input type="radio" name="price" value="free"
+                                       {% if selected_price == 'free' %}checked{% endif %}>
+                                <span>رایگان</span>
+                            </label>
+                            <label class="filter-option">
+                                <input type="radio" name="price" value="paid"
+                                       {% if selected_price == 'paid' %}checked{% endif %}>
+                                <span>نقدی</span>
+                            </label>
+                        </div>
+
+                        <div class="filter-actions">
+                            <button type="submit" class="btn btn-primary w-100">اعمال فیلتر</button>
+                            <a href="{% url 'courses:list' %}" class="btn btn-outline-brand w-100 mt-2">
+                                حذف فیلترها
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            {# --- لیست دوره‌ها --- #}
+            <div class="col-lg-9">
+
+                <div class="list-toolbar">
+                    <span class="list-toolbar__count">{{ total_count|fa_digits }} دوره</span>
+
+                    <form method="get" class="list-toolbar__sort">
+                        {# فیلترهای فعلی هنگام تغییر ترتیب حفظ می‌شوند #}
+                        {% if selected_category %}<input type="hidden" name="category" value="{{ selected_category }}">{% endif %}
+                        {% if selected_type %}<input type="hidden" name="type" value="{{ selected_type }}">{% endif %}
+                        {% if selected_level %}<input type="hidden" name="level" value="{{ selected_level }}">{% endif %}
+                        {% if selected_price %}<input type="hidden" name="price" value="{{ selected_price }}">{% endif %}
+                        {% if query %}<input type="hidden" name="q" value="{{ query }}">{% endif %}
+
+                        <label for="sortSelect" class="visually-hidden">ترتیب نمایش</label>
+                        <select name="sort" id="sortSelect" class="form-select form-select-sm"
+                                onchange="this.form.submit()">
+                            {% for value, label in sort_options %}
+                                <option value="{{ value }}" {% if selected_sort == value %}selected{% endif %}>
+                                    {{ label }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </form>
+                </div>
+
+                {% if courses %}
+                    <div class="row g-4">
+                        {% for course in courses %}
+                            <div class="col-lg-4 col-md-6">
+                                {% include "courses/partials/course_card.html" with course=course %}
+                            </div>
+                        {% endfor %}
+                    </div>
+
+                    {% include "partials/pagination.html" with page_obj=page_obj querystring=querystring %}
+                {% else %}
+                    <div class="empty-state">
+                        {% icon "search" size=40 %}
+                        <h2 class="h5 mt-3">دوره‌ای با این مشخصات پیدا نشد</h2>
+                        <p>فیلترها را تغییر دهید یا همه دوره‌ها را ببینید.</p>
+                        <a href="{% url 'courses:list' %}" class="btn btn-primary mt-2">همه دوره‌ها</a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

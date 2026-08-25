@@ -30,11 +30,11 @@
             <div class="col-lg-2 col-md-6 col-6">
                 <h5>دسترسی سریع</h5>
                 <ul class="footer-links">
-                    <li><a href="#courses">دوره‌ها</a></li>
-                    <li><a href="#calendar">تقویم آموزشی</a></li>
-                    <li><a href="#verify">استعلام گواهی</a></li>
-                    <li><a href="#about">درباره ما</a></li>
-                    <li><a href="#faq">سؤالات متداول</a></li>
+                    <li><a href="{% url 'courses:list' %}">دوره‌ها</a></li>
+                    <li><a href="{% url 'core:calendar' %}">تقویم آموزشی</a></li>
+                    <li><a href="{% url 'core:certificate_verify' %}">استعلام گواهی</a></li>
+                    <li><a href="{% url 'core:about' %}">درباره ما</a></li>
+                    <li><a href="{% url 'core:faq' %}">سؤالات متداول</a></li>
                 </ul>
             </div>
 
@@ -42,10 +42,10 @@
             <div class="col-lg-2 col-md-6 col-6">
                 <h5>خدمات</h5>
                 <ul class="footer-links">
-                    <li><a href="#courses">دوره‌های آنلاین</a></li>
-                    <li><a href="#courses">دوره‌های آفلاین</a></li>
-                    <li><a href="#courses">دوره‌های سازمانی</a></li>
-                    <li><a href="#contact">مشاوره آموزشی</a></li>
+                    <li><a href="{% url 'courses:list' %}?type=online_live">دوره‌های آنلاین</a></li>
+                    <li><a href="{% url 'courses:list' %}?type=offline_recorded">دوره‌های آفلاین</a></li>
+                    <li><a href="{% url 'core:contact' %}">دوره‌های سازمانی</a></li>
+                    <li><a href="{% url 'core:contact' %}">مشاوره آموزشی</a></li>
                 </ul>
             </div>
 
@@ -86,8 +86,8 @@
         <div class="footer-bottom d-flex flex-wrap justify-content-between gap-2">
             <span>© تمامی حقوق برای {{ site.site_name }} محفوظ است.</span>
             <span class="d-flex gap-3">
-                <a href="#privacy">حریم خصوصی</a>
-                <a href="#terms">قوانین و مقررات</a>
+                <a href="{% url 'core:privacy' %}">حریم خصوصی</a>
+                <a href="{% url 'core:terms' %}">قوانین و مقررات</a>
             </span>
         </div>
     </div>

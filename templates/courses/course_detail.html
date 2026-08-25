@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% load static core_extras humanize %}
+
+{% block title %}{{ course.meta_title|default:course.title }} — {{ site.site_name }}{% endblock %}
+{% block meta_description %}{{ course.meta_description|default:course.short_description }}{% endblock %}
+
+{% block breadcrumb %}
+    {% include "partials/breadcrumb.html" with items=nav_items current=course.title %}
+{% endblock %}
+
+{% block content %}
+<section class="section pt-4">
+    <div class="container">
+        <div class="row g-4">
+
+            <div class="col-lg-8">
+                <span class="chip mb-3">{{ course.category.name }}</span>
+                <h1 class="h2">{{ course.title }}</h1>
+
+                {% if course.short_description %}
+                    <p class="lead">{{ course.short_description }}</p>
+                {% endif %}
+
+                <div class="course-hero-media mt-4">
+                    {% if course.hero_image %}
+                        <img src="{{ course.hero_image.url }}" alt="{{ course.title }}">
+                    {% elif course.thumbnail %}
+                        <img src="{{ course.thumbnail.url }}" alt="{{ course.title }}">
+                    {% endif %}
+                </div>
+
+                {% if course.full_description %}
+                    <div class="content-block mt-4">
+                        <h2 class="h4">درباره این دوره</h2>
+                        {{ course.full_description|linebreaks }}
+                    </div>
+                {% endif %}
+
+                {% if course.syllabus_items %}
+                    <div class="content-block">
+                        <h2 class="h4">سرفصل‌های دوره</h2>
+                        <ol class="syllabus-list">
+                            {% for item in course.syllabus_items %}
+                                <li>{{ item }}</li>
+                            {% endfor %}
+                        </ol>
+                    </div>
+                {% endif %}
+
+                {% if course.target_audience %}
+                    <div class="content-block">
+                        <h2 class="h4">این دوره مناسب چه کسانی است؟</h2>
+                        {{ course.target_audience|linebreaks }}
+                    </div>
+                {% endif %}
+
+                {% if course.prerequisites %}
+                    <div class="content-block">
+                        <h2 class="h4">پیش‌نیازها</h2>
+                        {{ course.prerequisites|linebreaks }}
+                    </div>
+                {% endif %}
+            </div>
+
+            {# --- کارت خرید --- #}
+            <div class="col-lg-4">
+                <aside class="purchase-card">
+                    <div class="purchase-card__price">
+                        {% if course.is_free %}
+                            <strong class="text-success">رایگان</strong>
+                        {% else %}
+                            {% if course.has_discount %}
+                                <del class="course-card__old-price">{{ course.price|toman }}</del>
+                                <span class="chip chip-accent">{{ course.discount_percent|fa_digits }}٪ تخفیف</span>
+                            {% endif %}
+                            <div>
+                                <strong>{{ course.final_price|toman }}</strong>
+                                <span class="course-card__currency">تومان</span>
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    {% if course.registration_open %}
+                        <a href="#enroll" class="btn btn-accent w-100 mt-3">ثبت‌نام در دوره</a>
+                    {% else %}
+                        <button class="btn btn-outline-brand w-100 mt-3" disabled>ثبت‌نام بسته است</button>
+                    {% endif %}
+
+                    <ul class="purchase-card__specs">
+                        <li>{% icon "video" size=18 %}<span>شیوه برگزاری</span><strong>{{ course.get_course_type_display }}</strong></li>
+                        <li>{% icon "chart" size=18 %}<span>سطح</span><strong>{{ course.get_level_display }}</strong></li>
+                        {% if course.duration_hours %}
+                            <li>{% icon "clock" size=18 %}<span>مدت</span><strong>{{ course.duration_hours|fa_digits }} ساعت</strong></li>
+                        {% endif %}
+                        {% if course.start_date %}
+                            <li>{% icon "calendar" size=18 %}<span>شروع</span><strong>{{ course.start_date|jalali }}</strong></li>
+                        {% endif %}
+                        {% if course.capacity %}
+                            <li>{% icon "users" size=18 %}<span>ظرفیت</span><strong>{{ course.capacity|fa_digits }} نفر</strong></li>
+                        {% endif %}
+                        {% if course.location %}
+                            <li>{% icon "location" size=18 %}<span>محل</span><strong>{{ course.location }}</strong></li>
+                        {% endif %}
+                        {% if course.certificate_available %}
+                            <li>{% icon "certificate" size=18 %}<span>گواهی</span><strong>دارد</strong></li>
+                        {% endif %}
+                    </ul>
+
+                    {% if course.instructor %}
+                        <div class="purchase-card__instructor">
+                            <span class="small text-muted d-block mb-2">مدرس دوره</span>
+                            <div class="d-flex align-items-center gap-2">
+                                {% if course.instructor.avatar %}
+                                    <img class="testimonial-avatar" src="{{ course.instructor.avatar.url }}"
+                                         alt="{{ course.instructor.display_name }}">
+                                {% else %}
+                                    <span class="testimonial-avatar">{{ course.instructor.display_name|first }}</span>
+                                {% endif %}
+                                <span>
+                                    <strong class="d-block">{{ course.instructor.display_name }}</strong>
+                                    <span class="small text-muted">{{ course.instructor.specialty }}</span>
+                                </span>
+                            </div>
+                        </div>
+                    {% endif %}
+                </aside>
+            </div>
+        </div>
+
+        {% if related_courses %}
+            <div class="section-head mt-5">
+                <h2 class="h4">دوره‌های مرتبط</h2>
+            </div>
+            <div class="row g-4">
+                {% for related in related_courses %}
+                    <div class="col-lg-4 col-md-6">
+                        {% include "courses/partials/course_card.html" with course=related %}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

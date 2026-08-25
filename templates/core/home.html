@@ -5,83 +5,114 @@
 
 {% block content %}
 
-{# --- بخش Hero — اولین چیزی که کاربر می‌بیند --- #}
-<section class="hero">
-    <div class="container">
-        <div class="row align-items-center g-5">
-            <div class="col-lg-6">
-                <span class="chip chip-light mb-3">
-                    {% icon "shield" size=16 %}
-                    <span>آموزش تخصصی ایمنی، بهداشت و محیط زیست</span>
-                </span>
+{# --- اسلایدر تصویری بالای صفحه: فقط تصویر، بدون هیچ متنی --- #}
+{% if site.show_hero_slider and slides %}
+<section class="hero-slider"
+         data-slider
+         data-slider-interval="5000"
+         aria-roledescription="carousel"
+         aria-label="بنرهای اصلی سایت">
 
-                <h1>{{ site.hero_title }}</h1>
-                <p>{{ site.hero_subtitle }}</p>
+    <div class="hero-slider__track" data-slider-track>
+        {% for slide in slides %}
+            <div class="hero-slider__slide {% if forloop.first %}is-active{% endif %}"
+                 data-slider-slide
+                 role="group"
+                 aria-roledescription="slide"
+                 aria-label="اسلاید {{ forloop.counter }} از {{ slides|length }}"
+                 {% if not forloop.first %}aria-hidden="true"{% endif %}>
 
-                <div class="hero-actions">
-                    <a href="#courses" class="btn btn-accent">
-                        {% icon "book" size=18 %}
-                        <span>مشاهده دوره‌ها</span>
-                    </a>
-                    <a href="#verify" class="btn btn-outline-light-brand">
-                        {% icon "certificate" size=18 %}
-                        <span>استعلام گواهی</span>
-                    </a>
-                </div>
-
-                <div class="hero-stats">
-                    <div>
-                        <div class="hero-stat-value">۱۰۰٪</div>
-                        <div class="hero-stat-label">گواهی قابل استعلام</div>
-                    </div>
-                    <div>
-                        <div class="hero-stat-value">آنلاین و آفلاین</div>
-                        <div class="hero-stat-label">شیوه برگزاری</div>
-                    </div>
-                    <div>
-                        <div class="hero-stat-value">مدرسان صنعت</div>
-                        <div class="hero-stat-label">تدریس کاربردی</div>
-                    </div>
-                </div>
+                {% if slide.link_url %}<a href="{{ slide.link_url }}">{% endif %}
+                    <picture>
+                        {% if slide.image_mobile %}
+                            <source media="(max-width: 767px)" srcset="{{ slide.image_mobile.url }}">
+                        {% endif %}
+                        <img src="{{ slide.image.url }}"
+                             alt="{{ slide.title }}"
+                             {% if forloop.first %}fetchpriority="high"{% else %}loading="lazy"{% endif %}>
+                    </picture>
+                {% if slide.link_url %}</a>{% endif %}
             </div>
+        {% endfor %}
+    </div>
 
-            <div class="col-lg-6">
-                <div class="hero-visual">
-                    {% if site.hero_image %}
-                        <img src="{{ site.hero_image.url }}" alt="{{ site.hero_title }}">
-                    {% else %}
-                        <div class="hero-visual-placeholder">
-                            {% icon "shield" size=64 %}
-                            <div>
-                                <strong class="d-block">تصویر صفحه نخست</strong>
-                                <span class="small">از پنل مدیریت ← تنظیمات سایت قابل بارگذاری است</span>
-                            </div>
-                        </div>
-                    {% endif %}
-                </div>
-            </div>
+    {% if slides|length > 1 %}
+        {# دکمه‌های قبلی و بعدی — کاربر می‌تواند دستی هم جابه‌جا شود #}
+        <button class="hero-slider__nav hero-slider__nav--prev" data-slider-prev
+                aria-label="اسلاید قبلی" aria-controls="hero-slider">
+            {% icon "chevron-right" size=26 %}
+        </button>
+        <button class="hero-slider__nav hero-slider__nav--next" data-slider-next
+                aria-label="اسلاید بعدی" aria-controls="hero-slider">
+            {% icon "chevron-left" size=26 %}
+        </button>
+
+        <div class="hero-slider__dots" role="tablist" aria-label="انتخاب اسلاید">
+            {% for slide in slides %}
+                <button class="hero-slider__dot {% if forloop.first %}is-active{% endif %}"
+                        data-slider-dot data-index="{{ forloop.counter0 }}"
+                        role="tab"
+                        aria-label="اسلاید {{ forloop.counter }}"
+                        aria-selected="{% if forloop.first %}true{% else %}false{% endif %}"></button>
+            {% endfor %}
         </div>
+    {% endif %}
+</section>
+{% endif %}
+
+
+{# --- تقویم دوره‌های آموزشی --- #}
+{% if site.show_calendar_section %}
+<section class="section" id="calendar">
+    <div class="container">
+        <div class="section-head d-flex justify-content-between align-items-end flex-wrap gap-3">
+            <div>
+                <h2>تقویم دوره‌های آموزشی</h2>
+                <p class="m-0">دوره‌هایی که به‌زودی برگزار می‌شوند.</p>
+            </div>
+            <a href="{% url 'core:calendar' %}" class="btn btn-outline-brand btn-sm">
+                <span>تقویم کامل</span>
+                {% icon "arrow-left" size=16 %}
+            </a>
+        </div>
+
+        {% if calendar_courses %}
+            {% include "courses/partials/calendar_table.html" with courses=calendar_courses %}
+        {% else %}
+            <div class="empty-state">
+                {% icon "calendar" size=40 %}
+                <p class="mt-3 mb-0">هنوز دوره‌ای با تاریخ شروع مشخص ثبت نشده است.</p>
+            </div>
+        {% endif %}
     </div>
 </section>
+{% endif %}
 
 
-{# --- دسته‌بندی دوره‌ها — در فاز ۶ به دیتابیس وصل می‌شود --- #}
+{# --- دسته‌بندی دوره‌ها --- #}
 {% if site.show_categories_section and categories %}
-<section class="section" id="categories">
+<section class="section section-alt" id="categories">
     <div class="container">
-        <div class="section-head text-center">
-            <h2>دسته‌بندی دوره‌ها</h2>
-            <p>حوزه تخصصی خود را انتخاب کنید و دوره‌های مرتبط را ببینید.</p>
+        <div class="section-head d-flex justify-content-between align-items-end flex-wrap gap-3">
+            <div>
+                <h2>دسته‌بندی دوره‌ها</h2>
+                <p class="m-0">حوزه تخصصی خود را انتخاب کنید.</p>
+            </div>
+            {# این دکمه و دکمه «دوره‌ها» در هدر، هر دو به یک صفحه می‌روند #}
+            <a href="{% url 'courses:list' %}" class="btn btn-primary btn-sm">
+                <span>همه دسته‌بندی‌ها</span>
+                {% icon "arrow-left" size=16 %}
+            </a>
         </div>
 
         <div class="row g-3">
             {% for category in categories %}
                 <div class="col-lg-3 col-md-4 col-sm-6">
                     <a class="category-card" href="{{ category.get_absolute_url }}">
-                        <span class="category-icon">{% icon "shield" size=24 %}</span>
-                        <span>
-                            <span class="category-card__title d-block">{{ category.name }}</span>
-                            <span class="category-card__count">{{ category.course_count }} دوره</span>
+                        <span class="category-icon">{% icon category.icon size=24 %}</span>
+                        <span class="category-card__text">
+                            <span class="category-card__title">{{ category.name }}</span>
+                            <span class="category-card__count">{{ category.num_courses|fa_digits }} دوره</span>
                         </span>
                     </a>
                 </div>
@@ -92,64 +123,16 @@
 {% endif %}
 
 
-{# --- بنر ماهانه — کاملاً از پنل مدیریت کنترل می‌شود --- #}
-{% if site.show_banner_section and banner %}
-<section class="section pt-0" id="monthly">
-    <div class="container">
-        <div class="monthly-banner">
-            <div class="row g-0 align-items-center">
-                <div class="col-lg-7">
-                    <div class="monthly-banner__body">
-                        {% if banner.label %}
-                            <span class="chip chip-light mb-3">{{ banner.label }}</span>
-                        {% endif %}
-
-                        <h2>{{ banner.title }}</h2>
-
-                        {% if banner.subtitle %}
-                            <p class="mb-3">{{ banner.subtitle }}</p>
-                        {% endif %}
-
-                        {% if banner.date_text %}
-                            <div class="d-flex align-items-center gap-2 mb-4">
-                                {% icon "calendar" size=18 %}
-                                <span>{{ banner.date_text }}</span>
-                            </div>
-                        {% endif %}
-
-                        {% if banner.cta_url %}
-                            <a href="{{ banner.cta_url }}" class="btn btn-accent">
-                                <span>{{ banner.cta_text }}</span>
-                                {% icon "arrow-left" size=18 %}
-                            </a>
-                        {% endif %}
-                    </div>
-                </div>
-
-                {% if banner.image %}
-                    <div class="col-lg-5">
-                        <div class="monthly-banner__media h-100">
-                            <img src="{{ banner.image.url }}" alt="{{ banner.title }}">
-                        </div>
-                    </div>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-</section>
-{% endif %}
-
-
-{# --- دوره‌های منتخب — در فاز ۸ به دیتابیس وصل می‌شود --- #}
+{# --- دوره‌های منتخب --- #}
 {% if site.show_featured_courses and featured_courses %}
-<section class="section" id="courses">
+<section class="section" id="featured">
     <div class="container">
         <div class="section-head d-flex justify-content-between align-items-end flex-wrap gap-3">
             <div>
                 <h2>دوره‌های منتخب</h2>
                 <p class="m-0">پرمخاطب‌ترین دوره‌های تخصصی آکادمی</p>
             </div>
-            <a href="#all-courses" class="btn btn-outline-brand btn-sm">
+            <a href="{% url 'courses:list' %}" class="btn btn-outline-brand btn-sm">
                 <span>همه دوره‌ها</span>
                 {% icon "arrow-left" size=16 %}
             </a>
@@ -157,7 +140,9 @@
 
         <div class="row g-4">
             {% for course in featured_courses %}
-                {# کارت دوره در فاز ۸ ساخته می‌شود #}
+                <div class="col-lg-4 col-md-6">
+                    {% include "courses/partials/course_card.html" with course=course %}
+                </div>
             {% endfor %}
         </div>
     </div>
@@ -170,7 +155,7 @@
 <section class="section section-alt" id="why-us">
     <div class="container">
         <div class="section-head text-center">
-            <h2>چرا آکادمی {{ site.site_name }}؟</h2>
+            <h2>چرا {{ site.site_name }}؟</h2>
             <p>آنچه آموزش ما را از یک کلاس معمولی متفاوت می‌کند.</p>
         </div>
 
@@ -190,54 +175,9 @@
 {% endif %}
 
 
-{# --- استعلام گواهی --- #}
-{% if site.show_certificate_cta %}
-<section class="section" id="verify">
-    <div class="container">
-        <div class="row justify-content-center">
-            <div class="col-lg-8">
-                <div class="verify-box text-center">
-                    <span class="chip mb-3">{% icon "certificate" size=16 %}<span>اعتبارسنجی</span></span>
-
-                    <h2>استعلام اصالت گواهی</h2>
-                    <p class="mb-4">
-                        کد گواهی خود را وارد کنید تا وضعیت اعتبار آن را ببینید.
-                        کارفرمایان نیز می‌توانند از همین بخش گواهی را بررسی کنند.
-                    </p>
-
-                    <form class="row g-2 justify-content-center" method="get" action="#verify">
-                        <div class="col-md-7">
-                            <label for="certificate-code" class="visually-hidden">کد گواهی</label>
-                            <input type="text"
-                                   class="form-control text-center ltr"
-                                   id="certificate-code"
-                                   name="code"
-                                   data-digits="en"
-                                   placeholder="مثال: HSE-1404-00123"
-                                   autocomplete="off">
-                        </div>
-                        <div class="col-md-4 d-grid">
-                            <button type="submit" class="btn btn-primary">
-                                {% icon "search" size=18 %}
-                                <span>استعلام گواهی</span>
-                            </button>
-                        </div>
-                    </form>
-
-                    <p class="small mt-3 mb-0">
-                        کد گواهی روی نسخه چاپی و PDF گواهی درج شده است.
-                    </p>
-                </div>
-            </div>
-        </div>
-    </div>
-</section>
-{% endif %}
-
-
 {# --- نظرات دانشجویان --- #}
 {% if site.show_testimonials_section and testimonials %}
-<section class="section section-alt" id="testimonials">
+<section class="section" id="testimonials">
     <div class="container">
         <div class="section-head text-center">
             <h2>نظر دانش‌آموختگان</h2>
@@ -249,7 +189,6 @@
                 <div class="col-lg-4 col-md-6">
                     <div class="testimonial-card">
                         <p class="testimonial-card__quote">«{{ testimonial.quote }}»</p>
-
                         <div class="testimonial-card__person">
                             {% if testimonial.avatar %}
                                 <img class="testimonial-avatar" src="{{ testimonial.avatar.url }}"
@@ -273,7 +212,7 @@
 
 {# --- سازمان‌های همکار --- #}
 {% if site.show_partners_section and partners %}
-<section class="section" id="partners">
+<section class="section section-alt" id="partners">
     <div class="container">
         <div class="section-head text-center">
             <h2>سازمان‌های همکار</h2>
@@ -302,7 +241,7 @@
 
 {# --- سؤالات متداول --- #}
 {% if site.show_faq_section and faqs %}
-<section class="section section-alt" id="faq">
+<section class="section" id="faq">
     <div class="container">
         <div class="section-head text-center">
             <h2>سؤالات متداول</h2>
@@ -311,31 +250,12 @@
 
         <div class="row justify-content-center">
             <div class="col-lg-8">
-                <div class="accordion" id="faqAccordion">
-                    {% for faq in faqs %}
-                        <div class="faq-item accordion-item border-0">
-                            <h3 class="accordion-header" id="faqHeading{{ faq.pk }}">
-                                <button class="accordion-button collapsed" type="button"
-                                        data-bs-toggle="collapse"
-                                        data-bs-target="#faqBody{{ faq.pk }}"
-                                        aria-expanded="false"
-                                        aria-controls="faqBody{{ faq.pk }}">
-                                    {{ faq.question }}
-                                </button>
-                            </h3>
-                            <div id="faqBody{{ faq.pk }}" class="accordion-collapse collapse"
-                                 aria-labelledby="faqHeading{{ faq.pk }}"
-                                 data-bs-parent="#faqAccordion">
-                                <div class="accordion-body">{{ faq.answer|linebreaks }}</div>
-                            </div>
-                        </div>
-                    {% endfor %}
-                </div>
+                {% include "core/partials/faq_accordion.html" with faqs=faqs %}
 
                 <div class="text-center mt-4">
-                    <a href="#contact" class="btn btn-outline-brand">
-                        {% icon "headset" size=18 %}
-                        <span>پاسخ سؤالتان را پیدا نکردید؟</span>
+                    <a href="{% url 'core:faq' %}" class="btn btn-outline-brand">
+                        <span>همه سؤالات متداول</span>
+                        {% icon "arrow-left" size=16 %}
                     </a>
                 </div>
             </div>

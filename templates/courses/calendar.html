@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% load core_extras %}
+
+{% block title %}تقویم دوره‌های آموزشی — {{ site.site_name }}{% endblock %}
+{% block meta_description %}تقویم برگزاری دوره‌های آموزشی ایمنی، بهداشت و محیط زیست به همراه تاریخ شروع، مدت و شیوه برگزاری.{% endblock %}
+
+{% block breadcrumb %}
+    {% include "partials/breadcrumb.html" with current="تقویم آموزشی" %}
+{% endblock %}
+
+{% block content %}
+<section class="section pt-4">
+    <div class="container">
+        <div class="section-head">
+            <h1 class="h2">تقویم دوره‌های آموزشی</h1>
+            <p class="m-0">{{ total_count|fa_digits }} دوره در انتظار برگزاری</p>
+        </div>
+
+        {% if courses %}
+            {% include "courses/partials/calendar_table.html" with courses=courses %}
+        {% else %}
+            <div class="empty-state">
+                {% icon "calendar" size=40 %}
+                <h2 class="h5 mt-3">هنوز دوره‌ای زمان‌بندی نشده است</h2>
+                <p>به‌زودی تقویم دوره‌های جدید اینجا منتشر می‌شود.</p>
+                <a href="{% url 'courses:list' %}" class="btn btn-primary mt-2">مشاهده همه دوره‌ها</a>
+            </div>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}
