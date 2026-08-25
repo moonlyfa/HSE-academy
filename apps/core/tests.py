@@ -235,3 +235,56 @@ class PriceFormattingTests(TestCase):
 
     def test_non_numeric_value_does_not_crash(self):
         self.assertEqual(self._render("رایگان"), "رایگان")
+
+
+class HeroSliderTests(TestCase):
+    """اسلایدر باید سبک بارگذاری شود و تنظیماتش از پنل مدیریت بیاید."""
+
+    def setUp(self):
+        self.site = SiteSetting.load()
+        for i in range(5):
+            HeroSlide.objects.create(
+                title=f"اسلاید {i + 1}",
+                image=f"slides/test-{i + 1}.jpg",
+                order=i,
+            )
+
+    def test_only_first_two_slides_load_eagerly(self):
+        """
+        تست رگرسیون عملکرد.
+
+        اگر هر ۱۰ تصویر تمام‌عرض هنگام باز شدن صفحه دانلود شوند، صفحه اصلی
+        روی اینترنت کند بسیار سنگین می‌شود. فقط دو اسلاید اول باید src داشته
+        باشند و بقیه در data-src نگه داشته شوند.
+        """
+        content = self.client.get("/").content.decode()
+
+        self.assertEqual(content.count('<img src="/media/slides/'), 2)
+        self.assertEqual(content.count("data-src="), 3)
+
+    def test_slider_timing_comes_from_site_settings(self):
+        self.site.hero_slider_interval_seconds = 9
+        self.site.hero_slider_transition_ms = 1400
+        self.site.save()
+
+        content = self.client.get("/").content.decode()
+        self.assertIn('data-slider-interval="9000"', content)
+        self.assertIn("--slider-fade: 1400ms", content)
+
+    def test_interval_never_drops_below_two_seconds(self):
+        """فاصله خیلی کوتاه، اسلایدر را غیرقابل استفاده می‌کند."""
+        self.site.hero_slider_interval_seconds = 0
+        self.site.save()
+        self.assertEqual(self.site.hero_slider_interval_ms, 2000)
+
+    def test_slider_hidden_when_no_slides(self):
+        HeroSlide.objects.all().delete()
+        content = self.client.get("/").content.decode()
+        self.assertNotIn("hero-slider__track", content)
+
+    def test_slide_titles_are_not_printed_over_the_image(self):
+        """طبق خواسته کارفرما اسلاید فقط تصویر است؛ عنوان فقط در alt می‌آید."""
+        content = self.client.get("/").content.decode()
+        self.assertIn('alt="اسلاید 1"', content)
+        self.assertNotIn("<h1>اسلاید 1</h1>", content)
+        self.assertNotIn("<h2>اسلاید 1</h2>", content)

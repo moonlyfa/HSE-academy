@@ -79,7 +79,7 @@
 
     /* ---------------------------------------------------------------------
        ۳. اسلایدر تصویری صفحه اصلی
-       - هر ۵ ثانیه خودکار به اسلاید بعدی می‌رود
+       - به‌صورت خودکار (با فاصله تنظیم‌شده در پنل مدیریت) به اسلاید بعدی می‌رود
        - کاربر با دکمه‌های کناری یا نقطه‌های پایین هم می‌تواند جابه‌جا شود
        - با بردن ماوس روی اسلایدر، چرخش موقتاً متوقف می‌شود
        --------------------------------------------------------------------- */
@@ -92,8 +92,33 @@
         let current = 0;
         let timer = null;
 
+        /**
+         * بارگذاری تصویر یک اسلاید در صورت نیاز.
+         * اسلایدهای سوم به بعد آدرس تصویرشان در data-src نگه داشته شده تا
+         * هنگام باز شدن صفحه دانلود نشوند. اینجا درست قبل از نمایش، آدرس
+         * واقعی را ست می‌کنیم.
+         */
+        function loadSlideImage(slide) {
+            if (!slide) return;
+
+            slide.querySelectorAll("source[data-srcset]").forEach(function (source) {
+                source.srcset = source.dataset.srcset;
+                delete source.dataset.srcset;
+            });
+
+            slide.querySelectorAll("img[data-src]").forEach(function (img) {
+                img.src = img.dataset.src;
+                delete img.dataset.src;
+            });
+        }
+
         function show(index) {
             current = (index + slides.length) % slides.length;
+
+            // اسلاید فعلی و اسلاید بعدی را آماده نگه می‌داریم تا جابه‌جایی
+            // بدون مکث و بدون تصویر خالی انجام شود.
+            loadSlideImage(slides[current]);
+            loadSlideImage(slides[(current + 1) % slides.length]);
 
             slides.forEach(function (slide, i) {
                 const isActive = i === current;

@@ -46,6 +46,13 @@ class SiteSettingAdmin(admin.ModelAdmin):
         ),
         ("درباره ما", {"fields": ("about_short", "about_full")}),
         (
+            "تنظیمات اسلایدر صفحه اصلی",
+            {
+                "description": "سرعت چرخش و نرمی جابه‌جایی اسلایدها از اینجا کنترل می‌شود.",
+                "fields": ("hero_slider_interval_seconds", "hero_slider_transition_ms"),
+            },
+        ),
+        (
             "نمایش بخش‌های صفحه اصلی",
             {
                 "description": "با خاموش کردن هر گزینه، آن بخش از صفحه اصلی حذف می‌شود.",

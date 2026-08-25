@@ -9,7 +9,8 @@
 {% if site.show_hero_slider and slides %}
 <section class="hero-slider"
          data-slider
-         data-slider-interval="5000"
+         data-slider-interval="{{ site.hero_slider_interval_ms }}"
+         style="--slider-fade: {{ site.hero_slider_transition_ms }}ms"
          aria-roledescription="carousel"
          aria-label="بنرهای اصلی سایت">
 
@@ -23,13 +24,17 @@
                  {% if not forloop.first %}aria-hidden="true"{% endif %}>
 
                 {% if slide.link_url %}<a href="{{ slide.link_url }}">{% endif %}
+                    {# فقط دو اسلاید اول فوراً دانلود می‌شوند؛ بقیه درست قبل از
+                       نمایش بارگذاری می‌شوند تا صفحه اصلی روی اینترنت کند سنگین نشود. #}
                     <picture>
                         {% if slide.image_mobile %}
-                            <source media="(max-width: 767px)" srcset="{{ slide.image_mobile.url }}">
+                            <source media="(max-width: 767px)"
+                                    {% if forloop.counter <= 2 %}srcset="{{ slide.image_mobile.url }}"{% else %}data-srcset="{{ slide.image_mobile.url }}"{% endif %}>
                         {% endif %}
-                        <img src="{{ slide.image.url }}"
+                        <img {% if forloop.counter <= 2 %}src="{{ slide.image.url }}"{% else %}data-src="{{ slide.image.url }}"{% endif %}
                              alt="{{ slide.title }}"
-                             {% if forloop.first %}fetchpriority="high"{% else %}loading="lazy"{% endif %}>
+                             decoding="async"
+                             {% if forloop.first %}fetchpriority="high"{% endif %}>
                     </picture>
                 {% if slide.link_url %}</a>{% endif %}
             </div>

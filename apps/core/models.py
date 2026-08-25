@@ -107,6 +107,21 @@ class SiteSetting(models.Model):
         help_text="بخش مقالات در نسخه اول منتشر نمی‌شود.",
     )
 
+    # --- تنظیمات اسلایدر ---
+    hero_slider_interval_seconds = models.PositiveIntegerField(
+        "فاصله بین اسلایدها (ثانیه)",
+        default=6,
+        help_text="هر چند ثانیه یک‌بار اسلاید بعدی نمایش داده شود.",
+    )
+    hero_slider_transition_ms = models.PositiveIntegerField(
+        "مدت محو شدن اسلاید (میلی‌ثانیه)",
+        default=1100,
+        help_text=(
+            "عدد بزرگ‌تر یعنی جابه‌جایی نرم‌تر و کندتر. "
+            "مقدار پیشنهادی بین ۸۰۰ تا ۱۵۰۰."
+        ),
+    )
+
     # --- تعداد آیتم‌های صفحه اصلی ---
     homepage_calendar_count = models.PositiveIntegerField(
         "تعداد ردیف تقویم آموزشی در صفحه اصلی", default=6
@@ -132,6 +147,11 @@ class SiteSetting(models.Model):
         """اجازه ساخت بیش از یک ردیف تنظیمات را نمی‌دهیم."""
         if not self.pk and SiteSetting.objects.exists():
             raise ValidationError("فقط یک ردیف تنظیمات سایت می‌تواند وجود داشته باشد.")
+
+    @property
+    def hero_slider_interval_ms(self) -> int:
+        """فاصله اسلایدها بر حسب میلی‌ثانیه — جاوااسکریپت با این واحد کار می‌کند."""
+        return max(self.hero_slider_interval_seconds, 2) * 1000
 
     @classmethod
     def load(cls) -> "SiteSetting":

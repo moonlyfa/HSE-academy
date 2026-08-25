@@ -547,17 +547,35 @@ img { max-width: 100%; height: auto; }
     width: 100%;
 }
 
+/* مدت محو شدن از پنل مدیریت خوانده می‌شود و روی همین بخش تزریق می‌شود. */
+.hero-slider {
+    --slider-fade: 1100ms;
+}
+
 .hero-slider__slide {
     position: absolute;
     inset: 0;
     opacity: 0;
     visibility: hidden;
-    transition: opacity var(--transition-slow), visibility var(--transition-slow);
+    /* بزرگ‌نمایی بسیار جزئی تصویر غیرفعال؛ هنگام فعال شدن به حالت عادی برمی‌گردد
+       و همین باعث می‌شود جابه‌جایی به‌جای «پرش»، حس حرکت نرم بدهد. */
+    transform: scale(1.035);
+    transition:
+        opacity var(--slider-fade) cubic-bezier(0.4, 0, 0.2, 1),
+        transform calc(var(--slider-fade) * 2) cubic-bezier(0.22, 1, 0.36, 1),
+        /* پنهان‌سازی فقط بعد از پایان محو شدن انجام می‌شود تا تصویر ناگهانی قطع نشود */
+        visibility 0s linear var(--slider-fade);
 }
 
 .hero-slider__slide.is-active {
     opacity: 1;
     visibility: visible;
+    transform: scale(1);
+    z-index: 2;
+    transition:
+        opacity var(--slider-fade) cubic-bezier(0.4, 0, 0.2, 1),
+        transform calc(var(--slider-fade) * 2) cubic-bezier(0.22, 1, 0.36, 1),
+        visibility 0s;
 }
 
 .hero-slider__slide a,
