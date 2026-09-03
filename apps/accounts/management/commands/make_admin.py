@@ -60,7 +60,12 @@ class Command(BaseCommand):
         user = User.objects.filter(mobile=mobile).first()
 
         if user is None:
-            user = User.objects.create_superuser(mobile=mobile, password=password)
+            user = User.objects.create_superuser(
+                mobile=mobile,
+                password=password,
+                first_name="مدیر",
+                last_name="سایت",
+            )
             self.stdout.write(self.style.SUCCESS(f"کاربر مدیر جدید ساخته شد: {mobile}"))
         else:
             user.set_password(password)

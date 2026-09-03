@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% load core_extras %}
+
+{% block title %}ورود به حساب کاربری — {{ site.site_name }}{% endblock %}
+{% block meta_description %}ورود به حساب کاربری {{ site.site_name }} با شماره موبایل.{% endblock %}
+{% block extra_head %}<meta name="robots" content="noindex">{% endblock %}
+
+{% block content %}
+<section class="auth-section">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-5 col-md-8">
+                <div class="auth-card">
+
+                    <div class="auth-card__head">
+                        <span class="auth-icon">{% icon "lock" size=26 %}</span>
+                        <h1 class="h3">ورود به حساب کاربری</h1>
+                        <p>برای ادامه، شماره موبایل و رمز عبور خود را وارد کنید.</p>
+                    </div>
+
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+                        <input type="hidden" name="next" value="{{ next }}">
+
+                        {% if form.non_field_errors %}
+                            <div class="alert alert-danger">
+                                {% for error in form.non_field_errors %}{{ error }}{% endfor %}
+                            </div>
+                        {% endif %}
+
+                        {% include "accounts/partials/field.html" with field=form.mobile %}
+                        {% include "accounts/partials/field.html" with field=form.password %}
+
+                        <button type="submit" class="btn btn-primary w-100 mt-2">ورود به حساب</button>
+                    </form>
+
+                    <div class="auth-card__foot">
+                        <p class="mb-0">
+                            حساب کاربری ندارید؟
+                            <a href="{% url 'accounts:register' %}">ثبت‌نام کنید</a>
+                        </p>
+                        <p class="small text-muted mt-2 mb-0">
+                            بازیابی رمز عبور با پیامک، در مرحله بعدی توسعه فعال می‌شود.
+                        </p>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

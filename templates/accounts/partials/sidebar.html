@@ -1,0 +1,52 @@
+{% load core_extras %}
+{# منوی کناری داشبورد — گزینه‌های خاکستری در فازهای بعدی فعال می‌شوند #}
+<aside class="dash-sidebar">
+    <div class="dash-user">
+        <span class="dash-avatar">
+            {% if user.first_name %}{{ user.first_name|first }}{% else %}{% icon "users" size=22 %}{% endif %}
+        </span>
+        <div>
+            <strong class="d-block">{{ user.get_full_name }}</strong>
+            <span class="small ltr text-muted">{{ user.mobile }}</span>
+        </div>
+    </div>
+
+    <nav class="dash-nav" aria-label="منوی داشبورد">
+        <a class="dash-nav__item {% if dash_active == 'home' %}is-active{% endif %}"
+           href="{% url 'accounts:dashboard' %}">
+            {% icon "chart" size=18 %}<span>داشبورد</span>
+        </a>
+
+        <span class="dash-nav__item is-disabled" aria-disabled="true">
+            {% icon "book" size=18 %}<span>دوره‌های من</span><small>فاز ۱۰</small>
+        </span>
+        <span class="dash-nav__item is-disabled" aria-disabled="true">
+            {% icon "video" size=18 %}<span>کلاس‌های آنلاین</span><small>فاز ۱۵</small>
+        </span>
+        <span class="dash-nav__item is-disabled" aria-disabled="true">
+            {% icon "check" size=18 %}<span>آزمون‌ها</span><small>فاز ۱۶</small>
+        </span>
+        <span class="dash-nav__item is-disabled" aria-disabled="true">
+            {% icon "certificate" size=18 %}<span>گواهی‌های من</span><small>فاز ۱۷</small>
+        </span>
+        <span class="dash-nav__item is-disabled" aria-disabled="true">
+            {% icon "lock" size=18 %}<span>سفارش‌ها و پرداخت‌ها</span><small>فاز ۱۱</small>
+        </span>
+
+        <a class="dash-nav__item {% if dash_active == 'profile' %}is-active{% endif %}"
+           href="{% url 'accounts:profile' %}">
+            {% icon "users" size=18 %}<span>پروفایل</span>
+        </a>
+        <a class="dash-nav__item {% if dash_active == 'password' %}is-active{% endif %}"
+           href="{% url 'accounts:change_password' %}">
+            {% icon "lock" size=18 %}<span>تغییر رمز عبور</span>
+        </a>
+
+        <form method="post" action="{% url 'accounts:logout' %}" class="mt-2">
+            {% csrf_token %}
+            <button type="submit" class="dash-nav__item dash-nav__logout">
+                {% icon "arrow-left" size=18 %}<span>خروج از حساب</span>
+            </button>
+        </form>
+    </nav>
+</aside>

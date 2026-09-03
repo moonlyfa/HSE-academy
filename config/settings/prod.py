@@ -55,6 +55,25 @@ USE_MOCK_IDENTITY = env.bool("USE_MOCK_IDENTITY", default=False)
 USE_MOCK_PAYMENT = env.bool("USE_MOCK_PAYMENT", default=False)
 
 # ---------------------------------------------------------------------------
+# Cache
+# ---------------------------------------------------------------------------
+# در Production، Gunicorn چند Worker جداگانه اجرا می‌کند. اگر کش حافظه‌ای
+# (LocMemCache) بماند، هر Worker شمارنده خودش را دارد و محدودیت تلاش ورود
+# عملاً چند برابر می‌شود. پس از کشی استفاده می‌کنیم که بین همه Workerها
+# مشترک باشد.
+#
+# پیش‌نیاز استقرار (یک‌بار اجرا شود):
+#     python manage.py createcachetable
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.db.DatabaseCache",
+        "LOCATION": "django_cache_table",
+        "TIMEOUT": 300,
+        "OPTIONS": {"MAX_ENTRIES": 10000},
+    }
+}
+
+# ---------------------------------------------------------------------------
 # Logging: در سرور، لاگ‌ها در فایل ذخیره می‌شوند.
 # ---------------------------------------------------------------------------
 LOGGING["root"]["handlers"] = ["console", "file"]  # noqa: F405

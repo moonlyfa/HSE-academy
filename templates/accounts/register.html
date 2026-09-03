@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% load core_extras %}
+
+{% block title %}ثبت‌نام — {{ site.site_name }}{% endblock %}
+{% block meta_description %}ساخت حساب کاربری در {{ site.site_name }} برای شرکت در دوره‌های تخصصی HSE.{% endblock %}
+{% block extra_head %}<meta name="robots" content="noindex">{% endblock %}
+
+{% block content %}
+<section class="auth-section">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-6 col-md-9">
+                <div class="auth-card">
+
+                    <div class="auth-card__head">
+                        <span class="auth-icon">{% icon "users" size=26 %}</span>
+                        <h1 class="h3">ساخت حساب کاربری</h1>
+                        <p>برای ثبت‌نام در دوره‌ها، ابتدا حساب کاربری بسازید.</p>
+                    </div>
+
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+
+                        {% if form.non_field_errors %}
+                            <div class="alert alert-danger">
+                                {% for error in form.non_field_errors %}{{ error }}{% endfor %}
+                            </div>
+                        {% endif %}
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                {% include "accounts/partials/field.html" with field=form.first_name %}
+                            </div>
+                            <div class="col-md-6">
+                                {% include "accounts/partials/field.html" with field=form.last_name %}
+                            </div>
+                        </div>
+
+                        {% include "accounts/partials/field.html" with field=form.mobile %}
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                {% include "accounts/partials/field.html" with field=form.password1 %}
+                            </div>
+                            <div class="col-md-6">
+                                {% include "accounts/partials/field.html" with field=form.password2 %}
+                            </div>
+                        </div>
+
+                        <div class="form-check mb-3">
+                            {{ form.accept_terms }}
+                            <label class="form-check-label" for="{{ form.accept_terms.id_for_label }}">
+                                <a href="{% url 'core:terms' %}" target="_blank">قوانین و مقررات</a>
+                                و
+                                <a href="{% url 'core:privacy' %}" target="_blank">حریم خصوصی</a>
+                                سایت را می‌پذیرم
+                            </label>
+                            {% for error in form.accept_terms.errors %}
+                                <div class="form-error">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+
+                        <button type="submit" class="btn btn-primary w-100">ثبت‌نام</button>
+                    </form>
+
+                    <div class="auth-card__foot">
+                        <p class="mb-0">
+                            قبلاً ثبت‌نام کرده‌اید؟
+                            <a href="{% url 'accounts:login' %}">وارد شوید</a>
+                        </p>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

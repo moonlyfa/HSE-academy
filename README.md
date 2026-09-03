@@ -12,7 +12,7 @@
 | دیتابیس Production | PostgreSQL |
 | سرور Production | Ubuntu + Gunicorn + Nginx |
 
-> **وضعیت فعلی: فاز ۲ و ۶ — رابط کاربری، صفحه اصلی، مدل دوره و صفحات چندگانه.**
+> **وضعیت فعلی: فاز ۳ — ورود، ثبت‌نام و حساب کاربری.**
 > نقشه راه کامل: [`docs/roadmap.md`](docs/roadmap.md) · معماری و دیتابیس: [`docs/architecture.md`](docs/architecture.md)
 
 ---
@@ -133,6 +133,10 @@ python manage.py runserver
 | `/search/?q=...` | نتایج جست‌وجو |
 | `/about/` `/contact/` `/faq/` | درباره ما، تماس با ما، سؤالات متداول |
 | `/privacy/` `/terms/` | حریم خصوصی، قوانین |
+| `/accounts/login/` | ورود با شماره موبایل |
+| `/accounts/register/` | ثبت‌نام |
+| `/accounts/dashboard/` | داشبورد دانشجو |
+| `/accounts/profile/` | پروفایل و تغییر رمز |
 | `/admin/` | پنل مدیریت |
 
 ---
@@ -152,6 +156,17 @@ python manage.py seed_demo
 ```bash
 python manage.py seed_demo --reset
 ```
+
+### ساخت گروه‌های نقش
+
+نقش‌های سایت (مدیر، مدرس، مدیر محتوا، پشتیبانی، مالی، دانشجو) و دسترسی هر کدام:
+
+```bash
+python manage.py setup_groups
+```
+
+اجرای چندباره‌اش بی‌خطر است. برای دادن نقش به کاربر: پنل مدیریت ← کاربران ←
+انتخاب کاربر ← بخش «دسترسی‌ها» ← افزودن گروه.
 
 ### ساخت یا بازنشانی حساب مدیر
 

@@ -62,13 +62,19 @@
                     </button>
 
                     {% if user.is_authenticated %}
-                        <a class="btn btn-outline-brand btn-sm" href="#dashboard">
+                        <a class="btn btn-outline-brand btn-sm" href="{% url 'accounts:dashboard' %}">
                             {% icon "users" size=18 %}
                             <span>داشبورد من</span>
                         </a>
+                        <form method="post" action="{% url 'accounts:logout' %}" class="d-inline">
+                            {% csrf_token %}
+                            <button type="submit" class="btn-icon" aria-label="خروج از حساب" title="خروج از حساب">
+                                {% icon "arrow-left" size=20 %}
+                            </button>
+                        </form>
                     {% else %}
-                        <a class="btn btn-outline-brand btn-sm" href="#login">ورود</a>
-                        <a class="btn btn-primary btn-sm" href="#register">ثبت‌نام</a>
+                        <a class="btn btn-outline-brand btn-sm" href="{% url 'accounts:login' %}">ورود</a>
+                        <a class="btn btn-primary btn-sm" href="{% url 'accounts:register' %}">ثبت‌نام</a>
                     {% endif %}
                 </div>
             </div>

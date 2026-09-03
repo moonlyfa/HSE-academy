@@ -118,7 +118,7 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 LOGIN_URL = "/accounts/login/"
-LOGIN_REDIRECT_URL = "/dashboard/"
+LOGIN_REDIRECT_URL = "/accounts/dashboard/"
 LOGOUT_REDIRECT_URL = "/"
 
 # ---------------------------------------------------------------------------
@@ -182,6 +182,18 @@ USE_MOCK_PAYMENT = env.bool("USE_MOCK_PAYMENT", default=True)
 
 # بخش مقالات و اخبار در نسخه اول منتشر نمی‌شود اما زیرساخت آن ساخته می‌شود.
 BLOG_ENABLED = env.bool("BLOG_ENABLED", default=False)
+
+# ---------------------------------------------------------------------------
+# Cache
+# ---------------------------------------------------------------------------
+# از کش برای محدودسازی تلاش‌های ناموفق ورود و در فاز ۴ برای محدودیت ارسال
+# پیامک استفاده می‌شود.
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "hse-local-cache",
+    }
+}
 
 # ---------------------------------------------------------------------------
 # Logging
