@@ -42,11 +42,10 @@
             {% icon "lock" size=18 %}<span>تغییر رمز عبور</span>
         </a>
 
-        <form method="post" action="{% url 'accounts:logout' %}" class="mt-2">
-            {% csrf_token %}
-            <button type="submit" class="dash-nav__item dash-nav__logout">
-                {% icon "arrow-left" size=18 %}<span>خروج از حساب</span>
-            </button>
-        </form>
+        <a href="{% url 'accounts:logout' %}"
+           class="dash-nav__item dash-nav__logout mt-2"
+           data-logout-trigger>
+            {% icon "arrow-left" size=18 %}<span>خروج از حساب</span>
+        </a>
     </nav>
 </aside>

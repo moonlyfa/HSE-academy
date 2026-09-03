@@ -66,12 +66,11 @@
                             {% icon "users" size=18 %}
                             <span>داشبورد من</span>
                         </a>
-                        <form method="post" action="{% url 'accounts:logout' %}" class="d-inline">
-                            {% csrf_token %}
-                            <button type="submit" class="btn-icon" aria-label="خروج از حساب" title="خروج از حساب">
-                                {% icon "arrow-left" size=20 %}
-                            </button>
-                        </form>
+                        <a href="{% url 'accounts:logout' %}" class="btn-icon"
+                           data-logout-trigger
+                           aria-label="خروج از حساب" title="خروج از حساب">
+                            {% icon "arrow-left" size=20 %}
+                        </a>
                     {% else %}
                         <a class="btn btn-outline-brand btn-sm" href="{% url 'accounts:login' %}">ورود</a>
                         <a class="btn btn-primary btn-sm" href="{% url 'accounts:register' %}">ثبت‌نام</a>

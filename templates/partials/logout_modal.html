@@ -1,0 +1,29 @@
+{% load core_extras %}
+{# پنجره تأیید خروج — یک‌بار در base.html قرار می‌گیرد و همه دکمه‌های خروج از آن استفاده می‌کنند #}
+<div class="modal fade" id="logoutModal" tabindex="-1"
+     aria-labelledby="logoutModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content confirm-modal">
+
+            <div class="modal-body text-center">
+                <span class="auth-icon auth-icon--warning">{% icon "arrow-left" size=26 %}</span>
+
+                <h2 class="h5" id="logoutModalTitle">خروج از حساب کاربری</h2>
+                <p class="mb-0">
+                    آیا مطمئن هستید که می‌خواهید از حساب خود خارج شوید؟
+                </p>
+            </div>
+
+            <div class="modal-footer confirm-modal__actions">
+                <button type="button" class="btn btn-outline-brand" data-bs-dismiss="modal">
+                    انصراف
+                </button>
+                <form method="post" action="{% url 'accounts:logout' %}" class="m-0">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">بله، خارج شو</button>
+                </form>
+            </div>
+
+        </div>
+    </div>
+</div>

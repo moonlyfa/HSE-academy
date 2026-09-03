@@ -53,6 +53,10 @@
 
     {% include "partials/footer.html" %}
 
+    {% if user.is_authenticated %}
+        {% include "partials/logout_modal.html" %}
+    {% endif %}
+
     <script src="{% static_v 'vendor/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
     <script src="{% static_v 'js/main.js' %}"></script>
 

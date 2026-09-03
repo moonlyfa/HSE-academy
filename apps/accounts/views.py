@@ -123,15 +123,23 @@ def register_view(request: HttpRequest) -> HttpResponse:
 
 def logout_view(request: HttpRequest) -> HttpResponse:
     """
-    خروج از حساب.
+    خروج از حساب — با تأیید کاربر.
 
-    فقط با POST انجام می‌شود. اگر با GET بود، مهاجم می‌توانست با گذاشتن
-    یک تصویر مخفی در صفحه‌ای دیگر، کاربر را ناخواسته از حساب خارج کند.
+    خروج فقط با POST انجام می‌شود. اگر با GET ممکن بود، مهاجم می‌توانست
+    با گذاشتن یک تصویر مخفی در صفحه‌ای دیگر، کاربر را ناخواسته خارج کند.
+
+    درخواست GET صفحه تأیید را نشان می‌دهد. این صفحه پشتیبانِ پنجره تأیید
+    است: کاربرانی که جاوااسکریپت ندارند هم باید بتوانند خارج شوند.
     """
     if request.method == "POST":
         auth_logout(request)
         messages.info(request, "از حساب کاربری خارج شدید.")
-    return redirect("core:home")
+        return redirect("core:home")
+
+    if not request.user.is_authenticated:
+        return redirect("core:home")
+
+    return render(request, "accounts/logout_confirm.html")
 
 
 @login_required

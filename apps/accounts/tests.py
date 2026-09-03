@@ -378,3 +378,56 @@ class RoleGroupTests(TestCase):
         call_command("setup_groups", stdout=StringIO())
         call_command("setup_groups", stdout=StringIO())
         self.assertEqual(Group.objects.filter(name="مدیر").count(), 1)
+
+
+class LogoutConfirmationTests(TestCase):
+    """خروج باید فقط با تأیید صریح کاربر انجام شود."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(mobile="09121234567", password="HseTech!2026")
+        self.client.force_login(self.user)
+        self.url = reverse("accounts:logout")
+
+    def test_get_shows_confirmation_page_and_keeps_session(self):
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "accounts/logout_confirm.html")
+        self.assertContains(response, "آیا مطمئن هستید")
+        self.assertIn("_auth_user_id", self.client.session)
+
+    def test_post_logs_out(self):
+        response = self.client.post(self.url)
+
+        self.assertNotIn("_auth_user_id", self.client.session)
+        self.assertEqual(response.headers["Location"], reverse("core:home"))
+
+    def test_confirmation_page_has_a_post_form(self):
+        """
+        صفحه تأیید باید بدون جاوااسکریپت هم کار کند، پس فرم POST واقعی
+        با توکن CSRF داشته باشد.
+        """
+        content = self.client.get(self.url).content.decode()
+
+        self.assertIn('method="post"', content)
+        self.assertIn("csrfmiddlewaretoken", content)
+
+    def test_anonymous_visitor_is_redirected_not_shown_the_page(self):
+        self.client.logout()
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 302)
+
+    def test_logout_links_point_to_confirmation_not_direct_post(self):
+        """
+        دکمه‌های خروج باید به صفحه تأیید اشاره کنند تا کلیک اتفاقی،
+        کاربر را بی‌درنگ از حساب خارج نکند.
+        """
+        content = self.client.get(reverse("accounts:dashboard")).content.decode()
+
+        self.assertIn("data-logout-trigger", content)
+        self.assertIn('id="logoutModal"', content)
+
+    def test_modal_is_not_rendered_for_anonymous_visitors(self):
+        self.client.logout()
+        content = self.client.get(reverse("core:home")).content.decode()
+        self.assertNotIn('id="logoutModal"', content)
