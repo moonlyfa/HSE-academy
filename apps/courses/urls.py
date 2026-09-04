@@ -17,6 +17,16 @@ urlpatterns = [
     path("<uslug:slug>/lessons/<int:pk>/", views.lesson_detail, name="lesson"),
     path("<uslug:slug>/lessons/<int:pk>/video/", views.lesson_video, name="lesson_video"),
     path(
+        "<uslug:slug>/lessons/<int:pk>/complete/",
+        views.lesson_complete,
+        name="lesson_complete",
+    ),
+    path(
+        "<uslug:slug>/lessons/<int:pk>/position/",
+        views.lesson_position,
+        name="lesson_position",
+    ),
+    path(
         "<uslug:slug>/lessons/<int:pk>/files/<int:attachment_pk>/",
         views.lesson_attachment,
         name="lesson_attachment",

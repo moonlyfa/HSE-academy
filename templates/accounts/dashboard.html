@@ -69,33 +69,76 @@
                     </div>
                 </div>
 
+                {# --- ادامه یادگیری: مهم‌ترین دکمه این صفحه --- #}
+                {% if resume_lesson %}
+                    <div class="continue-card mt-4">
+                        <div class="continue-card__body">
+                            <span class="continue-card__label">
+                                {% if current_progress.is_finished %}مرور دوباره{% else %}ادامه یادگیری{% endif %}
+                            </span>
+                            <h2 class="h5 mb-1">{{ resume_lesson.title }}</h2>
+                            <p class="continue-card__course mb-2">
+                                {{ current_progress.course.title }}
+                                · {{ resume_lesson.section.title }}
+                            </p>
+
+                            {% include "courses/partials/progress_bar.html" with progress=current_progress %}
+                        </div>
+
+                        <a class="btn btn-accent" href="{{ resume_lesson.get_absolute_url }}">
+                            {% icon "video" size=18 %}
+                            <span>{% if current_progress.is_finished %}مرور کن{% else %}ادامه بده{% endif %}</span>
+                        </a>
+                    </div>
+                {% endif %}
+
                 <div class="row g-3 mt-3">
-                    <div class="col-md-4">
+                    <div class="col-md-3 col-6">
                         <div class="stat-card">
-                            <span class="stat-card__value">۰</span>
-                            <span class="stat-card__label">دوره فعال</span>
+                            <span class="stat-card__value">{{ stats.courses|fa_digits }}</span>
+                            <span class="stat-card__label">دوره در جریان</span>
                         </div>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-3 col-6">
                         <div class="stat-card">
-                            <span class="stat-card__value">۰</span>
-                            <span class="stat-card__label">آزمون باقی‌مانده</span>
+                            <span class="stat-card__value">{{ stats.completed_lessons|fa_digits }}</span>
+                            <span class="stat-card__label">درس تکمیل‌شده</span>
                         </div>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-3 col-6">
                         <div class="stat-card">
-                            <span class="stat-card__value">۰</span>
-                            <span class="stat-card__label">گواهی دریافتی</span>
+                            <span class="stat-card__value">{{ stats.minutes|fa_digits }}</span>
+                            <span class="stat-card__label">دقیقه آموزش</span>
+                        </div>
+                    </div>
+                    <div class="col-md-3 col-6">
+                        <div class="stat-card">
+                            <span class="stat-card__value">{{ stats.finished_courses|fa_digits }}</span>
+                            <span class="stat-card__label">دوره تمام‌شده</span>
                         </div>
                     </div>
                 </div>
 
-                <div class="empty-state mt-4">
-                    {% icon "book" size=40 %}
-                    <h2 class="h6 mt-3">هنوز در دوره‌ای ثبت‌نام نکرده‌اید</h2>
-                    <p class="mb-3">از میان دوره‌های تخصصی، دوره مناسب خود را انتخاب کنید.</p>
-                    <a href="{% url 'courses:list' %}" class="btn btn-primary">مشاهده دوره‌ها</a>
-                </div>
+                {% if recent_courses %}
+                    <div class="section-head d-flex justify-content-between align-items-end flex-wrap gap-2 mt-4 mb-3">
+                        <h2 class="h6 m-0">دوره‌های اخیر شما</h2>
+                        <a class="btn btn-outline-brand btn-sm" href="{% url 'accounts:my_courses' %}">
+                            <span>همه دوره‌های من</span>
+                            {% icon "arrow-left" size=16 %}
+                        </a>
+                    </div>
+
+                    {% for progress in recent_courses %}
+                        {% include "accounts/partials/course_progress_row.html" with progress=progress %}
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state mt-4">
+                        {% icon "book" size=40 %}
+                        <h2 class="h6 mt-3">هنوز دوره‌ای را شروع نکرده‌اید</h2>
+                        <p class="mb-3">از میان دوره‌های تخصصی، دوره مناسب خود را انتخاب کنید.</p>
+                        <a href="{% url 'courses:list' %}" class="btn btn-primary">مشاهده دوره‌ها</a>
+                    </div>
+                {% endif %}
             </div>
         </div>
     </div>

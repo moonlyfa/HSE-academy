@@ -15,6 +15,7 @@ from datetime import timedelta
 from django.conf import settings
 from django.core.files.base import ContentFile
 from django.core.management.base import BaseCommand, CommandError
+from django.db.models import Q
 from django.utils import timezone
 
 from apps.accounts.models import InstructorProfile
@@ -409,8 +410,12 @@ class Command(BaseCommand):
 
         همه دوره‌ها فصل‌بندی نمی‌شوند تا هر دو حالت سایت قابل دیدن باشد:
         دوره‌ای که ساختار کامل دارد، و دوره‌ای که فقط فهرست متنی سرفصل دارد.
+
+        دوره‌های رایگان هم فصل‌بندی می‌شوند تا بتوانید کل مسیر یادگیری —
+        باز کردن درس، تکمیل کردن و دیدن درصد پیشرفت در داشبورد — را بدون
+        خرید هیچ چیزی امتحان کنید.
         """
-        courses = Course.objects.filter(is_featured=True)
+        courses = Course.objects.filter(Q(is_featured=True) | Q(price=0))
         lesson_total = 0
 
         for course in courses:

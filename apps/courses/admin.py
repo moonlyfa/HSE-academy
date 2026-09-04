@@ -4,7 +4,14 @@ from django.contrib import admin
 from django.urls import reverse
 from django.utils.html import format_html
 
-from .models import Course, CourseCategory, Lesson, LessonAttachment, Section
+from .models import (
+    Course,
+    CourseCategory,
+    Lesson,
+    LessonAttachment,
+    LessonProgress,
+    Section,
+)
 
 
 @admin.register(CourseCategory)
@@ -244,3 +251,48 @@ class CourseAdmin(admin.ModelAdmin):
         self.message_user(request, f"{updated} دوره از انتشار خارج شد.")
 
     actions = ("publish_courses", "unpublish_courses")
+
+
+@admin.register(LessonProgress)
+class LessonProgressAdmin(admin.ModelAdmin):
+    """
+    مشاهده پیشرفت دانشجویان.
+
+    فقط‌خواندنی است: پیشرفت باید بازتاب کاری باشد که دانشجو واقعاً انجام
+    داده. اگر از پنل قابل ویرایش باشد، عددی که مبنای صدور گواهی است
+    دستکاری‌شدنی می‌شود.
+    """
+
+    list_display = (
+        "user",
+        "course_title",
+        "lesson",
+        "is_completed",
+        "completed_at",
+        "last_viewed_at",
+    )
+    list_filter = ("is_completed", "lesson__section__course")
+    search_fields = ("user__mobile", "user__first_name", "user__last_name", "lesson__title")
+    date_hierarchy = "last_viewed_at"
+    ordering = ("-last_viewed_at",)
+    list_per_page = 50
+
+    def has_add_permission(self, request) -> bool:
+        return False
+
+    def has_change_permission(self, request, obj=None) -> bool:
+        return False
+
+    def get_readonly_fields(self, request, obj=None):
+        return [field.name for field in self.model._meta.fields]
+
+    @admin.display(description="دوره", ordering="lesson__section__course__title")
+    def course_title(self, obj: LessonProgress) -> str:
+        return obj.lesson.section.course.title
+
+    def get_queryset(self, request):
+        return (
+            super()
+            .get_queryset(request)
+            .select_related("user", "lesson", "lesson__section", "lesson__section__course")
+        )

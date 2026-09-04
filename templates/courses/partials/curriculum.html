@@ -35,7 +35,7 @@
 
                     <ul class="curriculum__lessons">
                         {% for row in block.lessons %}
-                            <li class="curriculum__lesson {% if row.lesson.pk == current_lesson_pk %}is-current{% endif %}">
+                            <li class="curriculum__lesson{% if row.lesson.pk == current_lesson_pk %} is-current{% endif %}{% if row.is_completed %} is-done{% endif %}">
                                 {% if row.access.allowed %}
                                     <a href="{{ row.lesson.get_absolute_url }}" class="curriculum__lesson-link">
                                 {% else %}
@@ -43,7 +43,9 @@
                                 {% endif %}
 
                                 <span class="curriculum__lesson-icon">
-                                    {% if not row.access.allowed %}
+                                    {% if row.is_completed %}
+                                        {% icon "check" size=16 %}
+                                    {% elif not row.access.allowed %}
                                         {% icon "lock" size=16 %}
                                     {% elif row.lesson.lesson_type == "video" %}
                                         {% icon "video" size=16 %}

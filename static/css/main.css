@@ -1995,3 +1995,144 @@ a.curriculum__lesson-link:hover { color: var(--color-primary); }
 @media (max-width: 991.98px) {
     .lesson-sidebar { position: static; }
 }
+
+/* =========================================================================
+   فاز ۱۰ — پیشرفت دانشجو و داشبورد
+   ========================================================================= */
+
+/* --- نوار پیشرفت --- */
+.progress-block { margin-block: var(--space-sm); }
+
+.progress-block__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-xs);
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+}
+
+.progress-block__head span { display: inline-flex; align-items: center; gap: 0.3rem; }
+.progress-block__head strong { color: var(--color-primary); }
+
+.progress-track {
+    height: 8px;
+    border-radius: var(--radius-full);
+    background: var(--color-surface-alt);
+    overflow: hidden;
+}
+
+.progress-track__fill {
+    display: block;
+    height: 100%;
+    border-radius: var(--radius-full);
+    background: var(--color-primary);
+    transition: width 400ms ease;
+}
+
+.progress-track__fill.is-done { background: var(--color-success); }
+
+/* --- کارت «ادامه یادگیری» --- */
+.continue-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--space-md);
+    padding: var(--space-lg);
+    border-radius: var(--radius-lg);
+    background: var(--color-primary-soft);
+    border: 1px solid var(--color-border);
+}
+
+.continue-card__body { flex: 1; min-width: 240px; }
+
+.continue-card__label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--color-primary);
+}
+
+.continue-card__course { font-size: 0.88rem; color: var(--color-text-muted); }
+
+/* --- ردیف دوره در داشبورد و «دوره‌های من» --- */
+.course-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    padding: var(--space-md);
+    margin-bottom: var(--space-sm);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+}
+
+.course-row__media {
+    flex: 0 0 auto;
+    width: 110px;
+    height: 70px;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    background: var(--color-surface-alt);
+}
+
+.course-row__media img { width: 100%; height: 100%; object-fit: cover; }
+
+.course-row__body { flex: 1; min-width: 0; }
+.course-row__title { font-size: 1rem; margin: var(--space-xs) 0 0; }
+.course-row__title a { color: var(--color-text); }
+.course-row__title a:hover { color: var(--color-primary); }
+
+.course-row__action {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+    flex: 0 0 auto;
+}
+
+/* --- جعبه پیشرفت در صفحه دوره --- */
+.course-progress-box {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    flex-wrap: wrap;
+    padding: var(--space-md);
+    margin-bottom: var(--space-md);
+    border-radius: var(--radius-md);
+    background: var(--color-surface-alt);
+}
+
+.course-progress-box .progress-block { flex: 1; min-width: 200px; margin: 0; }
+
+/* --- دکمه تکمیل درس --- */
+.lesson-complete {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-md);
+    margin-top: var(--space-xl);
+    padding-top: var(--space-lg);
+    border-top: 1px solid var(--color-border);
+}
+
+.lesson-complete__done {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs);
+    font-weight: 600;
+    color: var(--color-success);
+}
+
+/* --- درس تکمیل‌شده در فهرست سرفصل‌ها --- */
+.curriculum__lesson.is-done .curriculum__lesson-icon { color: var(--color-success); }
+.curriculum__lesson.is-done .curriculum__lesson-title { color: var(--color-text-muted); }
+
+.lesson-sidebar__progress { margin-bottom: var(--space-md); }
+
+@media (max-width: 575.98px) {
+    .course-row { flex-wrap: wrap; }
+    .course-row__media { width: 100%; height: 140px; }
+    .course-row__action { flex-direction: row; width: 100%; }
+    .course-row__action .btn { flex: 1; }
+}

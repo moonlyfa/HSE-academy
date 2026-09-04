@@ -21,6 +21,8 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 
+from apps.courses.progress import learner_courses, learner_stats
+
 from .forms import (
     ChangePasswordForm,
     CompleteRegistrationForm,
@@ -569,11 +571,51 @@ def verify_identity_view(request: HttpRequest) -> HttpResponse:
 @login_required
 def dashboard_view(request: HttpRequest) -> HttpResponse:
     """
-    داشبورد دانشجو — نسخه اولیه.
+    داشبورد دانشجو.
 
-    داشبورد کامل با دوره‌ها، آزمون‌ها و گواهی‌ها در فاز ۱۰ ساخته می‌شود.
+    سه چیز را نشان می‌دهد: وضعیت حساب، خلاصه عددی یادگیری، و مهم‌تر از
+    همه دکمه «ادامه یادگیری» که کاربر را دقیقاً به همان درسی می‌برد که
+    آخرین بار رهایش کرده بود.
     """
-    return render(request, "accounts/dashboard.html")
+    courses = learner_courses(request.user)
+
+    # فهرست بر اساس تازه‌ترین فعالیت مرتب است، پس اولین مورد همان دوره‌ای
+    # است که کاربر آخرین بار سراغش رفته. مقصد دکمه، «درس بعدیِ ناتمام»
+    # است نه آخرین درسی که باز کرده — وگرنه کاربر دوباره به درسی می‌رود
+    # که همین حالا تمامش کرده است.
+    current = courses[0] if courses else None
+
+    return render(
+        request,
+        "accounts/dashboard.html",
+        {
+            "stats": learner_stats(request.user),
+            "recent_courses": courses[:3],
+            "current_progress": current,
+            "resume_lesson": current.resume_lesson if current else None,
+        },
+    )
+
+
+@login_required
+def my_courses_view(request: HttpRequest) -> HttpResponse:
+    """
+    فهرست دوره‌های کاربر با درصد پیشرفت هرکدام.
+
+    امروز «دوره من» یعنی دوره‌ای که کاربر حداقل یک درسش را باز کرده است؛
+    در فاز ۱۴ دوره‌های خریداری‌شده هم به همین فهرست اضافه می‌شوند.
+    """
+    progresses = learner_courses(request.user)
+
+    return render(
+        request,
+        "accounts/my_courses.html",
+        {
+            "progresses": progresses,
+            "in_progress": [p for p in progresses if not p.is_finished],
+            "finished": [p for p in progresses if p.is_finished],
+        },
+    )
 
 
 @login_required

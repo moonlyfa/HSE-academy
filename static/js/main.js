@@ -317,3 +317,69 @@
         });
     });
 })();
+
+
+/* =========================================================================
+   ادامه دادن ویدیو از همان جایی که رها شده بود
+   -------------------------------------------------------------------------
+   این قابلیت کاملاً اختیاری است. اگر جاوااسکریپت خاموش باشد یا این کد
+   خطا بدهد، ویدیو فقط از ابتدا پخش می‌شود و هیچ بخش دیگری از صفحه —
+   از جمله دکمه «تکمیل کردم» که یک فرم معمولی است — خراب نمی‌شود.
+
+   موقعیت هر ۱۵ ثانیه ذخیره می‌شود، نه هر ثانیه؛ وگرنه برای یک ویدیوی
+   نیم‌ساعته هزار و هشتصد درخواست به سرور می‌رفت.
+   ========================================================================= */
+(function () {
+    "use strict";
+
+    const SAVE_EVERY_SECONDS = 15;
+
+    function csrfToken() {
+        const field = document.querySelector("[name=csrfmiddlewaretoken]");
+        return field ? field.value : "";
+    }
+
+    document.querySelectorAll("[data-lesson-player]").forEach(function (box) {
+        const video = box.querySelector("video");
+        if (!video) return;
+
+        const url = box.getAttribute("data-position-url");
+        const resumeAt = parseInt(box.getAttribute("data-resume-at"), 10) || 0;
+        let lastSaved = resumeAt;
+
+        // پرش به موقعیت قبلی، فقط وقتی مرورگر مدت ویدیو را می‌داند و
+        // کاربر واقعاً وسط ویدیو بوده (نه ثانیه‌های اول یا انتهای آن).
+        video.addEventListener("loadedmetadata", function () {
+            if (resumeAt > 5 && resumeAt < video.duration - 5) {
+                video.currentTime = resumeAt;
+            }
+        });
+
+        function save(seconds) {
+            if (!url) return;
+
+            const body = new FormData();
+            body.append("csrfmiddlewaretoken", csrfToken());
+            body.append("seconds", String(Math.floor(seconds)));
+
+            // keepalive یعنی اگر کاربر همان لحظه صفحه را ببندد، مرورگر
+            // درخواست را نیمه‌کاره رها نمی‌کند.
+            fetch(url, { method: "POST", body: body, keepalive: true }).catch(function () {
+                // ذخیره نشدن موقعیت مشکل مهمی نیست؛ کاربر نباید خطا ببیند.
+            });
+        }
+
+        video.addEventListener("timeupdate", function () {
+            if (Math.abs(video.currentTime - lastSaved) < SAVE_EVERY_SECONDS) return;
+            lastSaved = video.currentTime;
+            save(video.currentTime);
+        });
+
+        video.addEventListener("pause", function () { save(video.currentTime); });
+
+        // پایان ویدیو یعنی از اول شروع شود، نه اینکه در ثانیه آخر بماند.
+        video.addEventListener("ended", function () { save(0); });
+
+        window.addEventListener("pagehide", function () { save(video.currentTime); });
+    });
+})();

@@ -17,9 +17,10 @@
             {% icon "chart" size=18 %}<span>داشبورد</span>
         </a>
 
-        <span class="dash-nav__item is-disabled" aria-disabled="true">
-            {% icon "book" size=18 %}<span>دوره‌های من</span><small>فاز ۱۰</small>
-        </span>
+        <a class="dash-nav__item {% if dash_active == 'courses' %}is-active{% endif %}"
+           href="{% url 'accounts:my_courses' %}">
+            {% icon "book" size=18 %}<span>دوره‌های من</span>
+        </a>
         <span class="dash-nav__item is-disabled" aria-disabled="true">
             {% icon "video" size=18 %}<span>کلاس‌های آنلاین</span><small>فاز ۱۵</small>
         </span>

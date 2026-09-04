@@ -83,6 +83,17 @@
                             </span>
                         </div>
 
+                        {% if user.is_authenticated and progress.is_started %}
+                            <div class="course-progress-box">
+                                {% include "courses/partials/progress_bar.html" with progress=progress %}
+                                {% if progress.resume_lesson %}
+                                    <a class="btn btn-primary btn-sm" href="{{ progress.resume_lesson.get_absolute_url }}">
+                                        {% if progress.is_finished %}مرور دوباره{% else %}ادامه یادگیری{% endif %}
+                                    </a>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+
                         {% include "courses/partials/curriculum.html" with curriculum=curriculum %}
 
                         {% if course.preview_lesson %}

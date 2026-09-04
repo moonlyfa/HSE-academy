@@ -1,0 +1,24 @@
+{% load core_extras %}
+{# نوار پیشرفت دوره — در داشبورد، «دوره‌های من» و صفحه دوره استفاده می‌شود #}
+<div class="progress-block">
+    <div class="progress-block__head">
+        <span>
+            {% if progress.is_finished %}
+                {% icon "check" size=16 %} این دوره را کامل کرده‌اید
+            {% else %}
+                {{ progress.completed|fa_digits }} از {{ progress.total|fa_digits }} درس
+            {% endif %}
+        </span>
+        <strong>{{ progress.percent|fa_digits }}٪</strong>
+    </div>
+
+    <div class="progress-track"
+         role="progressbar"
+         aria-valuenow="{{ progress.percent }}"
+         aria-valuemin="0"
+         aria-valuemax="100"
+         aria-label="درصد پیشرفت در دوره">
+        <span class="progress-track__fill {% if progress.is_finished %}is-done{% endif %}"
+              style="width: {{ progress.percent }}%"></span>
+    </div>
+</div>

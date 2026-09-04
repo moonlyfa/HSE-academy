@@ -24,6 +24,7 @@ urlpatterns = [
 
     # --- حساب کاربری ---
     path("dashboard/", views.dashboard_view, name="dashboard"),
+    path("my-courses/", views.my_courses_view, name="my_courses"),
     path("profile/", views.profile_view, name="profile"),
     path("password/", views.change_password_view, name="change_password"),
     path("verify-mobile/", views.verify_mobile_view, name="verify_mobile"),

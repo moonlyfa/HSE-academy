@@ -42,7 +42,13 @@
                 {% if access.allowed %}
 
                     {% if lesson.has_video %}
-                        <div class="lesson-player">
+                        {# data-resume-at: ثانیه‌ای که کاربر دفعه قبل رها کرده بود #}
+                        <div class="lesson-player"
+                             {% if user.is_authenticated %}
+                                 data-lesson-player
+                                 data-position-url="{% url 'courses:lesson_position' course.slug lesson.pk %}"
+                                 data-resume-at="{{ lesson_progress.last_position_seconds|default:0 }}"
+                             {% endif %}>
                             <video controls preload="metadata" playsinline>
                                 {% if lesson.video_file %}
                                     <source src="{% url 'courses:lesson_video' course.slug lesson.pk %}">
@@ -126,6 +132,39 @@
 
                 {% endif %}
 
+                {# --- علامت‌گذاری تکمیل --- #}
+                {% if access.allowed and user.is_authenticated %}
+                    <form class="lesson-complete" method="post"
+                          action="{% url 'courses:lesson_complete' course.slug lesson.pk %}">
+                        {% csrf_token %}
+
+                        {% if lesson_progress.is_completed %}
+                            <span class="lesson-complete__done">
+                                {% icon "check" size=18 %} این درس را تکمیل کرده‌اید
+                            </span>
+                            <input type="hidden" name="completed" value="0">
+                            <button type="submit" class="btn btn-outline-brand btn-sm">
+                                برگرداندن به حالت ناتمام
+                            </button>
+                        {% else %}
+                            <input type="hidden" name="completed" value="1">
+                            {% if next_lesson %}
+                                <input type="hidden" name="go_next" value="1">
+                            {% endif %}
+                            <button type="submit" class="btn btn-primary">
+                                {% icon "check" size=18 %}
+                                <span>
+                                    {% if next_lesson %}
+                                        تکمیل شد، برو درس بعدی
+                                    {% else %}
+                                        این درس را تکمیل کردم
+                                    {% endif %}
+                                </span>
+                            </button>
+                        {% endif %}
+                    </form>
+                {% endif %}
+
                 {# --- درس قبلی و بعدی --- #}
                 <nav class="lesson-nav" aria-label="پیمایش بین درس‌ها">
                     {% if previous_lesson %}
@@ -153,6 +192,12 @@
                         {% icon "arrow-left" size=16 %}
                         <span>{{ course.title }}</span>
                     </a>
+
+                    {% if user.is_authenticated and progress.total %}
+                        <div class="lesson-sidebar__progress">
+                            {% include "courses/partials/progress_bar.html" with progress=progress %}
+                        </div>
+                    {% endif %}
 
                     {% include "courses/partials/curriculum.html" with curriculum=curriculum current_lesson_pk=lesson.pk %}
                 </aside>

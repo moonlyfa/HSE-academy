@@ -546,3 +546,58 @@ class LessonAttachment(models.Model):
                 return f"{size:.0f} {unit}"
             size /= 1024
         return f"{size:.1f} گیگابایت"
+
+
+class LessonProgress(models.Model):
+    """
+    پیشرفت یک کاربر در یک درس.
+
+    چرا یک ردیف به‌ازای هر «کاربر × درس»؟
+    چون این ریزترین واحدی است که سؤال‌های واقعی را جواب می‌دهد: «چند درصد
+    دوره را گذرانده‌ام؟»، «کجا بودم؟»، «کدام درس را ندیده‌ام؟». اگر فقط یک
+    عدد درصد روی دوره نگه می‌داشتیم، هیچ‌کدام از این‌ها را نمی‌شد بازسازی کرد.
+
+    ردیف وقتی ساخته می‌شود که کاربر درس را باز کند؛ یعنی «دیده شده» با
+    «تکمیل شده» فرق دارد. تکمیل شدن را خود کاربر اعلام می‌کند.
+    """
+
+    user = models.ForeignKey(
+        "accounts.User",
+        verbose_name="کاربر",
+        on_delete=models.CASCADE,
+        related_name="lesson_progress",
+    )
+    lesson = models.ForeignKey(
+        Lesson,
+        verbose_name="درس",
+        on_delete=models.CASCADE,
+        related_name="progress_records",
+    )
+
+    is_completed = models.BooleanField("تکمیل شده", default=False)
+    completed_at = models.DateTimeField("زمان تکمیل", null=True, blank=True)
+
+    last_position_seconds = models.PositiveIntegerField(
+        "آخرین ثانیه تماشا",
+        default=0,
+        help_text="برای ادامه دادن ویدیو از همان جایی که کاربر رها کرده بود.",
+    )
+
+    first_viewed_at = models.DateTimeField("اولین بازدید", auto_now_add=True)
+    last_viewed_at = models.DateTimeField("آخرین بازدید", auto_now=True)
+
+    class Meta:
+        verbose_name = "پیشرفت درس"
+        verbose_name_plural = "پیشرفت درس‌ها"
+        # یک کاربر برای هر درس فقط یک ردیف دارد؛ دیتابیس خودش این را
+        # تضمین می‌کند تا حتی دو درخواست هم‌زمان هم ردیف تکراری نسازند.
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "lesson"], name="unique_progress_per_user_lesson"
+            )
+        ]
+        indexes = [models.Index(fields=["user", "-last_viewed_at"])]
+        ordering = ["-last_viewed_at"]
+
+    def __str__(self) -> str:
+        return f"{self.user} — {self.lesson}"

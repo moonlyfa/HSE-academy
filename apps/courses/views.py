@@ -8,11 +8,13 @@ Viewهای عمومی دوره‌ها.
 from urllib.parse import quote
 
 from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db.models import Count, Prefetch, Q, QuerySet
-from django.http import Http404, HttpRequest, HttpResponse
-from django.shortcuts import get_object_or_404, render
+from django.http import Http404, HttpRequest, HttpResponse, JsonResponse
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.views.decorators.http import require_POST
 
 from apps.accounts.models import InstructorProfile
 
@@ -24,6 +26,13 @@ from .models import (
     CourseType,
     Lesson,
     LessonAttachment,
+)
+from .progress import (
+    LessonProgress,
+    course_progress,
+    record_view,
+    save_position,
+    set_completed,
 )
 from .serving import serve_protected_file
 from .storages import protected_storage
@@ -219,6 +228,7 @@ def course_detail(request: HttpRequest, slug: str) -> HttpResponse:
         "course": course,
         # ساختار دوره به‌همراه وضعیت قفل هر درس برای همین بازدیدکننده
         "curriculum": _curriculum_for(course, request.user),
+        "progress": course_progress(request.user, course),
         "related_courses": related,
         "share": _share_links(request, course),
         "breadcrumb_items": breadcrumb_items,
@@ -383,10 +393,23 @@ def _curriculum_for(course: Course, user, current_lesson: Lesson | None = None) 
         .order_by("order", "id")
     )
 
+    # درس‌هایی که این کاربر تمام کرده — با یک کوئری، نه یکی به‌ازای هر درس.
+    completed_ids: set[int] = set()
+    if user.is_authenticated:
+        completed_ids = set(
+            LessonProgress.objects.filter(
+                user=user, is_completed=True, lesson__section__course=course
+            ).values_list("lesson_id", flat=True)
+        )
+
     result = []
     for index, section in enumerate(sections):
         lessons = [
-            {"lesson": lesson, "access": check_lesson_access(user, lesson)}
+            {
+                "lesson": lesson,
+                "access": check_lesson_access(user, lesson),
+                "is_completed": lesson.pk in completed_ids,
+            }
             for lesson in section.lessons.all()
         ]
         is_open = (
@@ -414,6 +437,10 @@ def lesson_detail(request: HttpRequest, slug: str, pk: int) -> HttpResponse:
     if access.reason == "unpublished":
         raise Http404("این درس منتشر نشده است.")
 
+    # باز کردن درس یعنی «دیدمش»؛ همین یک ردیف است که بعداً درصد پیشرفت و
+    # دکمه «ادامه یادگیری» از روی آن ساخته می‌شود.
+    lesson_progress = record_view(request.user, lesson) if access.allowed else None
+
     siblings = list(
         Lesson.objects.filter(
             section__course=course, section__is_published=True, is_published=True
@@ -430,7 +457,11 @@ def lesson_detail(request: HttpRequest, slug: str, pk: int) -> HttpResponse:
             "course": course,
             "lesson": lesson,
             "access": access,
-            "curriculum": _curriculum_for(course, request.user, current_lesson=lesson),
+            "lesson_progress": lesson_progress,
+            "progress": course_progress(request.user, course),
+            "curriculum": _curriculum_for(
+                course, request.user, current_lesson=lesson
+            ),
             "previous_lesson": siblings[index - 1] if index else None,
             "next_lesson": (
                 siblings[index + 1]
@@ -501,3 +532,57 @@ def protected_media(request: HttpRequest, path: str) -> HttpResponse:
     بقیه کاربران بسته است.
     """
     return serve_protected_file(protected_storage, path)
+
+
+@login_required
+@require_POST
+def lesson_complete(request: HttpRequest, slug: str, pk: int) -> HttpResponse:
+    """
+    علامت‌گذاری درس به‌عنوان تکمیل‌شده (یا برگرداندن آن).
+
+    چرا فقط POST؟ چون این درخواست وضعیت را تغییر می‌دهد. اگر با GET کار
+    می‌کرد، یک لینک ساده یا حتی پیش‌بارگذاری مرورگر می‌توانست درس‌ها را
+    بی‌اجازه تکمیل کند.
+
+    این یک فرم معمولی است، نه Ajax؛ پس اگر جاوااسکریپت کاربر خاموش باشد
+    هم درست کار می‌کند.
+    """
+    lesson = _lesson_or_404(slug, pk)
+
+    if not check_lesson_access(request.user, lesson):
+        raise Http404("دسترسی به این درس امکان‌پذیر نیست.")
+
+    completed = request.POST.get("completed") == "1"
+    set_completed(request.user, lesson, completed)
+
+    # بعد از تکمیل، کاربر معمولاً می‌خواهد سراغ درس بعدی برود.
+    if completed and request.POST.get("go_next") == "1":
+        progress = course_progress(request.user, lesson.section.course)
+        if progress.next_lesson:
+            return redirect(progress.next_lesson.get_absolute_url())
+
+    return redirect(lesson.get_absolute_url())
+
+
+@login_required
+@require_POST
+def lesson_position(request: HttpRequest, slug: str, pk: int) -> JsonResponse:
+    """
+    ذخیره ثانیه‌ای که کاربر ویدیو را در آن رها کرده است.
+
+    این تنها جای پروژه است که از جاوااسکریپت درخواست پس‌زمینه می‌فرستیم،
+    و کاملاً اختیاری است: اگر کار نکند، فقط ویدیو از اول پخش می‌شود و
+    هیچ بخشی از سایت خراب نمی‌شود.
+    """
+    lesson = _lesson_or_404(slug, pk)
+
+    if not check_lesson_access(request.user, lesson):
+        raise Http404("دسترسی به این درس امکان‌پذیر نیست.")
+
+    try:
+        seconds = int(float(request.POST.get("seconds", 0)))
+    except (TypeError, ValueError):
+        return JsonResponse({"ok": False, "error": "مقدار نامعتبر"}, status=400)
+
+    save_position(request.user, lesson, seconds)
+    return JsonResponse({"ok": True})

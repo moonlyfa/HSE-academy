@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% load core_extras %}
+
+{% block title %}دوره‌های من — {{ site.site_name }}{% endblock %}
+{% block extra_head %}<meta name="robots" content="noindex">{% endblock %}
+
+{% block breadcrumb %}
+    {% include "partials/breadcrumb.html" with items=None current="دوره‌های من" %}
+{% endblock %}
+
+{% block content %}
+<section class="section pt-4">
+    <div class="container">
+        <div class="row g-4">
+            <div class="col-lg-3">
+                {% include "accounts/partials/sidebar.html" with dash_active="courses" %}
+            </div>
+
+            <div class="col-lg-9">
+                <div class="section-head">
+                    <h1 class="h3">دوره‌های من</h1>
+                    <p class="m-0">دوره‌هایی که شروع کرده‌اید و میزان پیشرفتتان در هرکدام.</p>
+                </div>
+
+                {% if in_progress %}
+                    <h2 class="h6 mb-3">در حال یادگیری</h2>
+                    {% for progress in in_progress %}
+                        {% include "accounts/partials/course_progress_row.html" with progress=progress %}
+                    {% endfor %}
+                {% endif %}
+
+                {% if finished %}
+                    <h2 class="h6 mt-4 mb-3">دوره‌های تکمیل‌شده</h2>
+                    {% for progress in finished %}
+                        {% include "accounts/partials/course_progress_row.html" with progress=progress %}
+                    {% endfor %}
+                {% endif %}
+
+                {% if not progresses %}
+                    <div class="empty-state">
+                        {% icon "book" size=40 %}
+                        <h2 class="h6 mt-3">هنوز دوره‌ای را شروع نکرده‌اید</h2>
+                        <p class="mb-3">
+                            با باز کردن اولین درس، دوره به این فهرست اضافه می‌شود و
+                            پیشرفت شما از همان لحظه ثبت می‌شود.
+                        </p>
+                        <a href="{% url 'courses:list' %}" class="btn btn-primary">مشاهده دوره‌ها</a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
