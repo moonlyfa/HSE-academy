@@ -1,0 +1,81 @@
+{% load core_extras %}
+{# ساختار دوره: فصل‌ها و درس‌ها #}
+{# lock_state از View می‌آید؛ قالب خودش درباره دسترسی تصمیم نمی‌گیرد. #}
+<div class="curriculum accordion" id="curriculumAccordion">
+    {% for block in curriculum %}
+        <div class="accordion-item curriculum__section">
+            <h3 class="accordion-header" id="sectionHead{{ block.section.pk }}">
+                <button class="accordion-button {% if not block.is_open %}collapsed{% endif %}"
+                        type="button"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#section{{ block.section.pk }}"
+                        aria-expanded="{% if block.is_open %}true{% else %}false{% endif %}"
+                        aria-controls="section{{ block.section.pk }}">
+                    <span class="curriculum__section-title">
+                        <span class="curriculum__section-index">{{ forloop.counter|fa_digits }}</span>
+                        {{ block.section.title }}
+                    </span>
+                    <span class="curriculum__section-meta">
+                        {{ block.lessons|length|fa_digits }} درس
+                        {% if block.section.total_minutes %}
+                            · {{ block.section.total_minutes|fa_digits }} دقیقه
+                        {% endif %}
+                    </span>
+                </button>
+            </h3>
+
+            <div id="section{{ block.section.pk }}"
+                 class="accordion-collapse collapse {% if block.is_open %}show{% endif %}"
+                 aria-labelledby="sectionHead{{ block.section.pk }}"
+                 data-bs-parent="#curriculumAccordion">
+                <div class="accordion-body">
+                    {% if block.section.description %}
+                        <p class="curriculum__section-desc">{{ block.section.description }}</p>
+                    {% endif %}
+
+                    <ul class="curriculum__lessons">
+                        {% for row in block.lessons %}
+                            <li class="curriculum__lesson {% if row.lesson.pk == current_lesson_pk %}is-current{% endif %}">
+                                {% if row.access.allowed %}
+                                    <a href="{{ row.lesson.get_absolute_url }}" class="curriculum__lesson-link">
+                                {% else %}
+                                    <span class="curriculum__lesson-link is-locked">
+                                {% endif %}
+
+                                <span class="curriculum__lesson-icon">
+                                    {% if not row.access.allowed %}
+                                        {% icon "lock" size=16 %}
+                                    {% elif row.lesson.lesson_type == "video" %}
+                                        {% icon "video" size=16 %}
+                                    {% elif row.lesson.lesson_type == "file" %}
+                                        {% icon "download" size=16 %}
+                                    {% elif row.lesson.lesson_type == "live" %}
+                                        {% icon "calendar" size=16 %}
+                                    {% else %}
+                                        {% icon "book" size=16 %}
+                                    {% endif %}
+                                </span>
+
+                                <span class="curriculum__lesson-title">{{ row.lesson.title }}</span>
+
+                                {% if row.lesson.is_free_preview %}
+                                    <span class="chip chip-accent chip-sm">پیش‌نمایش رایگان</span>
+                                {% endif %}
+
+                                {% if row.lesson.duration_minutes %}
+                                    <span class="curriculum__lesson-time">
+                                        {{ row.lesson.duration_minutes|fa_digits }} دقیقه
+                                    </span>
+                                {% endif %}
+
+                                {% if row.access.allowed %}</a>{% else %}</span>{% endif %}
+                            </li>
+                        {% empty %}
+                            <li class="curriculum__empty">هنوز درسی برای این فصل ثبت نشده است.</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    {% endfor %}
+</div>

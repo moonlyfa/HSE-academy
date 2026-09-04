@@ -9,6 +9,8 @@ from django.db import models
 from django.urls import reverse
 from django.utils import timezone
 
+from .storages import lesson_attachment_path, lesson_video_path, protected_storage
+
 
 class CourseType(models.TextChoices):
     """شیوه برگزاری دوره."""
@@ -283,3 +285,264 @@ class Course(models.Model):
     def syllabus_items(self) -> list[str]:
         """سرفصل‌ها را خط‌به‌خط به لیست تبدیل می‌کند."""
         return [line.strip() for line in self.syllabus.splitlines() if line.strip()]
+
+    # --- ساختار محتوا (فصل‌ها و درس‌ها) ---
+    @property
+    def visible_sections(self):
+        """فصل‌های منتشرشده به‌همراه درس‌هایشان، با یک کوئری."""
+        return self.sections.filter(is_published=True).prefetch_related("lessons")
+
+    @property
+    def has_curriculum(self) -> bool:
+        """
+        آیا این دوره محتوای ساختاریافته دارد؟
+
+        دوره‌های قدیمی فقط فیلد متنی «سرفصل‌ها» را پر کرده‌اند. صفحه دوره اگر
+        فصل واقعی موجود باشد آن را نشان می‌دهد و در غیر این صورت به همان متن
+        برمی‌گردد؛ پس لازم نیست ادمین همه دوره‌ها را یک‌شبه دوباره وارد کند.
+        """
+        return self.sections.filter(is_published=True).exists()
+
+    @property
+    def lesson_count(self) -> int:
+        return Lesson.objects.filter(
+            section__course=self, section__is_published=True, is_published=True
+        ).count()
+
+    @property
+    def curriculum_minutes(self) -> int:
+        total = Lesson.objects.filter(
+            section__course=self, section__is_published=True, is_published=True
+        ).aggregate(total=models.Sum("duration_minutes"))
+        return total["total"] or 0
+
+    @property
+    def preview_lesson(self):
+        """اولین درس رایگان دوره — برای دکمه «مشاهده پیش‌نمایش»."""
+        return (
+            Lesson.objects.filter(
+                section__course=self,
+                section__is_published=True,
+                is_published=True,
+                is_free_preview=True,
+            )
+            .order_by("section__order", "order")
+            .first()
+        )
+
+
+class Section(models.Model):
+    """
+    یک فصل از دوره — مثل «مبانی ایمنی» یا «ارزیابی ریسک».
+
+    چرا بین دوره و درس یک لایه اضافه کردیم؟
+    چون یک دوره چهل ساعته ممکن است سی درس داشته باشد. نمایش سی درس پشت‌سرهم
+    برای دانشجو گیج‌کننده است؛ اما همان سی درس داخل شش فصل، ساختار دوره را
+    در یک نگاه نشان می‌دهد.
+    """
+
+    course = models.ForeignKey(
+        Course,
+        verbose_name="دوره",
+        on_delete=models.CASCADE,
+        related_name="sections",
+    )
+    title = models.CharField("عنوان فصل", max_length=200)
+    description = models.TextField("توضیح کوتاه", blank=True)
+    order = models.PositiveIntegerField("ترتیب نمایش", default=0)
+    is_published = models.BooleanField(
+        "منتشر شده",
+        default=True,
+        help_text="تا وقتی خاموش باشد، این فصل و درس‌هایش در سایت دیده نمی‌شوند.",
+    )
+
+    created_at = models.DateTimeField("تاریخ ایجاد", auto_now_add=True)
+    updated_at = models.DateTimeField("آخرین بروزرسانی", auto_now=True)
+
+    class Meta:
+        verbose_name = "فصل دوره"
+        verbose_name_plural = "فصل‌های دوره"
+        ordering = ["order", "id"]
+        indexes = [models.Index(fields=["course", "order"])]
+
+    def __str__(self) -> str:
+        return f"{self.course.title} — {self.title}"
+
+    @property
+    def visible_lessons(self):
+        return self.lessons.filter(is_published=True)
+
+    @property
+    def lesson_count(self) -> int:
+        return self.visible_lessons.count()
+
+    @property
+    def total_minutes(self) -> int:
+        total = self.visible_lessons.aggregate(total=models.Sum("duration_minutes"))
+        return total["total"] or 0
+
+
+class LessonType(models.TextChoices):
+    """نوع محتوای درس."""
+
+    VIDEO = "video", "ویدیو"
+    TEXT = "text", "متن آموزشی"
+    FILE = "file", "فایل و جزوه"
+    LIVE = "live", "جلسه آنلاین زنده"
+
+
+class Lesson(models.Model):
+    """
+    یک درس (جلسه) از یک فصل.
+
+    نکته امنیتی مهم: فایل ویدیو و جزوه در پوشه محافظت‌شده ذخیره می‌شوند، نه
+    داخل media/. هیچ‌کس نمی‌تواند با کپی کردن آدرس، محتوای دوره پولی را
+    ببیند؛ تحویل فایل فقط از راه Viewهایی انجام می‌شود که مجوز را بررسی
+    می‌کنند. توضیح کامل در apps/courses/storages.py آمده است.
+    """
+
+    section = models.ForeignKey(
+        Section,
+        verbose_name="فصل",
+        on_delete=models.CASCADE,
+        related_name="lessons",
+    )
+    title = models.CharField("عنوان درس", max_length=200)
+    summary = models.TextField("توضیح کوتاه", max_length=400, blank=True)
+    lesson_type = models.CharField(
+        "نوع محتوا",
+        max_length=20,
+        choices=LessonType.choices,
+        default=LessonType.VIDEO,
+    )
+    order = models.PositiveIntegerField("ترتیب نمایش", default=0)
+    duration_minutes = models.PositiveIntegerField(
+        "مدت (دقیقه)",
+        default=0,
+        help_text="برای درس‌های متنی می‌توانید زمان تقریبی مطالعه را بنویسید.",
+    )
+
+    # --- محتوا ---
+    content = models.TextField(
+        "متن درس",
+        blank=True,
+        help_text="برای درس‌های متنی. برای ویدیو می‌توانید خلاصه یا نکات مهم را بنویسید.",
+    )
+    video_file = models.FileField(
+        "فایل ویدیو",
+        upload_to=lesson_video_path,
+        storage=protected_storage,
+        blank=True,
+        null=True,
+        help_text="فایل روی سرور خودتان و خارج از دسترس مستقیم ذخیره می‌شود.",
+    )
+    video_external_url = models.URLField(
+        "آدرس مستقیم ویدیو",
+        blank=True,
+        help_text=(
+            "اگر ویدیو روی سرور دیگری از خودتان است، آدرس مستقیم فایل را بگذارید. "
+            "برای پایداری در زمان اختلال اینترنت، از سرویس‌های خارجی استفاده نکنید."
+        ),
+    )
+    scheduled_at = models.DateTimeField(
+        "زمان برگزاری",
+        null=True,
+        blank=True,
+        help_text="فقط برای جلسه‌های آنلاین زنده.",
+    )
+
+    # --- دسترسی ---
+    is_free_preview = models.BooleanField(
+        "پیش‌نمایش رایگان",
+        default=False,
+        help_text="اگر روشن باشد، این درس برای همه بازدیدکنندگان باز است.",
+    )
+    is_published = models.BooleanField("منتشر شده", default=True)
+
+    created_at = models.DateTimeField("تاریخ ایجاد", auto_now_add=True)
+    updated_at = models.DateTimeField("آخرین بروزرسانی", auto_now=True)
+
+    class Meta:
+        verbose_name = "درس"
+        verbose_name_plural = "درس‌ها"
+        ordering = ["order", "id"]
+        indexes = [models.Index(fields=["section", "order"])]
+
+    def __str__(self) -> str:
+        return self.title
+
+    def get_absolute_url(self) -> str:
+        return reverse(
+            "courses:lesson",
+            kwargs={"slug": self.section.course.slug, "pk": self.pk},
+        )
+
+    @property
+    def course(self) -> Course:
+        return self.section.course
+
+    @property
+    def has_video(self) -> bool:
+        return bool(self.video_file or self.video_external_url)
+
+    @property
+    def is_visible(self) -> bool:
+        """درس فقط وقتی در سایت دیده می‌شود که خودش و فصلش منتشر شده باشند."""
+        return self.is_published and self.section.is_published
+
+
+class LessonAttachment(models.Model):
+    """
+    فایل ضمیمه یک درس — جزوه، چک‌لیست، فرم یا اسلاید.
+
+    چرا مدل جداست و یک فیلد ساده روی درس نیست؟
+    چون یک جلسه معمولاً بیش از یک پیوست دارد (اسلاید + چک‌لیست + نمونه فرم)
+    و با یک فیلد ثابت، مدرس مجبور می‌شد همه را در یک فایل زیپ بگذارد.
+    """
+
+    lesson = models.ForeignKey(
+        Lesson,
+        verbose_name="درس",
+        on_delete=models.CASCADE,
+        related_name="attachments",
+    )
+    title = models.CharField("عنوان فایل", max_length=200)
+    file = models.FileField(
+        "فایل",
+        upload_to=lesson_attachment_path,
+        storage=protected_storage,
+    )
+    order = models.PositiveIntegerField("ترتیب نمایش", default=0)
+    created_at = models.DateTimeField("تاریخ افزودن", auto_now_add=True)
+
+    class Meta:
+        verbose_name = "پیوست درس"
+        verbose_name_plural = "پیوست‌های درس"
+        ordering = ["order", "id"]
+
+    def __str__(self) -> str:
+        return self.title
+
+    def get_absolute_url(self) -> str:
+        return reverse(
+            "courses:lesson_attachment",
+            kwargs={
+                "slug": self.lesson.section.course.slug,
+                "pk": self.lesson_id,
+                "attachment_pk": self.pk,
+            },
+        )
+
+    @property
+    def size_display(self) -> str:
+        """حجم فایل به شکل خوانا؛ اگر فایل روی دیسک نبود، خطا نمی‌دهد."""
+        try:
+            size = self.file.size
+        except (OSError, ValueError):
+            return ""
+
+        for unit in ("بایت", "کیلوبایت", "مگابایت"):
+            if size < 1024:
+                return f"{size:.0f} {unit}"
+            size /= 1024
+        return f"{size:.1f} گیگابایت"

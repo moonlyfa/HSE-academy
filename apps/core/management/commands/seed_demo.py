@@ -19,7 +19,15 @@ from django.utils import timezone
 
 from apps.accounts.models import InstructorProfile
 from apps.core.models import FAQ, Feature, HeroSlide, Partner, SiteSetting, Testimonial
-from apps.courses.models import Course, CourseCategory, CourseLevel, CourseType
+from apps.courses.models import (
+    Course,
+    CourseCategory,
+    CourseLevel,
+    CourseType,
+    Lesson,
+    LessonType,
+    Section,
+)
 
 FEATURES = [
     ("certificate", "گواهی قابل استعلام", "هر گواهی کد یکتا و صفحه استعلام عمومی دارد؛ کارفرما می‌تواند اصالت آن را بررسی کند."),
@@ -85,6 +93,42 @@ COURSES = [
     ("طرح واکنش در شرایط اضطراری", "emergency-response", "crisis-management", 2, CourseType.HYBRID, CourseLevel.INTERMEDIATE, 20, 2_800_000, 2_200_000, 25, True),
     ("بازرسی جرثقیل و تجهیزات بالابر", "crane-inspection", "equipment-inspection", 2, CourseType.ONLINE_LIVE, CourseLevel.ADVANCED, 24, 3_400_000, None, 38, False),
     ("ایمنی کار در ارتفاع", "working-at-height", "industrial-safety", 0, CourseType.OFFLINE_RECORDED, CourseLevel.BEGINNER, 10, 950_000, None, None, False),
+]
+
+# ساختار نمونه محتوای دوره: (عنوان فصل، [(عنوان درس، نوع، دقیقه، پیش‌نمایش رایگان)])
+CURRICULUM = [
+    (
+        "مقدمه و مفاهیم پایه",
+        [
+            ("معرفی دوره و سرفصل‌ها", LessonType.VIDEO, 8, True),
+            ("تعریف HSE و جایگاه آن در سازمان", LessonType.VIDEO, 22, True),
+            ("واژه‌نامه اصطلاحات تخصصی", LessonType.TEXT, 10, False),
+        ],
+    ),
+    (
+        "الزامات قانونی و استانداردها",
+        [
+            ("قانون کار و آیین‌نامه‌های حفاظت فنی", LessonType.VIDEO, 31, False),
+            ("آشنایی با ISO 45001", LessonType.VIDEO, 27, False),
+            ("چک‌لیست انطباق با الزامات", LessonType.FILE, 5, False),
+        ],
+    ),
+    (
+        "شناسایی خطر و ارزیابی ریسک",
+        [
+            ("روش‌های شناسایی خطر", LessonType.VIDEO, 35, False),
+            ("ماتریس ارزیابی ریسک", LessonType.VIDEO, 29, False),
+            ("تمرین عملی: ارزیابی یک کارگاه", LessonType.TEXT, 20, False),
+        ],
+    ),
+    (
+        "کنترل و پایش",
+        [
+            ("سلسله‌مراتب کنترل خطر", LessonType.VIDEO, 24, False),
+            ("تجهیزات حفاظت فردی", LessonType.VIDEO, 18, False),
+            ("جلسه پرسش و پاسخ زنده", LessonType.LIVE, 60, False),
+        ],
+    ),
 ]
 
 FAQS = [
@@ -187,6 +231,7 @@ class Command(BaseCommand):
 
     # ------------------------------------------------------------------
     def _reset(self):
+        # فصل‌ها و درس‌ها با حذف دوره خودکار پاک می‌شوند (on_delete=CASCADE)
         for model in (Course, CourseCategory, InstructorProfile, Feature, HeroSlide,
                       FAQ, Testimonial, Partner):
             deleted, _ = model.objects.all().delete()
@@ -356,6 +401,49 @@ class Command(BaseCommand):
                     save=True,
                 )
         self.stdout.write(self.style.SUCCESS(f"✓ {len(COURSES)} دوره (با تصویر نمونه)"))
+        self._seed_curriculum()
+
+    def _seed_curriculum(self):
+        """
+        برای دوره‌های منتخب، فصل و درس نمونه می‌سازد.
+
+        همه دوره‌ها فصل‌بندی نمی‌شوند تا هر دو حالت سایت قابل دیدن باشد:
+        دوره‌ای که ساختار کامل دارد، و دوره‌ای که فقط فهرست متنی سرفصل دارد.
+        """
+        courses = Course.objects.filter(is_featured=True)
+        lesson_total = 0
+
+        for course in courses:
+            for section_index, (section_title, lessons) in enumerate(CURRICULUM):
+                section, _ = Section.objects.update_or_create(
+                    course=course,
+                    title=section_title,
+                    defaults={"order": section_index},
+                )
+
+                for lesson_index, (title, lesson_type, minutes, is_preview) in enumerate(lessons):
+                    Lesson.objects.update_or_create(
+                        section=section,
+                        title=title,
+                        defaults={
+                            "lesson_type": lesson_type,
+                            "order": lesson_index,
+                            "duration_minutes": minutes,
+                            "is_free_preview": is_preview,
+                            "summary": f"{title} — بخشی از فصل «{section_title}».",
+                            "content": (
+                                "متن نمونه این درس. در نسخه واقعی، محتوای آموزشی یا "
+                                "خلاصه ویدیو در این قسمت نوشته می‌شود."
+                            ),
+                        },
+                    )
+                    lesson_total += 1
+
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"✓ {courses.count()} دوره فصل‌بندی شد ({lesson_total} درس)"
+            )
+        )
 
     def _seed_faqs(self):
         for index, (question, answer) in enumerate(FAQS):

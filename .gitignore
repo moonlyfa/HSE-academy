@@ -16,6 +16,9 @@ db.sqlite3-journal
 staticfiles/
 media/*
 !media/.gitkeep
+# ویدیو و جزوه دوره‌ها — هرگز نباید در مخزن گیت برود
+protected_media/*
+!protected_media/.gitkeep
 logs/*
 !logs/.gitkeep
 

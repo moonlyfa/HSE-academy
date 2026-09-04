@@ -1787,3 +1787,211 @@ a.purchase-card__instructor:hover strong { color: var(--color-primary); }
     /* فوتر نباید زیر نوار خرید پنهان شود */
     body:has(.mobile-buy-bar) .site-footer { padding-bottom: 5rem; }
 }
+
+/* =========================================================================
+   فاز ۹ — ساختار دوره، درس‌ها و پخش‌کننده
+   ========================================================================= */
+
+/* --- خلاصه فصل و درس بالای سرفصل‌ها --- */
+.curriculum__summary { font-size: 0.88rem; color: var(--color-text-muted); }
+
+/* --- آکاردئون فصل‌ها --- */
+.curriculum .accordion-item {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md) !important;
+    margin-bottom: var(--space-sm);
+    overflow: hidden;
+    background: var(--color-surface);
+}
+
+.curriculum .accordion-button {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-md);
+    padding: var(--space-md);
+    font-weight: 600;
+    color: var(--color-text);
+    background: var(--color-surface);
+    box-shadow: none;
+}
+
+.curriculum .accordion-button:not(.collapsed) {
+    background: var(--color-primary-soft);
+    color: var(--color-primary);
+}
+
+.curriculum .accordion-button:focus { box-shadow: none; border-color: var(--color-border); }
+
+.curriculum__section-title { display: inline-flex; align-items: center; gap: var(--space-sm); }
+
+.curriculum__section-index {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    flex: 0 0 auto;
+    border-radius: 50%;
+    background: var(--color-surface-alt);
+    font-size: 0.85rem;
+}
+
+.curriculum__section-meta {
+    font-size: 0.82rem;
+    font-weight: 400;
+    color: var(--color-text-muted);
+    white-space: nowrap;
+}
+
+.curriculum .accordion-body { padding: var(--space-sm) var(--space-md) var(--space-md); }
+.curriculum__section-desc { font-size: 0.88rem; color: var(--color-text-muted); }
+
+/* --- فهرست درس‌ها --- */
+.curriculum__lessons { list-style: none; padding: 0; margin: 0; }
+
+.curriculum__lesson + .curriculum__lesson { border-top: 1px solid var(--color-border); }
+
+.curriculum__lesson-link {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-sm) var(--space-xs);
+    color: var(--color-text);
+    font-size: 0.92rem;
+}
+
+a.curriculum__lesson-link:hover { color: var(--color-primary); }
+.curriculum__lesson-link.is-locked { color: var(--color-text-light); cursor: default; }
+
+.curriculum__lesson-icon { display: inline-flex; flex: 0 0 auto; color: var(--color-primary); }
+.curriculum__lesson-link.is-locked .curriculum__lesson-icon { color: var(--color-text-light); }
+
+.curriculum__lesson-title { flex: 1; }
+
+.curriculum__lesson-time {
+    font-size: 0.8rem;
+    color: var(--color-text-light);
+    white-space: nowrap;
+}
+
+.curriculum__lesson.is-current .curriculum__lesson-link {
+    color: var(--color-primary);
+    font-weight: 600;
+    background: var(--color-primary-soft);
+    border-radius: var(--radius-sm);
+    padding-inline: var(--space-sm);
+    /* border-inline-start در چیدمان راست‌به‌چپ خودکار سمت راست می‌افتد */
+    border-inline-start: 3px solid var(--color-primary);
+}
+
+.curriculum__empty { font-size: 0.88rem; color: var(--color-text-light); padding: var(--space-sm) 0; }
+
+/* --- صفحه درس --- */
+.lesson-head__position { font-size: 0.85rem; color: var(--color-text-muted); }
+
+.lesson-head__meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-md);
+    margin-top: var(--space-sm);
+    font-size: 0.88rem;
+    color: var(--color-text-muted);
+}
+
+.lesson-head__meta span { display: inline-flex; align-items: center; gap: 0.3rem; }
+
+.lesson-player {
+    margin-top: var(--space-lg);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    background: #000;
+    border: 1px solid var(--color-border);
+}
+
+.lesson-player video { display: block; width: 100%; max-height: 70vh; }
+
+.lesson-live {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-md);
+    margin-top: var(--space-lg);
+    padding: var(--space-md);
+    border-radius: var(--radius-md);
+    background: var(--color-secondary-soft);
+}
+
+.lesson-live .icon { color: var(--color-secondary); margin-top: 2px; }
+
+.lesson-content { margin-top: var(--space-lg); }
+
+/* --- پیام درس قفل‌شده --- */
+.lesson-locked {
+    margin-top: var(--space-lg);
+    padding: var(--space-xl) var(--space-lg);
+    text-align: center;
+    border: 1px dashed var(--color-border-strong);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface-alt);
+}
+
+.lesson-locked__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 68px;
+    height: 68px;
+    border-radius: 50%;
+    background: var(--color-surface);
+    color: var(--color-text-light);
+}
+
+.lesson-locked p { color: var(--color-text-muted); margin-bottom: 0; }
+.lesson-locked .btn { margin-inline: var(--space-xs); }
+
+/* --- فایل‌های پیوست --- */
+.attachment-list { list-style: none; padding: 0; margin: 0; }
+
+.attachment-list a {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-sm) var(--space-md);
+    margin-bottom: var(--space-sm);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    color: var(--color-text);
+    background: var(--color-surface);
+}
+
+.attachment-list a:hover { border-color: var(--color-primary); color: var(--color-primary); }
+.attachment-list .icon { color: var(--color-primary); flex: 0 0 auto; }
+.attachment-list__title { flex: 1; }
+.attachment-list__size { font-size: 0.8rem; color: var(--color-text-light); white-space: nowrap; }
+
+/* --- پیمایش بین درس‌ها --- */
+.lesson-nav {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--space-sm);
+    margin-top: var(--space-xl);
+    padding-top: var(--space-lg);
+    border-top: 1px solid var(--color-border);
+}
+
+/* --- ستون کناری صفحه درس --- */
+.lesson-sidebar { position: sticky; top: calc(var(--header-height) + var(--space-md)); }
+
+.lesson-sidebar__course {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-md);
+    font-weight: 600;
+    color: var(--color-primary);
+}
+
+@media (max-width: 991.98px) {
+    .lesson-sidebar { position: static; }
+}

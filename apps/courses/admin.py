@@ -1,9 +1,10 @@
 """پنل مدیریت دسته‌بندی‌ها و دوره‌ها."""
 
 from django.contrib import admin
+from django.urls import reverse
 from django.utils.html import format_html
 
-from .models import Course, CourseCategory
+from .models import Course, CourseCategory, Lesson, LessonAttachment, Section
 
 
 @admin.register(CourseCategory)
@@ -28,6 +29,134 @@ class CourseCategoryAdmin(admin.ModelAdmin):
         return obj.published_course_count
 
 
+class SectionInline(admin.TabularInline):
+    """
+    فصل‌های دوره، داخل صفحه ویرایش خود دوره.
+
+    چرا فقط فصل‌ها اینجا هستند و درس‌ها نه؟
+    پنل مدیریت جنگو از Inline تودرتو (فصل داخل دوره، درس داخل فصل) پشتیبانی
+    نمی‌کند. پس ساختار این‌طور است: در صفحه دوره فصل‌ها را می‌سازید، و با
+    زدن روی هر فصل، درس‌های آن را وارد می‌کنید.
+    """
+
+    model = Section
+    extra = 1
+    fields = ("title", "order", "is_published", "lesson_count_display", "edit_link")
+    readonly_fields = ("lesson_count_display", "edit_link")
+    ordering = ("order", "id")
+
+    @admin.display(description="تعداد درس")
+    def lesson_count_display(self, obj: Section) -> str:
+        return str(obj.lesson_count) if obj.pk else "—"
+
+    @admin.display(description="درس‌های این فصل")
+    def edit_link(self, obj: Section):
+        if not obj.pk:
+            return "ابتدا فصل را ذخیره کنید."
+        url = reverse("admin:courses_section_change", args=[obj.pk])
+        return format_html('<a href="{}">افزودن و ویرایش درس‌ها</a>', url)
+
+
+class LessonInline(admin.TabularInline):
+    """درس‌های یک فصل، داخل صفحه ویرایش همان فصل."""
+
+    model = Lesson
+    extra = 1
+    fields = (
+        "title",
+        "lesson_type",
+        "order",
+        "duration_minutes",
+        "is_free_preview",
+        "is_published",
+        "edit_link",
+    )
+    readonly_fields = ("edit_link",)
+    ordering = ("order", "id")
+
+    @admin.display(description="محتوا و فایل‌ها")
+    def edit_link(self, obj: Lesson):
+        if not obj.pk:
+            return "ابتدا درس را ذخیره کنید."
+        url = reverse("admin:courses_lesson_change", args=[obj.pk])
+        return format_html('<a href="{}">ویرایش محتوا</a>', url)
+
+
+class LessonAttachmentInline(admin.TabularInline):
+    model = LessonAttachment
+    extra = 1
+    fields = ("title", "file", "order")
+    ordering = ("order", "id")
+
+
+@admin.register(Section)
+class SectionAdmin(admin.ModelAdmin):
+    list_display = ("title", "course", "order", "lesson_count_display", "is_published")
+    list_filter = ("is_published", "course")
+    search_fields = ("title", "course__title")
+    autocomplete_fields = ("course",)
+    ordering = ("course", "order")
+    inlines = (LessonInline,)
+
+    @admin.display(description="تعداد درس")
+    def lesson_count_display(self, obj: Section) -> int:
+        return obj.lesson_count
+
+
+@admin.register(Lesson)
+class LessonAdmin(admin.ModelAdmin):
+    list_display = (
+        "title",
+        "course_title",
+        "section",
+        "lesson_type",
+        "duration_minutes",
+        "is_free_preview",
+        "is_published",
+    )
+    list_editable = ("is_free_preview", "is_published")
+    list_filter = ("lesson_type", "is_published", "is_free_preview", "section__course")
+    search_fields = ("title", "summary", "content", "section__title")
+    autocomplete_fields = ("section",)
+    ordering = ("section__course", "section__order", "order")
+    inlines = (LessonAttachmentInline,)
+    readonly_fields = ("created_at", "updated_at")
+
+    fieldsets = (
+        ("اطلاعات درس", {"fields": ("section", "title", "summary", "order")}),
+        ("نوع و مدت", {"fields": ("lesson_type", "duration_minutes")}),
+        (
+            "محتوا",
+            {
+                "description": (
+                    "فایل ویدیو در پوشه محافظت‌شده ذخیره می‌شود و آدرس مستقیم آن "
+                    "برای کسی که در دوره ثبت‌نام نکرده کار نمی‌کند."
+                ),
+                "fields": ("content", "video_file", "video_external_url", "scheduled_at"),
+            },
+        ),
+        (
+            "دسترسی",
+            {
+                "description": (
+                    "«پیش‌نمایش رایگان» یعنی این درس برای همه بازدیدکنندگان سایت باز است. "
+                    "معمولاً یکی دو درس اول را پیش‌نمایش می‌گذارند."
+                ),
+                "fields": ("is_free_preview", "is_published"),
+            },
+        ),
+        ("تاریخ‌ها", {"fields": ("created_at", "updated_at"), "classes": ("collapse",)}),
+    )
+
+    @admin.display(description="دوره", ordering="section__course__title")
+    def course_title(self, obj: Lesson) -> str:
+        return obj.section.course.title
+
+    def get_queryset(self, request):
+        # بدون این، فهرست درس‌ها برای هر سطر دو کوئری اضافه می‌زد.
+        return super().get_queryset(request).select_related("section", "section__course")
+
+
 @admin.register(Course)
 class CourseAdmin(admin.ModelAdmin):
     list_display = (
@@ -37,6 +166,7 @@ class CourseAdmin(admin.ModelAdmin):
         "course_type",
         "start_date",
         "price_display",
+        "lesson_count_display",
         "is_featured",
         "is_published",
     )
@@ -57,6 +187,7 @@ class CourseAdmin(admin.ModelAdmin):
     ordering = ("-created_at",)
     list_per_page = 25
     readonly_fields = ("created_at", "updated_at", "thumbnail_preview")
+    inlines = (SectionInline,)
 
     fieldsets = (
         (
@@ -81,6 +212,10 @@ class CourseAdmin(admin.ModelAdmin):
         ("وضعیت انتشار", {"fields": ("is_featured", "is_published", "created_at", "updated_at")}),
         ("سئو", {"fields": ("meta_title", "meta_description"), "classes": ("collapse",)}),
     )
+
+    @admin.display(description="تعداد درس")
+    def lesson_count_display(self, obj: Course) -> int:
+        return obj.lesson_count
 
     @admin.display(description="قیمت")
     def price_display(self, obj: Course) -> str:

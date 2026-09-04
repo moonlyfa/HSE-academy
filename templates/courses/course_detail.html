@@ -57,7 +57,7 @@
                 {# --- پرش سریع به بخش‌های صفحه --- #}
                 <nav class="course-anchors" aria-label="بخش‌های این صفحه">
                     {% if course.full_description %}<a href="#about-course">درباره دوره</a>{% endif %}
-                    {% if course.syllabus_items %}<a href="#syllabus">سرفصل‌ها</a>{% endif %}
+                    {% if curriculum or course.syllabus_items %}<a href="#syllabus">سرفصل‌ها</a>{% endif %}
                     {% if course.target_audience %}<a href="#audience">مخاطبان</a>{% endif %}
                     {% if course.prerequisites %}<a href="#prerequisites">پیش‌نیازها</a>{% endif %}
                     {% if course.instructor %}<a href="#instructor">مدرس</a>{% endif %}
@@ -70,7 +70,30 @@
                     </div>
                 {% endif %}
 
-                {% if course.syllabus_items %}
+                {% if curriculum %}
+                    <div class="content-block" id="syllabus">
+                        <div class="d-flex justify-content-between align-items-end flex-wrap gap-2 mb-3">
+                            <h2 class="h4 m-0">سرفصل‌های دوره</h2>
+                            <span class="curriculum__summary">
+                                {{ curriculum|length|fa_digits }} فصل ·
+                                {{ course.lesson_count|fa_digits }} درس
+                                {% if course.curriculum_minutes %}
+                                    · {{ course.curriculum_minutes|fa_digits }} دقیقه
+                                {% endif %}
+                            </span>
+                        </div>
+
+                        {% include "courses/partials/curriculum.html" with curriculum=curriculum %}
+
+                        {% if course.preview_lesson %}
+                            <a class="btn btn-outline-brand mt-3" href="{{ course.preview_lesson.get_absolute_url }}">
+                                {% icon "video" size=18 %}
+                                <span>مشاهده رایگان درس نمونه</span>
+                            </a>
+                        {% endif %}
+                    </div>
+                {% elif course.syllabus_items %}
+                    {# دوره‌هایی که هنوز فصل‌بندی نشده‌اند، همان فهرست متنی را نشان می‌دهند #}
                     <div class="content-block" id="syllabus">
                         <h2 class="h4">سرفصل‌های دوره</h2>
                         <ol class="syllabus-list">
@@ -180,6 +203,9 @@
                         <li>{% icon "chart" size=18 %}<span>سطح</span><strong>{{ course.get_level_display }}</strong></li>
                         {% if course.duration_hours %}
                             <li>{% icon "clock" size=18 %}<span>مدت</span><strong>{{ course.duration_hours|fa_digits }} ساعت</strong></li>
+                        {% endif %}
+                        {% if course.lesson_count %}
+                            <li>{% icon "book" size=18 %}<span>تعداد درس</span><strong>{{ course.lesson_count|fa_digits }} درس</strong></li>
                         {% endif %}
                         {% if course.start_date %}
                             <li>{% icon "calendar" size=18 %}<span>شروع</span><strong>{{ course.start_date|jalali }}</strong></li>

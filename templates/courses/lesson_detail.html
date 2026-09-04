@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% load core_extras %}
+
+{% block title %}{{ lesson.title }} — {{ course.title }}{% endblock %}
+{% block meta_description %}{{ lesson.summary|default:lesson.title }}{% endblock %}
+
+{% block extra_head %}
+    {# درس‌های قفل‌شده نباید در نتایج جست‌وجو ایندکس شوند #}
+    {% if not access.allowed %}<meta name="robots" content="noindex">{% endif %}
+{% endblock %}
+
+{% block breadcrumb %}
+    {% include "partials/breadcrumb.html" with items=breadcrumb_items current=lesson.title %}
+{% endblock %}
+
+{% block content %}
+<section class="section pt-4">
+    <div class="container">
+        <div class="row g-4">
+
+            {# --- محتوای درس --- #}
+            <div class="col-lg-8">
+
+                <div class="lesson-head">
+                    <span class="lesson-head__position">
+                        درس {{ lesson_position|fa_digits }} از {{ lesson_total|fa_digits }}
+                        · {{ lesson.section.title }}
+                    </span>
+                    <h1 class="h3 mt-2">{{ lesson.title }}</h1>
+
+                    <div class="lesson-head__meta">
+                        <span>{% icon "book" size=16 %} {{ lesson.get_lesson_type_display }}</span>
+                        {% if lesson.duration_minutes %}
+                            <span>{% icon "clock" size=16 %} {{ lesson.duration_minutes|fa_digits }} دقیقه</span>
+                        {% endif %}
+                        {% if lesson.is_free_preview %}
+                            <span class="chip chip-accent chip-sm">پیش‌نمایش رایگان</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                {% if access.allowed %}
+
+                    {% if lesson.has_video %}
+                        <div class="lesson-player">
+                            <video controls preload="metadata" playsinline>
+                                {% if lesson.video_file %}
+                                    <source src="{% url 'courses:lesson_video' course.slug lesson.pk %}">
+                                {% else %}
+                                    <source src="{{ lesson.video_external_url }}">
+                                {% endif %}
+                                مرورگر شما پخش ویدیو را پشتیبانی نمی‌کند.
+                            </video>
+                        </div>
+                    {% endif %}
+
+                    {% if lesson.lesson_type == "live" and lesson.scheduled_at %}
+                        <div class="lesson-live">
+                            {% icon "calendar" size=20 %}
+                            <div>
+                                <strong class="d-block">جلسه آنلاین زنده</strong>
+                                <span>زمان برگزاری: {{ lesson.scheduled_at|jalali }}</span>
+                                <p class="m-0 small text-muted">
+                                    لینک ورود به کلاس، پیش از شروع جلسه در همین صفحه قرار می‌گیرد.
+                                </p>
+                            </div>
+                        </div>
+                    {% endif %}
+
+                    {% if lesson.summary %}
+                        <p class="lead mt-4">{{ lesson.summary }}</p>
+                    {% endif %}
+
+                    {% if lesson.content %}
+                        <div class="content-block lesson-content">
+                            {{ lesson.content|linebreaks }}
+                        </div>
+                    {% endif %}
+
+                    {% if lesson.attachments.all %}
+                        <div class="content-block">
+                            <h2 class="h5">فایل‌های این درس</h2>
+                            <ul class="attachment-list">
+                                {% for attachment in lesson.attachments.all %}
+                                    <li>
+                                        <a href="{{ attachment.get_absolute_url }}">
+                                            {% icon "download" size=18 %}
+                                            <span class="attachment-list__title">{{ attachment.title }}</span>
+                                            {% if attachment.size_display %}
+                                                <span class="attachment-list__size">{{ attachment.size_display|fa_digits }}</span>
+                                            {% endif %}
+                                        </a>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% endif %}
+
+                    {% if not lesson.has_video and not lesson.content and not lesson.attachments.all %}
+                        <div class="empty-state">
+                            {% icon "book" size=36 %}
+                            <p class="mt-3 mb-0">محتوای این درس هنوز بارگذاری نشده است.</p>
+                        </div>
+                    {% endif %}
+
+                {% else %}
+
+                    {# --- درس قفل است: به‌جای صفحه خطا، توضیح و راه حل --- #}
+                    <div class="lesson-locked">
+                        <span class="lesson-locked__icon">{% icon "lock" size=32 %}</span>
+                        <h2 class="h5 mt-3">این درس قفل است</h2>
+                        <p>{{ access.message }}</p>
+
+                        {% if access.action_url %}
+                            <a class="btn btn-accent mt-2" href="{{ access.action_url }}">
+                                {{ access.action_label }}
+                            </a>
+                        {% endif %}
+
+                        {% if course.preview_lesson %}
+                            <a class="btn btn-outline-brand mt-2" href="{{ course.preview_lesson.get_absolute_url }}">
+                                مشاهده رایگان درس نمونه
+                            </a>
+                        {% endif %}
+                    </div>
+
+                {% endif %}
+
+                {# --- درس قبلی و بعدی --- #}
+                <nav class="lesson-nav" aria-label="پیمایش بین درس‌ها">
+                    {% if previous_lesson %}
+                        <a class="btn btn-outline-brand btn-sm" href="{{ previous_lesson.get_absolute_url }}">
+                            {% icon "chevron-right" size=16 %}
+                            <span>درس قبلی</span>
+                        </a>
+                    {% else %}
+                        <span></span>
+                    {% endif %}
+
+                    {% if next_lesson %}
+                        <a class="btn btn-outline-brand btn-sm" href="{{ next_lesson.get_absolute_url }}">
+                            <span>درس بعدی</span>
+                            {% icon "chevron-left" size=16 %}
+                        </a>
+                    {% endif %}
+                </nav>
+            </div>
+
+            {# --- فهرست درس‌های دوره --- #}
+            <div class="col-lg-4">
+                <aside class="lesson-sidebar">
+                    <a class="lesson-sidebar__course" href="{{ course.get_absolute_url }}">
+                        {% icon "arrow-left" size=16 %}
+                        <span>{{ course.title }}</span>
+                    </a>
+
+                    {% include "courses/partials/curriculum.html" with curriculum=curriculum current_lesson_pk=lesson.pk %}
+                </aside>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

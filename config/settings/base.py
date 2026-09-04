@@ -140,6 +140,26 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
+# ---------------------------------------------------------------------------
+# فایل‌های محافظت‌شده (ویدیو و جزوه دوره‌ها)
+# ---------------------------------------------------------------------------
+#
+# چرا جدا از media؟
+# هر چیزی که داخل media/ باشد با یک آدرس ثابت در دسترس است. یعنی اگر ویدیوی
+# یک دوره پولی آنجا ذخیره شود، کافی است یک نفر آدرس را کپی کند و برای صد نفر
+# دیگر بفرستد — همه بدون خرید تماشا می‌کنند و کل مدل فروش دوره از بین می‌رود.
+#
+# پس فایل‌های آموزشی در پوشه‌ای بیرون از دسترس مستقیم وب ذخیره می‌شوند و فقط
+# از راه یک View که مجوز کاربر را بررسی می‌کند سرو می‌شوند.
+PROTECTED_MEDIA_ROOT = Path(
+    env("PROTECTED_MEDIA_ROOT", default=str(BASE_DIR / "protected_media"))
+)
+
+# در Production تحویل فایل به Nginx سپرده می‌شود (X-Accel-Redirect) تا پایتون
+# برای هر ویدیو چند دقیقه مشغول نماند. مقدار زیر مسیر داخلی Nginx است.
+USE_X_ACCEL_REDIRECT = env.bool("USE_X_ACCEL_REDIRECT", default=False)
+X_ACCEL_REDIRECT_PREFIX = env("X_ACCEL_REDIRECT_PREFIX", default="/protected-internal/")
+
 STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
     "staticfiles": {

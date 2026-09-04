@@ -8,9 +8,10 @@
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
-from django.urls import include, path, register_converter
+from django.urls import include, path, re_path, register_converter
 
 from apps.core.converters import UnicodeSlugConverter
+from apps.courses import views as course_views
 
 # مبدل «uslug» اجازه می‌دهد آدرس دوره‌ها و مدرسان فارسی هم باشد.
 # باید پیش از استفاده در الگوها ثبت شود.
@@ -22,6 +23,13 @@ urlpatterns = [
     path(f"{settings.ADMIN_URL}/", admin.site.urls),
     path("accounts/", include("apps.accounts.urls")),
     path("courses/", include("apps.courses.urls")),
+    # فایل‌های محافظت‌شده دوره‌ها: فقط برای مدیران، و صرفاً برای اینکه
+    # لینک فایل در پنل مدیریت کار کند. دانشجو از آدرس خودِ درس می‌گیرد.
+    re_path(
+        r"^protected-media/(?P<path>.+)$",
+        course_views.protected_media,
+        name="protected_media",
+    ),
     path("", include("apps.core.urls")),
 ]
 

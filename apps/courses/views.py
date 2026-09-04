@@ -7,15 +7,26 @@ Viewهای عمومی دوره‌ها.
 
 from urllib.parse import quote
 
+from django.contrib.admin.views.decorators import staff_member_required
 from django.core.paginator import Paginator
 from django.db.models import Count, Prefetch, Q, QuerySet
-from django.http import HttpRequest, HttpResponse
+from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, render
 from django.urls import reverse
 
 from apps.accounts.models import InstructorProfile
 
-from .models import Course, CourseCategory, CourseLevel, CourseType
+from .access import check_lesson_access
+from .models import (
+    Course,
+    CourseCategory,
+    CourseLevel,
+    CourseType,
+    Lesson,
+    LessonAttachment,
+)
+from .serving import serve_protected_file
+from .storages import protected_storage
 
 # گزینه‌های مرتب‌سازی: کلیدِ داخل آدرس → (برچسب فارسی، فیلد مرتب‌سازی)
 SORT_OPTIONS = {
@@ -206,6 +217,8 @@ def course_detail(request: HttpRequest, slug: str) -> HttpResponse:
 
     context = {
         "course": course,
+        # ساختار دوره به‌همراه وضعیت قفل هر درس برای همین بازدیدکننده
+        "curriculum": _curriculum_for(course, request.user),
         "related_courses": related,
         "share": _share_links(request, course),
         "breadcrumb_items": breadcrumb_items,
@@ -320,3 +333,171 @@ def instructor_detail(request: HttpRequest, slug: str) -> HttpResponse:
             "nav_active": "instructors",
         },
     )
+
+
+# ---------------------------------------------------------------------------
+# درس‌ها و فایل‌های دوره
+# ---------------------------------------------------------------------------
+
+
+def _lesson_or_404(slug: str, pk: int) -> Lesson:
+    """
+    درس را همراه دوره‌اش پیدا می‌کند.
+
+    آدرس درس شامل اسلاگ دوره هم هست؛ پس بررسی می‌کنیم که این درس واقعاً
+    متعلق به همان دوره باشد. بدون این بررسی، آدرس دوره‌ای ارزان با شناسه
+    درسی از دوره‌ای گران، در را باز می‌کرد.
+    """
+    lesson = get_object_or_404(
+        Lesson.objects.select_related(
+            "section", "section__course", "section__course__instructor"
+        ).prefetch_related("attachments"),
+        pk=pk,
+    )
+
+    if lesson.section.course.slug != slug:
+        raise Http404("این درس متعلق به این دوره نیست.")
+
+    if not lesson.section.course.is_published:
+        raise Http404("دوره منتشر نشده است.")
+
+    return lesson
+
+
+def _curriculum_for(course: Course, user, current_lesson: Lesson | None = None) -> list[dict]:
+    """
+    ساختار کامل دوره به‌همراه وضعیت دسترسی هر درس.
+
+    وضعیت قفل را همین‌جا حساب می‌کنیم و به قالب می‌دهیم؛ قالب نباید خودش
+    منطق دسترسی داشته باشد، چون منطق پخش‌شده در قالب‌ها همان‌جایی است که
+    رخنه‌های امنیتی پیدا می‌شوند.
+
+    is_open مشخص می‌کند کدام فصل باز نمایش داده شود: فصلی که درس جاری در
+    آن است، و اگر درس جاری نداشتیم، فصل اول.
+    """
+    sections = (
+        course.sections.filter(is_published=True)
+        .prefetch_related(
+            Prefetch("lessons", queryset=Lesson.objects.filter(is_published=True))
+        )
+        .order_by("order", "id")
+    )
+
+    result = []
+    for index, section in enumerate(sections):
+        lessons = [
+            {"lesson": lesson, "access": check_lesson_access(user, lesson)}
+            for lesson in section.lessons.all()
+        ]
+        is_open = (
+            section.pk == current_lesson.section_id
+            if current_lesson
+            else index == 0
+        )
+        result.append({"section": section, "lessons": lessons, "is_open": is_open})
+    return result
+
+
+def lesson_detail(request: HttpRequest, slug: str, pk: int) -> HttpResponse:
+    """
+    صفحه یک درس.
+
+    اگر کاربر مجاز نباشد، صفحه ۴۰۳ نمی‌دهیم؛ همان صفحه را با محتوای قفل‌شده
+    و توضیح اینکه «چرا بسته است و چه کار باید بکند» نشان می‌دهیم. این هم
+    برای کاربر مفیدتر است و هم برای فروش دوره.
+    """
+    lesson = _lesson_or_404(slug, pk)
+    course = lesson.section.course
+    access = check_lesson_access(request.user, lesson)
+
+    # درس منتشرنشده برای کاربر عادی اصلاً نباید وجود داشته باشد.
+    if access.reason == "unpublished":
+        raise Http404("این درس منتشر نشده است.")
+
+    siblings = list(
+        Lesson.objects.filter(
+            section__course=course, section__is_published=True, is_published=True
+        )
+        .select_related("section")
+        .order_by("section__order", "section__id", "order", "id")
+    )
+    index = next((i for i, item in enumerate(siblings) if item.pk == lesson.pk), None)
+
+    return render(
+        request,
+        "courses/lesson_detail.html",
+        {
+            "course": course,
+            "lesson": lesson,
+            "access": access,
+            "curriculum": _curriculum_for(course, request.user, current_lesson=lesson),
+            "previous_lesson": siblings[index - 1] if index else None,
+            "next_lesson": (
+                siblings[index + 1]
+                if index is not None and index + 1 < len(siblings)
+                else None
+            ),
+            "lesson_position": (index + 1) if index is not None else None,
+            "lesson_total": len(siblings),
+            "breadcrumb_items": [
+                _courses_crumb(),
+                {"label": course.title, "url": course.get_absolute_url()},
+            ],
+            "nav_active": "courses",
+        },
+    )
+
+
+def lesson_video(request: HttpRequest, slug: str, pk: int) -> HttpResponse:
+    """
+    تحویل فایل ویدیوی یک درس.
+
+    این آدرس همان بررسی دسترسی صفحه درس را دوباره انجام می‌دهد. چرا؟ چون
+    کسی می‌تواند مستقیماً همین آدرس را صدا بزند بدون اینکه اصلاً صفحه درس
+    را باز کند. هر مسیری که به محتوا می‌رسد باید خودش مجوز را چک کند.
+    """
+    lesson = _lesson_or_404(slug, pk)
+
+    if not check_lesson_access(request.user, lesson):
+        raise Http404("دسترسی به این فایل امکان‌پذیر نیست.")
+
+    if not lesson.video_file:
+        raise Http404("برای این درس فایل ویدیویی ثبت نشده است.")
+
+    return serve_protected_file(protected_storage, lesson.video_file.name)
+
+
+def lesson_attachment(
+    request: HttpRequest, slug: str, pk: int, attachment_pk: int
+) -> HttpResponse:
+    """دانلود یک پیوست درس، با همان قاعده دسترسی."""
+    lesson = _lesson_or_404(slug, pk)
+
+    if not check_lesson_access(request.user, lesson):
+        raise Http404("دسترسی به این فایل امکان‌پذیر نیست.")
+
+    attachment = get_object_or_404(
+        LessonAttachment, pk=attachment_pk, lesson=lesson
+    )
+
+    extension = attachment.file.name.rsplit(".", 1)[-1] if "." in attachment.file.name else ""
+    download_name = f"{attachment.title}.{extension}" if extension else attachment.title
+
+    return serve_protected_file(
+        protected_storage,
+        attachment.file.name,
+        as_attachment=True,
+        download_name=download_name,
+    )
+
+
+@staff_member_required
+def protected_media(request: HttpRequest, path: str) -> HttpResponse:
+    """
+    دسترسی مستقیم مدیر به فایل‌های محافظت‌شده.
+
+    پنل مدیریت جنگو برای هر فایل یک لینک می‌سازد. این View فقط به همان
+    لینک‌ها پاسخ می‌دهد تا مدیر بتواند فایل آپلودشده را بررسی کند؛ برای
+    بقیه کاربران بسته است.
+    """
+    return serve_protected_file(protected_storage, path)
