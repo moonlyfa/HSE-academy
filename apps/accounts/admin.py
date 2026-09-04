@@ -9,7 +9,7 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.forms import AdminPasswordChangeForm
 
-from .models import InstructorProfile, User
+from .models import InstructorProfile, OtpCode, User
 
 
 @admin.register(User)
@@ -106,3 +106,59 @@ class InstructorProfileAdmin(admin.ModelAdmin):
     @admin.display(description="تعداد دوره")
     def course_count(self, obj: "InstructorProfile") -> int:
         return obj.published_course_count
+
+
+@admin.register(OtpCode)
+class OtpCodeAdmin(admin.ModelAdmin):
+    """
+    مشاهده سوابق کدهای یکبارمصرف.
+
+    کاملاً فقط‌خواندنی است: پشتیبانی باید بتواند ببیند کد برای کاربر
+    ارسال شده یا نه، اما نه بتواند کد بسازد و نه محتوای آن را ببیند.
+    خودِ کد اصلاً در دیتابیس نیست — فقط اثر انگشت رمزنگاری‌شده‌اش.
+    """
+
+    list_display = (
+        "masked_mobile",
+        "purpose",
+        "status",
+        "attempts",
+        "created_at",
+        "expires_at",
+    )
+    list_filter = ("purpose", "created_at")
+    search_fields = ("mobile",)
+    date_hierarchy = "created_at"
+    ordering = ("-created_at",)
+    list_per_page = 50
+
+    readonly_fields = (
+        "mobile",
+        "purpose",
+        "code_hash",
+        "attempts",
+        "created_at",
+        "expires_at",
+        "used_at",
+        "ip_address",
+    )
+
+    @admin.display(description="شماره موبایل")
+    def masked_mobile(self, obj: OtpCode) -> str:
+        if len(obj.mobile) != 11:
+            return obj.mobile
+        return f"{obj.mobile[:4]}***{obj.mobile[-4:]}"
+
+    @admin.display(description="وضعیت")
+    def status(self, obj: OtpCode) -> str:
+        if obj.is_used:
+            return "استفاده شده"
+        if obj.is_expired:
+            return "منقضی"
+        return "فعال"
+
+    def has_add_permission(self, request) -> bool:
+        return False
+
+    def has_change_permission(self, request, obj=None) -> bool:
+        return False

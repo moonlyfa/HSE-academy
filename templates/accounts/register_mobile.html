@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% load core_extras %}
+
+{% block title %}ثبت‌نام — {{ site.site_name }}{% endblock %}
+{% block meta_description %}ساخت حساب کاربری در {{ site.site_name }} برای شرکت در دوره‌های تخصصی HSE.{% endblock %}
+{% block extra_head %}<meta name="robots" content="noindex">{% endblock %}
+
+{% block content %}
+<section class="auth-section">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-5 col-md-8">
+                <div class="auth-card">
+
+                    <div class="auth-card__head">
+                        <span class="auth-icon">{% icon "users" size=26 %}</span>
+                        <h1 class="h4">ساخت حساب کاربری</h1>
+                        <p>شماره موبایل خود را وارد کنید تا کد تأیید برایتان ارسال شود.</p>
+                    </div>
+
+                    {% include "accounts/partials/steps.html" with step=1 flow="register" %}
+
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+                        {% include "accounts/partials/field.html" with field=form.mobile %}
+                        <button type="submit" class="btn btn-primary w-100">دریافت کد تأیید</button>
+                    </form>
+
+                    <div class="auth-card__foot">
+                        <p class="mb-0">
+                            قبلاً ثبت‌نام کرده‌اید؟
+                            <a href="{% url 'accounts:login' %}">وارد شوید</a>
+                        </p>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

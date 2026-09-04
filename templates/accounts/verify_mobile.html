@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% load core_extras %}
+
+{% block title %}تأیید شماره موبایل — {{ site.site_name }}{% endblock %}
+{% block extra_head %}<meta name="robots" content="noindex">{% endblock %}
+
+{% block breadcrumb %}
+    {% include "partials/breadcrumb.html" with current="تأیید شماره موبایل" %}
+{% endblock %}
+
+{% block content %}
+<section class="section pt-4">
+    <div class="container">
+        <div class="row g-4">
+            <div class="col-lg-3">
+                {% include "accounts/partials/sidebar.html" with dash_active="verify" %}
+            </div>
+
+            <div class="col-lg-9">
+                <div class="auth-card auth-card--wide">
+
+                    <div class="auth-card__head">
+                        <span class="auth-icon">{% icon "phone" size=26 %}</span>
+                        <h1 class="h4">تأیید شماره موبایل</h1>
+                        <p class="mb-0">
+                            شماره
+                            <strong class="ltr d-inline-block">{{ user.mobile }}</strong>
+                        </p>
+                    </div>
+
+                    {% if code_sent %}
+                        <form method="post" novalidate>
+                            {% csrf_token %}
+                            {% include "accounts/partials/field.html" with field=form.code %}
+                            <button type="submit" class="btn btn-primary">تأیید کد</button>
+                        </form>
+
+                        <div class="otp-resend">
+                            <form method="post">
+                                {% csrf_token %}
+                                <button type="submit" name="resend" value="1"
+                                        class="btn btn-link btn-sm"
+                                        data-resend-button
+                                        data-resend-seconds="{{ resend_in }}"
+                                        {% if resend_in %}disabled{% endif %}>
+                                    <span data-resend-label>
+                                        {% if resend_in %}
+                                            ارسال مجدد تا <span data-resend-timer>{{ resend_in|fa_digits }}</span> ثانیه دیگر
+                                        {% else %}
+                                            ارسال مجدد کد
+                                        {% endif %}
+                                    </span>
+                                </button>
+                            </form>
+                        </div>
+                    {% else %}
+                        <p class="text-muted">
+                            برای تأیید شماره خود، کد پیامکی دریافت کنید. تأیید شماره
+                            برای صدور گواهی پایان دوره لازم است.
+                        </p>
+                        <form method="post">
+                            {% csrf_token %}
+                            <button type="submit" name="send" value="1" class="btn btn-primary">
+                                {% icon "phone" size=18 %}
+                                <span>ارسال کد تأیید</span>
+                            </button>
+                        </form>
+                    {% endif %}
+
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

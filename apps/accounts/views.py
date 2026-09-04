@@ -6,20 +6,35 @@ Viewهای ورود، ثبت‌نام و حساب کاربری.
 """
 
 import logging
+from datetime import datetime
 
 from django.contrib import messages
 from django.contrib.auth import login as auth_login
 from django.contrib.auth import logout as auth_logout
 from django.contrib.auth import update_session_auth_hash
+from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 
-from .forms import ChangePasswordForm, LoginForm, ProfileForm, RegisterForm
+from .forms import (
+    ChangePasswordForm,
+    CompleteRegistrationForm,
+    LoginForm,
+    OtpVerifyForm,
+    PasswordResetMobileForm,
+    ProfileForm,
+    RegisterMobileForm,
+    SetNewPasswordForm,
+)
+from .models import OtpPurpose
+from .services.otp import seconds_until_resend, send_otp, verify_otp
 from .throttling import (
     LOCKOUT_SECONDS,
+    get_client_ip,
     clear_attempts,
     is_locked_out,
     mask_mobile,
@@ -27,6 +42,8 @@ from .throttling import (
 )
 
 logger = logging.getLogger("hse.accounts")
+
+User = get_user_model()
 
 
 def _safe_redirect_target(request: HttpRequest, fallback: str) -> str:
@@ -89,36 +106,331 @@ def login_view(request: HttpRequest) -> HttpResponse:
     )
 
 
-def register_view(request: HttpRequest) -> HttpResponse:
-    """
-    ثبت‌نام کاربر جدید.
+# ---------------------------------------------------------------------------
+# مدیریت وضعیت جریان چندمرحله‌ای در Session
+# ---------------------------------------------------------------------------
+# بین مرحله «وارد کردن موبایل» تا «تکمیل ثبت‌نام» باید بدانیم کاربر کدام
+# شماره را تأیید کرده. این اطلاعات در Session سرور نگه داشته می‌شود، نه در
+# آدرس یا فرم — وگرنه کاربر می‌توانست با دست‌کاری آن، مرحله تأیید پیامکی
+# را کامل دور بزند.
 
-    در فاز ۴ بین ثبت فرم و ورود خودکار، مرحله تأیید کد پیامکی اضافه
-    می‌شود. تا آن زمان حساب ساخته و کاربر وارد می‌شود، اما فیلد
-    is_mobile_verified همچنان False می‌ماند.
+# اعتبار وضعیت «تأیید شده» برای تکمیل مراحل بعدی
+VERIFIED_STATE_SECONDS = 15 * 60
+
+
+def _pending_key(purpose: str) -> str:
+    return f"otp_pending_{purpose}"
+
+
+def _verified_key(purpose: str) -> str:
+    return f"otp_verified_{purpose}"
+
+
+def _set_pending_mobile(request: HttpRequest, mobile: str, purpose: str) -> None:
+    request.session[_pending_key(purpose)] = mobile
+
+
+def _get_pending_mobile(request: HttpRequest, purpose: str) -> str | None:
+    return request.session.get(_pending_key(purpose))
+
+
+def _mark_verified(request: HttpRequest, mobile: str, purpose: str) -> None:
+    request.session[_verified_key(purpose)] = {
+        "mobile": mobile,
+        "at": timezone.now().isoformat(),
+    }
+    request.session.pop(_pending_key(purpose), None)
+
+
+def _get_verified_mobile(request: HttpRequest, purpose: str) -> str | None:
     """
+    شماره‌ای که کاربر در این جریان تأیید کرده است.
+
+    اگر بیش از حد مجاز از تأیید گذشته باشد، وضعیت باطل می‌شود تا کسی
+    نتواند یک Session قدیمی را روزها بعد برای ساخت حساب استفاده کند.
+    """
+    data = request.session.get(_verified_key(purpose))
+    if not isinstance(data, dict):
+        return None
+
+    try:
+        verified_at = datetime.fromisoformat(data["at"])
+    except (KeyError, TypeError, ValueError):
+        return None
+
+    if (timezone.now() - verified_at).total_seconds() > VERIFIED_STATE_SECONDS:
+        request.session.pop(_verified_key(purpose), None)
+        return None
+
+    return data.get("mobile")
+
+
+def _clear_flow(request: HttpRequest, purpose: str) -> None:
+    request.session.pop(_pending_key(purpose), None)
+    request.session.pop(_verified_key(purpose), None)
+
+
+def _send_and_report(request: HttpRequest, mobile: str, purpose: str) -> bool:
+    """ارسال کد و نمایش پیام مناسب به کاربر."""
+    result = send_otp(mobile, purpose, ip_address=get_client_ip(request))
+
+    if result.success:
+        messages.success(request, result.message)
+    else:
+        messages.error(request, result.message)
+
+    return result.success
+
+
+# ---------------------------------------------------------------------------
+# ثبت‌نام سه‌مرحله‌ای: شماره موبایل ← کد پیامکی ← تکمیل اطلاعات
+# ---------------------------------------------------------------------------
+
+
+def register_view(request: HttpRequest) -> HttpResponse:
+    """گام ۱ — گرفتن شماره موبایل و ارسال کد تأیید."""
     if request.user.is_authenticated:
         return redirect("accounts:dashboard")
 
-    form = RegisterForm()
+    form = RegisterMobileForm()
 
     if request.method == "POST":
-        form = RegisterForm(request.POST)
+        form = RegisterMobileForm(request.POST)
         if form.is_valid():
-            user = form.save()
-            auth_login(request, user)
+            mobile = form.cleaned_data["mobile"]
 
-            logger.info("ثبت‌نام جدید. موبایل=%s", mask_mobile(user.mobile))
-            messages.success(
-                request,
-                "ثبت‌نام شما با موفقیت انجام شد. برای دسترسی کامل، "
-                "احراز هویت خود را تکمیل کنید.",
-            )
+            if _send_and_report(request, mobile, OtpPurpose.REGISTER):
+                _set_pending_mobile(request, mobile, OtpPurpose.REGISTER)
+                return redirect("accounts:register_verify")
+
+    return render(request, "accounts/register_mobile.html", {"form": form})
+
+
+def register_verify_view(request: HttpRequest) -> HttpResponse:
+    """گام ۲ — تأیید کد پیامک‌شده."""
+    if request.user.is_authenticated:
+        return redirect("accounts:dashboard")
+
+    mobile = _get_pending_mobile(request, OtpPurpose.REGISTER)
+    if not mobile:
+        messages.info(request, "لطفاً ابتدا شماره موبایل خود را وارد کنید.")
+        return redirect("accounts:register")
+
+    form = OtpVerifyForm()
+
+    if request.method == "POST":
+        # درخواست ارسال مجدد کد
+        if "resend" in request.POST:
+            _send_and_report(request, mobile, OtpPurpose.REGISTER)
+            return redirect("accounts:register_verify")
+
+        form = OtpVerifyForm(request.POST)
+        if form.is_valid():
+            result = verify_otp(mobile, OtpPurpose.REGISTER, form.cleaned_data["code"])
+
+            if result.success:
+                _mark_verified(request, mobile, OtpPurpose.REGISTER)
+                return redirect("accounts:register_complete")
+
+            messages.error(request, result.message)
+
+    return render(
+        request,
+        "accounts/otp_verify.html",
+        {
+            "form": form,
+            "mobile": mobile,
+            "resend_in": seconds_until_resend(mobile, OtpPurpose.REGISTER),
+            "edit_url": reverse("accounts:register"),
+            "title": "تأیید شماره موبایل",
+            "show_steps": True,
+        },
+    )
+
+
+def register_complete_view(request: HttpRequest) -> HttpResponse:
+    """گام ۳ — تکمیل نام و انتخاب رمز عبور."""
+    if request.user.is_authenticated:
+        return redirect("accounts:dashboard")
+
+    mobile = _get_verified_mobile(request, OtpPurpose.REGISTER)
+    if not mobile:
+        messages.info(request, "برای ادامه، ابتدا شماره موبایل خود را تأیید کنید.")
+        return redirect("accounts:register")
+
+    form = CompleteRegistrationForm()
+
+    if request.method == "POST":
+        form = CompleteRegistrationForm(request.POST)
+        if form.is_valid():
+            user = form.create_user(mobile)
+            _clear_flow(request, OtpPurpose.REGISTER)
+
+            auth_login(request, user)
+            logger.info("ثبت‌نام کامل شد. موبایل=%s", mask_mobile(user.mobile))
+            messages.success(request, "ثبت‌نام شما با موفقیت انجام شد.")
             return redirect("accounts:dashboard")
 
         messages.error(request, "لطفاً خطاهای فرم را برطرف کنید.")
 
-    return render(request, "accounts/register.html", {"form": form})
+    return render(
+        request,
+        "accounts/register_complete.html",
+        {"form": form, "mobile": mobile},
+    )
+
+
+# ---------------------------------------------------------------------------
+# بازیابی رمز عبور با کد پیامکی
+# ---------------------------------------------------------------------------
+
+
+def password_reset_view(request: HttpRequest) -> HttpResponse:
+    """گام ۱ — گرفتن شماره موبایل."""
+    form = PasswordResetMobileForm()
+
+    if request.method == "POST":
+        form = PasswordResetMobileForm(request.POST)
+        if form.is_valid():
+            mobile = form.cleaned_data["mobile"]
+
+            # اگر شماره در سایت نباشد، عمداً همان پیام موفقیت را نشان
+            # می‌دهیم و کدی نمی‌فرستیم. این‌طور کسی نمی‌تواند با این فرم
+            # بفهمد چه شماره‌هایی در سایت حساب دارند.
+            if User.objects.filter(mobile=mobile, is_active=True).exists():
+                send_otp(mobile, OtpPurpose.PASSWORD_RESET, get_client_ip(request))
+            else:
+                logger.info(
+                    "درخواست بازیابی برای شماره ناموجود. موبایل=%s", mask_mobile(mobile)
+                )
+
+            _set_pending_mobile(request, mobile, OtpPurpose.PASSWORD_RESET)
+            messages.success(
+                request, "اگر این شماره در سایت ثبت شده باشد، کد تأیید ارسال می‌شود."
+            )
+            return redirect("accounts:password_reset_verify")
+
+    return render(request, "accounts/password_reset.html", {"form": form})
+
+
+def password_reset_verify_view(request: HttpRequest) -> HttpResponse:
+    """گام ۲ — تأیید کد."""
+    mobile = _get_pending_mobile(request, OtpPurpose.PASSWORD_RESET)
+    if not mobile:
+        return redirect("accounts:password_reset")
+
+    form = OtpVerifyForm()
+
+    if request.method == "POST":
+        if "resend" in request.POST:
+            if User.objects.filter(mobile=mobile, is_active=True).exists():
+                _send_and_report(request, mobile, OtpPurpose.PASSWORD_RESET)
+            return redirect("accounts:password_reset_verify")
+
+        form = OtpVerifyForm(request.POST)
+        if form.is_valid():
+            result = verify_otp(
+                mobile, OtpPurpose.PASSWORD_RESET, form.cleaned_data["code"]
+            )
+
+            if result.success:
+                _mark_verified(request, mobile, OtpPurpose.PASSWORD_RESET)
+                return redirect("accounts:password_reset_new")
+
+            messages.error(request, result.message)
+
+    return render(
+        request,
+        "accounts/otp_verify.html",
+        {
+            "form": form,
+            "mobile": mobile,
+            "resend_in": seconds_until_resend(mobile, OtpPurpose.PASSWORD_RESET),
+            "edit_url": reverse("accounts:password_reset"),
+            "title": "بازیابی رمز عبور",
+        },
+    )
+
+
+def password_reset_new_view(request: HttpRequest) -> HttpResponse:
+    """گام ۳ — انتخاب رمز جدید."""
+    mobile = _get_verified_mobile(request, OtpPurpose.PASSWORD_RESET)
+    if not mobile:
+        messages.info(request, "برای تغییر رمز، ابتدا شماره خود را تأیید کنید.")
+        return redirect("accounts:password_reset")
+
+    user = User.objects.filter(mobile=mobile, is_active=True).first()
+    if user is None:
+        _clear_flow(request, OtpPurpose.PASSWORD_RESET)
+        return redirect("accounts:password_reset")
+
+    form = SetNewPasswordForm()
+
+    if request.method == "POST":
+        form = SetNewPasswordForm(request.POST)
+        if form.is_valid():
+            user.set_password(form.cleaned_data["new_password1"])
+            user.save(update_fields=["password", "updated_at"])
+
+            _clear_flow(request, OtpPurpose.PASSWORD_RESET)
+            logger.info("رمز عبور بازیابی شد. موبایل=%s", mask_mobile(mobile))
+
+            messages.success(
+                request, "رمز عبور شما تغییر کرد. اکنون می‌توانید وارد شوید."
+            )
+            return redirect("accounts:login")
+
+    return render(request, "accounts/password_reset_new.html", {"form": form})
+
+
+# ---------------------------------------------------------------------------
+# تأیید شماره موبایل برای کاربری که قبلاً ثبت‌نام کرده
+# ---------------------------------------------------------------------------
+
+
+@login_required
+def verify_mobile_view(request: HttpRequest) -> HttpResponse:
+    """تأیید شماره موبایل کاربر وارد شده."""
+    user = request.user
+
+    if user.is_mobile_verified:
+        messages.info(request, "شماره موبایل شما قبلاً تأیید شده است.")
+        return redirect("accounts:dashboard")
+
+    purpose = OtpPurpose.VERIFY_MOBILE
+    form = OtpVerifyForm()
+    code_sent = _get_pending_mobile(request, purpose) == user.mobile
+
+    if request.method == "POST":
+        if "send" in request.POST or "resend" in request.POST:
+            if _send_and_report(request, user.mobile, purpose):
+                _set_pending_mobile(request, user.mobile, purpose)
+            return redirect("accounts:verify_mobile")
+
+        form = OtpVerifyForm(request.POST)
+        if form.is_valid():
+            result = verify_otp(user.mobile, purpose, form.cleaned_data["code"])
+
+            if result.success:
+                user.is_mobile_verified = True
+                user.save(update_fields=["is_mobile_verified", "updated_at"])
+                _clear_flow(request, purpose)
+
+                logger.info("موبایل تأیید شد. موبایل=%s", mask_mobile(user.mobile))
+                messages.success(request, "شماره موبایل شما با موفقیت تأیید شد.")
+                return redirect("accounts:dashboard")
+
+            messages.error(request, result.message)
+
+    return render(
+        request,
+        "accounts/verify_mobile.html",
+        {
+            "form": form,
+            "code_sent": code_sent,
+            "resend_in": seconds_until_resend(user.mobile, purpose),
+        },
+    )
 
 
 def logout_view(request: HttpRequest) -> HttpResponse:

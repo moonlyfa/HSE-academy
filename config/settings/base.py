@@ -184,6 +184,24 @@ USE_MOCK_PAYMENT = env.bool("USE_MOCK_PAYMENT", default=True)
 BLOG_ENABLED = env.bool("BLOG_ENABLED", default=False)
 
 # ---------------------------------------------------------------------------
+# کد یکبارمصرف پیامکی (OTP)
+# ---------------------------------------------------------------------------
+# این اعداد تعادل بین امنیت و راحتی کاربر هستند. سخت‌گیرتر کردنشان امنیت را
+# بالا می‌برد اما کاربر واقعی را هم اذیت می‌کند.
+OTP_CODE_LENGTH = env.int("OTP_CODE_LENGTH", default=6)
+OTP_EXPIRY_SECONDS = env.int("OTP_EXPIRY_SECONDS", default=120)      # اعتبار کد: ۲ دقیقه
+OTP_MAX_ATTEMPTS = env.int("OTP_MAX_ATTEMPTS", default=5)            # حداکثر تلاش برای هر کد
+OTP_RESEND_COOLDOWN_SECONDS = env.int("OTP_RESEND_COOLDOWN_SECONDS", default=90)
+OTP_MAX_SENDS_PER_HOUR = env.int("OTP_MAX_SENDS_PER_HOUR", default=5)
+
+# --- پنل پیامک ---
+SMS_PROVIDER = env("SMS_PROVIDER", default="mock")
+SMS_API_KEY = env("SMS_API_KEY", default="")
+SMS_SENDER_NUMBER = env("SMS_SENDER_NUMBER", default="")
+SMS_OTP_TEMPLATE = env("SMS_OTP_TEMPLATE", default="")
+SMS_TIMEOUT_SECONDS = env.int("SMS_TIMEOUT_SECONDS", default=10)
+
+# ---------------------------------------------------------------------------
 # Cache
 # ---------------------------------------------------------------------------
 # از کش برای محدودسازی تلاش‌های ناموفق ورود و در فاز ۴ برای محدودیت ارسال

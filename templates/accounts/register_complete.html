@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% load core_extras %}
+
+{% block title %}تکمیل ثبت‌نام — {{ site.site_name }}{% endblock %}
+{% block extra_head %}<meta name="robots" content="noindex">{% endblock %}
+
+{% block content %}
+<section class="auth-section">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-6 col-md-9">
+                <div class="auth-card">
+
+                    <div class="auth-card__head">
+                        <span class="auth-icon auth-icon--success">{% icon "check" size=26 %}</span>
+                        <h1 class="h4">شماره شما تأیید شد</h1>
+                        <p class="mb-0">
+                            برای تکمیل ثبت‌نام، نام و رمز عبور خود را وارد کنید.
+                        </p>
+                        <span class="chip mt-3 ltr">{{ mobile }}</span>
+                    </div>
+
+                    {% include "accounts/partials/steps.html" with step=3 flow="register" %}
+
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                {% include "accounts/partials/field.html" with field=form.first_name %}
+                            </div>
+                            <div class="col-md-6">
+                                {% include "accounts/partials/field.html" with field=form.last_name %}
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                {% include "accounts/partials/field.html" with field=form.password1 %}
+                            </div>
+                            <div class="col-md-6">
+                                {% include "accounts/partials/field.html" with field=form.password2 %}
+                            </div>
+                        </div>
+
+                        <div class="form-check mb-3">
+                            {{ form.accept_terms }}
+                            <label class="form-check-label" for="{{ form.accept_terms.id_for_label }}">
+                                <a href="{% url 'core:terms' %}" target="_blank">قوانین و مقررات</a>
+                                و
+                                <a href="{% url 'core:privacy' %}" target="_blank">حریم خصوصی</a>
+                                سایت را می‌پذیرم
+                            </label>
+                            {% for error in form.accept_terms.errors %}
+                                <div class="form-error">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+
+                        <button type="submit" class="btn btn-primary w-100">تکمیل ثبت‌نام</button>
+                    </form>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

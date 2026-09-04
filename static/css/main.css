@@ -1416,3 +1416,99 @@ img { max-width: 100%; height: auto; }
 
 /* لینک خروج در منوی کناری باید مثل بقیه گزینه‌ها رفتار کند */
 a.dash-nav__logout { text-decoration: none; }
+
+/* =========================================================================
+   کد یکبارمصرف و مراحل ثبت‌نام
+   ========================================================================= */
+.otp-input {
+    text-align: center;
+    font-size: 1.6rem;
+    font-weight: 700;
+    letter-spacing: 0.6em;
+    /* letter-spacing فاصله را بعد از آخرین رقم هم اضافه می‌کند و متن را
+       کمی از مرکز خارج می‌کند؛ این padding آن را جبران می‌کند. */
+    padding-inline-start: 0.6em !important;
+}
+
+.otp-resend {
+    text-align: center;
+    margin-top: var(--space-md);
+    padding-top: var(--space-md);
+    border-top: 1px solid var(--color-border);
+}
+
+.otp-resend .btn-link {
+    color: var(--color-secondary);
+    text-decoration: none;
+    font-size: 0.9rem;
+}
+
+.otp-resend .btn-link:disabled {
+    color: var(--color-text-light);
+    cursor: not-allowed;
+}
+
+.auth-icon--success {
+    background: rgba(30, 132, 73, 0.10);
+    color: var(--color-success);
+}
+
+/* --- نوار مراحل --- */
+.step-bar {
+    display: flex;
+    list-style: none;
+    padding: 0;
+    margin: 0 0 var(--space-lg);
+    gap: var(--space-xs);
+}
+
+.step-bar__item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-xs);
+    position: relative;
+    color: var(--color-text-light);
+    font-size: 0.78rem;
+    text-align: center;
+}
+
+/* خط رابط بین مراحل */
+.step-bar__item:not(:last-child)::after {
+    content: "";
+    position: absolute;
+    top: 14px;
+    inset-inline-start: -50%;
+    width: 100%;
+    height: 2px;
+    background: var(--color-border);
+    z-index: 0;
+}
+
+.step-bar__item.is-done:not(:last-child)::after { background: var(--color-primary); }
+
+.step-bar__num {
+    width: 30px;
+    height: 30px;
+    border-radius: var(--radius-full);
+    background: var(--color-surface-alt);
+    border: 2px solid var(--color-border);
+    display: grid;
+    place-items: center;
+    font-weight: 700;
+    font-size: 0.85rem;
+    position: relative;
+    z-index: 1;
+}
+
+.step-bar__item.is-done .step-bar__num {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+    color: var(--color-white);
+}
+
+.step-bar__item.is-active { color: var(--color-primary); font-weight: 600; }
+
+/* --- هشدار تأیید نشدن موبایل در داشبورد --- */
+.verify-status__row .btn { margin-top: var(--space-sm); }

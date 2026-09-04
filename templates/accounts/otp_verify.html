@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% load core_extras %}
+
+{% block title %}{{ title }} — {{ site.site_name }}{% endblock %}
+{% block extra_head %}<meta name="robots" content="noindex">{% endblock %}
+
+{% block content %}
+<section class="auth-section">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-5 col-md-8">
+                <div class="auth-card">
+
+                    <div class="auth-card__head">
+                        <span class="auth-icon">{% icon "phone" size=26 %}</span>
+                        <h1 class="h4">{{ title }}</h1>
+                        <p class="mb-0">
+                            کد تأیید به شماره
+                            <strong class="ltr d-inline-block">{{ mobile }}</strong>
+                            پیامک شد.
+                        </p>
+                        <a href="{{ edit_url }}" class="small">تغییر شماره</a>
+                    </div>
+
+                    {% if show_steps %}
+                        {% include "accounts/partials/steps.html" with step=2 %}
+                    {% endif %}
+
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+                        {% include "accounts/partials/field.html" with field=form.code %}
+
+                        <button type="submit" class="btn btn-primary w-100">تأیید و ادامه</button>
+                    </form>
+
+                    <div class="otp-resend">
+                        <form method="post">
+                            {% csrf_token %}
+                            <button type="submit" name="resend" value="1"
+                                    class="btn btn-link btn-sm"
+                                    data-resend-button
+                                    data-resend-seconds="{{ resend_in }}"
+                                    {% if resend_in %}disabled{% endif %}>
+                                <span data-resend-label>
+                                    {% if resend_in %}
+                                        ارسال مجدد تا <span data-resend-timer>{{ resend_in|fa_digits }}</span> ثانیه دیگر
+                                    {% else %}
+                                        ارسال مجدد کد
+                                    {% endif %}
+                                </span>
+                            </button>
+                        </form>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

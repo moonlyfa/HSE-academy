@@ -36,9 +36,14 @@
                                 {% if user.is_mobile_verified %}
                                     شماره موبایل شما تأیید شده است.
                                 {% else %}
-                                    تأیید با کد پیامکی در مرحله بعدی توسعه سایت فعال می‌شود.
+                                    برای دریافت گواهی پایان دوره، تأیید شماره موبایل لازم است.
                                 {% endif %}
                             </p>
+                            {% if not user.is_mobile_verified %}
+                                <a href="{% url 'accounts:verify_mobile' %}" class="btn btn-accent btn-sm">
+                                    تأیید شماره موبایل
+                                </a>
+                            {% endif %}
                         </div>
                     </div>
 

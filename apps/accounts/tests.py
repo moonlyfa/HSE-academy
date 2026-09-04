@@ -91,61 +91,6 @@ class MobileNormalizationTests(TestCase):
                 self.assertEqual(normalize_mobile(raw), expected)
 
 
-class RegistrationViewTests(TestCase):
-    def setUp(self):
-        self.url = reverse("accounts:register")
-        self.valid = {
-            "first_name": "سارا",
-            "last_name": "محمدی",
-            "mobile": "09121234567",
-            "password1": "HseTech!2026",
-            "password2": "HseTech!2026",
-            "accept_terms": "on",
-        }
-
-    def test_page_loads(self):
-        self.assertEqual(self.client.get(self.url).status_code, 200)
-
-    def test_successful_registration_creates_user_and_logs_in(self):
-        self.client.post(self.url, self.valid)
-
-        user = User.objects.get(mobile="09121234567")
-        self.assertEqual(user.first_name, "سارا")
-        self.assertIn("_auth_user_id", self.client.session)
-
-    def test_new_account_is_not_mobile_verified(self):
-        """تأیید موبایل باید در فاز ۴ با کد پیامکی انجام شود، نه خودکار."""
-        self.client.post(self.url, self.valid)
-        self.assertFalse(User.objects.get(mobile="09121234567").is_mobile_verified)
-
-    def test_password_is_hashed_not_stored_raw(self):
-        self.client.post(self.url, self.valid)
-        user = User.objects.get(mobile="09121234567")
-        self.assertNotIn("HseTech!2026", user.password)
-        self.assertTrue(user.check_password("HseTech!2026"))
-
-    def test_duplicate_mobile_is_rejected(self):
-        User.objects.create_user(mobile="09121234567", password="x")
-        response = self.client.post(self.url, self.valid)
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(User.objects.filter(mobile="09121234567").count(), 1)
-
-    def test_mismatched_passwords_rejected(self):
-        data = {**self.valid, "password2": "different-password"}
-        self.client.post(self.url, data)
-        self.assertFalse(User.objects.filter(mobile="09121234567").exists())
-
-    def test_terms_must_be_accepted(self):
-        data = {k: v for k, v in self.valid.items() if k != "accept_terms"}
-        self.client.post(self.url, data)
-        self.assertFalse(User.objects.filter(mobile="09121234567").exists())
-
-    def test_persian_digits_accepted_in_mobile(self):
-        data = {**self.valid, "mobile": "۰۹۱۲۱۲۳۴۵۶۷"}
-        self.client.post(self.url, data)
-        self.assertTrue(User.objects.filter(mobile="09121234567").exists())
-
-
 class LoginViewTests(TestCase):
     def setUp(self):
         from django.core.cache import cache

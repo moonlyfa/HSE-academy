@@ -199,3 +199,84 @@ class InstructorProfile(models.Model):
     @property
     def published_course_count(self) -> int:
         return self.courses.filter(is_published=True).count()
+
+
+class OtpPurpose(models.TextChoices):
+    """
+    هدف هر کد یکبارمصرف.
+
+    چرا هدف را ذخیره می‌کنیم؟ تا کدی که برای «بازیابی رمز» فرستاده شده،
+    نتواند برای «ثبت‌نام» استفاده شود. هر کد فقط برای همان کاری معتبر است
+    که برایش ساخته شده.
+    """
+
+    REGISTER = "register", "ثبت‌نام"
+    PASSWORD_RESET = "password_reset", "بازیابی رمز عبور"
+    VERIFY_MOBILE = "verify_mobile", "تأیید شماره موبایل"
+
+
+class OtpCode(models.Model):
+    """
+    کد یکبارمصرف پیامکی.
+
+    قانون طلایی: کد خام هرگز در دیتابیس ذخیره نمی‌شود — فقط اثر انگشت
+    رمزنگاری‌شده آن. حتی اگر کسی به دیتابیس دسترسی پیدا کند، نمی‌تواند
+    کدهای فعال کاربران را بخواند.
+    """
+
+    mobile = models.CharField("شماره موبایل", max_length=11, db_index=True)
+    purpose = models.CharField("هدف", max_length=20, choices=OtpPurpose.choices)
+
+    code_hash = models.CharField(
+        "اثر انگشت کد",
+        max_length=128,
+        help_text="کد خام ذخیره نمی‌شود؛ فقط نسخه رمزنگاری‌شده آن.",
+    )
+
+    attempts = models.PositiveSmallIntegerField("تعداد تلاش برای تأیید", default=0)
+
+    created_at = models.DateTimeField("زمان ارسال", auto_now_add=True)
+    expires_at = models.DateTimeField("زمان انقضا")
+    used_at = models.DateTimeField("زمان استفاده", null=True, blank=True)
+
+    ip_address = models.GenericIPAddressField("آدرس IP", null=True, blank=True)
+
+    class Meta:
+        verbose_name = "کد یکبارمصرف"
+        verbose_name_plural = "کدهای یکبارمصرف"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["mobile", "purpose", "-created_at"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.mobile} — {self.get_purpose_display()}"
+
+    @property
+    def is_expired(self) -> bool:
+        return timezone.now() >= self.expires_at
+
+    @property
+    def is_used(self) -> bool:
+        return self.used_at is not None
+
+    @property
+    def is_usable(self) -> bool:
+        """کد فقط وقتی قابل استفاده است که منقضی نشده، مصرف نشده و تلاش‌ها تمام نشده باشد."""
+        from django.conf import settings
+
+        return (
+            not self.is_used
+            and not self.is_expired
+            and self.attempts < settings.OTP_MAX_ATTEMPTS
+        )
+
+    @property
+    def seconds_remaining(self) -> int:
+        """چند ثانیه تا انقضای کد باقی مانده — برای نمایش شمارنده به کاربر."""
+        delta = (self.expires_at - timezone.now()).total_seconds()
+        return max(int(delta), 0)
+
+    def mark_used(self) -> None:
+        self.used_at = timezone.now()
+        self.save(update_fields=["used_at"])

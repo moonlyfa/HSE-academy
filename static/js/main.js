@@ -22,6 +22,13 @@
         });
     }
 
+    function toPersianDigits(value) {
+        const persian = "۰۱۲۳۴۵۶۷۸۹";
+        return String(value).replace(/[0-9]/g, function (digit) {
+            return persian[Number(digit)];
+        });
+    }
+
     document.querySelectorAll('[data-digits="en"]').forEach(function (input) {
         input.addEventListener("input", function () {
             const converted = toEnglishDigits(input.value);
@@ -101,7 +108,36 @@
     }
 
     /* ---------------------------------------------------------------------
-       ۴. اسلایدر تصویری صفحه اصلی
+       ۴. شمارنده ارسال مجدد کد تأیید
+
+       دکمه «ارسال مجدد» تا پایان زمان انتظار غیرفعال است. سرور هم همین
+       محدودیت را جداگانه اعمال می‌کند؛ این شمارنده فقط برای اینکه کاربر
+       بداند چقدر باید صبر کند.
+       --------------------------------------------------------------------- */
+    document.querySelectorAll("[data-resend-button]").forEach(function (button) {
+        let remaining = parseInt(button.dataset.resendSeconds, 10) || 0;
+        if (remaining <= 0) return;
+
+        const label = button.querySelector("[data-resend-label]");
+        const timer = button.querySelector("[data-resend-timer]");
+
+        const tick = setInterval(function () {
+            remaining -= 1;
+
+            if (remaining <= 0) {
+                clearInterval(tick);
+                button.disabled = false;
+                if (label) label.textContent = "ارسال مجدد کد";
+                return;
+            }
+
+            // ارقام شمارنده هم مثل بقیه سایت فارسی نمایش داده می‌شوند
+            if (timer) timer.textContent = toPersianDigits(remaining);
+        }, 1000);
+    });
+
+    /* ---------------------------------------------------------------------
+       ۵. اسلایدر تصویری صفحه اصلی
        - به‌صورت خودکار (با فاصله تنظیم‌شده در پنل مدیریت) به اسلاید بعدی می‌رود
        - کاربر با دکمه‌های کناری یا نقطه‌های پایین هم می‌تواند جابه‌جا شود
        - با بردن ماوس روی اسلایدر، چرخش موقتاً متوقف می‌شود

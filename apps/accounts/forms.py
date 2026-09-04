@@ -233,3 +233,139 @@ class ChangePasswordForm(forms.Form):
         self.user.set_password(self.cleaned_data["new_password1"])
         self.user.save(update_fields=["password", "updated_at"])
         return self.user
+
+
+def otp_widget() -> forms.TextInput:
+    """
+    ورودی کد تأیید.
+
+    autocomplete="one-time-code" باعث می‌شود گوشی‌های اندروید و iOS کد را
+    از پیامک بخوانند و خودکار پر کنند — بدون نیاز به هیچ کد اضافه.
+    """
+    return forms.TextInput(
+        attrs={
+            "class": "form-control otp-input ltr",
+            "placeholder": "· · · · · ·",
+            "data-digits": "en",
+            "inputmode": "numeric",
+            "autocomplete": "one-time-code",
+            "maxlength": "6",
+            "autofocus": "autofocus",
+        }
+    )
+
+
+class MobileRequestForm(MobileFieldMixin, forms.Form):
+    """گام اول: گرفتن شماره موبایل برای ارسال کد."""
+
+    mobile = forms.CharField(label="شماره موبایل", widget=mobile_widget())
+
+
+class RegisterMobileForm(MobileRequestForm):
+    """گام اول ثبت‌نام — شماره نباید از قبل ثبت شده باشد."""
+
+    def clean_mobile(self) -> str:
+        mobile = super().clean_mobile()
+        if User.objects.filter(mobile=mobile).exists():
+            raise ValidationError(
+                "این شماره موبایل قبلاً ثبت‌نام کرده است. از صفحه ورود وارد شوید."
+            )
+        return mobile
+
+
+class PasswordResetMobileForm(MobileRequestForm):
+    """
+    گام اول بازیابی رمز.
+
+    عمداً بررسی نمی‌کنیم که شماره در سایت ثبت شده یا نه. اگر خطای
+    «این شماره ثبت‌نام نکرده» می‌دادیم، هر کسی می‌توانست بفهمد چه
+    شماره‌هایی در سایت حساب دارند.
+    """
+
+
+class OtpVerifyForm(forms.Form):
+    """گام دوم: تأیید کد پیامک‌شده."""
+
+    code = forms.CharField(label="کد تأیید", widget=otp_widget())
+
+    def clean_code(self) -> str:
+        code = normalize_mobile(self.cleaned_data.get("code", ""))  # همان تبدیل ارقام
+        if not code.isdigit():
+            raise ValidationError("کد تأیید فقط عدد است.")
+        return code
+
+
+class CompleteRegistrationForm(forms.Form):
+    """گام سوم: تکمیل نام و انتخاب رمز عبور."""
+
+    first_name = forms.CharField(
+        label="نام",
+        max_length=50,
+        widget=forms.TextInput(attrs={"class": "form-control", "placeholder": "نام"}),
+    )
+    last_name = forms.CharField(
+        label="نام خانوادگی",
+        max_length=50,
+        widget=forms.TextInput(
+            attrs={"class": "form-control", "placeholder": "نام خانوادگی"}
+        ),
+    )
+    password1 = forms.CharField(
+        label="رمز عبور", widget=password_widget("حداقل ۸ کاراکتر", "new-password")
+    )
+    password2 = forms.CharField(
+        label="تکرار رمز عبور",
+        widget=password_widget("رمز عبور را دوباره بنویسید", "new-password"),
+    )
+    accept_terms = forms.BooleanField(
+        label="قوانین و مقررات سایت را می‌پذیرم",
+        error_messages={"required": "برای ثبت‌نام باید قوانین سایت را بپذیرید."},
+    )
+
+    def clean_password2(self) -> str:
+        p1 = self.cleaned_data.get("password1")
+        p2 = self.cleaned_data.get("password2")
+
+        if p1 and p2 and p1 != p2:
+            raise ValidationError("رمز عبور و تکرار آن یکسان نیستند.")
+        if p2:
+            validate_password(p2)
+        return p2
+
+    def create_user(self, mobile: str) -> User:
+        """
+        ساخت کاربر با موبایلِ از پیش تأییدشده.
+
+        چون کاربر کد پیامکی را درست وارد کرده، is_mobile_verified از همان
+        ابتدا True است.
+        """
+        user = User.objects.create_user(
+            mobile=mobile,
+            password=self.cleaned_data["password1"],
+            first_name=self.cleaned_data["first_name"],
+            last_name=self.cleaned_data["last_name"],
+            is_mobile_verified=True,
+        )
+        return user
+
+
+class SetNewPasswordForm(forms.Form):
+    """گام سوم بازیابی رمز: انتخاب رمز جدید."""
+
+    new_password1 = forms.CharField(
+        label="رمز عبور جدید", widget=password_widget("حداقل ۸ کاراکتر", "new-password")
+    )
+    new_password2 = forms.CharField(
+        label="تکرار رمز جدید",
+        widget=password_widget("رمز جدید را دوباره بنویسید", "new-password"),
+    )
+
+    def clean_new_password2(self) -> str:
+        p1 = self.cleaned_data.get("new_password1")
+        p2 = self.cleaned_data.get("new_password2")
+
+        if p1 and p2 and p1 != p2:
+            raise ValidationError("رمز جدید و تکرار آن یکسان نیستند.")
+        if p2:
+            validate_password(p2)
+        return p2
