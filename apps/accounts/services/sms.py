@@ -26,6 +26,21 @@ from django.conf import settings
 logger = logging.getLogger("hse.sms")
 
 
+def site_name() -> str:
+    """
+    نام سایت از پنل مدیریت خوانده می‌شود، نه از فایل تنظیمات.
+
+    این‌طور اگر ادمین نام آکادمی را عوض کند، متن پیامک هم خودکار
+    بروز می‌شود و نیازی به تغییر کد نیست.
+    """
+    try:
+        from apps.core.models import SiteSetting
+
+        return SiteSetting.load().site_name
+    except Exception:  # noqa: BLE001 — پیامک نباید به‌خاطر خطای جانبی متوقف شود
+        return settings.SITE_NAME
+
+
 @dataclass
 class SmsResult:
     """
@@ -59,7 +74,7 @@ class SmsProvider(ABC):
         دارند (ارسال با الگو). Providerهایی که چنین امکانی دارند این متد
         را بازنویسی می‌کنند.
         """
-        return self.send(mobile, f"کد ورود شما به {settings.SITE_NAME}: {code}")
+        return self.send(mobile, f"کد ورود شما به {site_name()}: {code}")
 
 
 class MockSmsProvider(SmsProvider):

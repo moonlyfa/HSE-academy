@@ -13,7 +13,7 @@ from django.contrib.auth import authenticate, get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 
-from .validators import validate_iranian_mobile
+from .validators import validate_iranian_mobile, validate_national_code
 
 User = get_user_model()
 
@@ -369,3 +369,29 @@ class SetNewPasswordForm(forms.Form):
         if p2:
             validate_password(p2)
         return p2
+
+
+class NationalCodeForm(forms.Form):
+    """گرفتن کد ملی برای استعلام تطبیق با شماره موبایل."""
+
+    national_code = forms.CharField(
+        label="کد ملی",
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control ltr text-center",
+                "placeholder": "کد ملی ۱۰ رقمی",
+                "data-digits": "en",
+                "inputmode": "numeric",
+                "maxlength": "10",
+                "autocomplete": "off",
+            }
+        ),
+        help_text="کد ملی باید متعلق به صاحب همین شماره موبایل باشد.",
+    )
+
+    def clean_national_code(self) -> str:
+        # همان تبدیل ارقام فارسی که برای موبایل انجام می‌شود.
+        code = normalize_mobile(self.cleaned_data.get("national_code", ""))
+        # اعتبارسنجی رقم کنترلی، پیش از مصرف سرویس پولی استعلام.
+        validate_national_code(code)
+        return code

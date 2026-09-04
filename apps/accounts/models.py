@@ -280,3 +280,82 @@ class OtpCode(models.Model):
     def mark_used(self) -> None:
         self.used_at = timezone.now()
         self.save(update_fields=["used_at"])
+
+
+class IdentityStatus(models.TextChoices):
+    """نتیجه یک درخواست استعلام هویت."""
+
+    MATCHED = "matched", "تطبیق داشت"
+    NOT_MATCHED = "not_matched", "تطبیق نداشت"
+    FAILED = "failed", "خطای سرویس"
+
+
+class IdentityVerification(models.Model):
+    """
+    سابقه هر بار استعلام تطبیق شماره موبایل و کد ملی.
+
+    چرا سابقه نگه می‌داریم؟
+      ۱. هر استعلام هزینه دارد؛ باید بدانیم چند بار و برای چه کسی خرج شده.
+      ۲. اگر کاربری ادعا کرد هویتش تأیید نشده، باید بتوانیم بررسی کنیم.
+      ۳. کد رهگیری سرویس برای پیگیری با ارائه‌دهنده لازم است.
+
+    نکته امنیتی: کد ملی داده شخصی حساس است. در پنل مدیریت ماسک‌شده نمایش
+    داده می‌شود و هرگز در صفحات عمومی سایت دیده نمی‌شود.
+    """
+
+    user = models.ForeignKey(
+        "accounts.User",
+        verbose_name="کاربر",
+        on_delete=models.CASCADE,
+        related_name="identity_verifications",
+        null=True,
+        blank=True,
+        help_text="هنگام ثبت‌نام هنوز کاربری ساخته نشده، پس می‌تواند خالی باشد.",
+    )
+
+    mobile = models.CharField("شماره موبایل", max_length=11, db_index=True)
+    national_code = models.CharField("کد ملی", max_length=10)
+
+    status = models.CharField("وضعیت", max_length=20, choices=IdentityStatus.choices)
+    provider = models.CharField("سرویس‌دهنده", max_length=50)
+    tracking_code = models.CharField("کد رهگیری", max_length=100, blank=True)
+    message = models.CharField("پیام سرویس", max_length=300, blank=True)
+
+    raw_response = models.JSONField(
+        "پاسخ خام سرویس",
+        default=dict,
+        blank=True,
+        help_text="برای پیگیری فنی با ارائه‌دهنده سرویس نگه داشته می‌شود.",
+    )
+
+    ip_address = models.GenericIPAddressField("آدرس IP", null=True, blank=True)
+    created_at = models.DateTimeField("زمان استعلام", auto_now_add=True)
+
+    class Meta:
+        verbose_name = "استعلام هویت"
+        verbose_name_plural = "استعلام‌های هویت"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["mobile", "-created_at"]),
+            models.Index(fields=["status"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.masked_mobile} — {self.get_status_display()}"
+
+    @property
+    def masked_mobile(self) -> str:
+        if len(self.mobile) != 11:
+            return self.mobile
+        return f"{self.mobile[:4]}***{self.mobile[-4:]}"
+
+    @property
+    def masked_national_code(self) -> str:
+        """کد ملی ماسک‌شده: 004***9481"""
+        if len(self.national_code) != 10:
+            return "نامعتبر"
+        return f"{self.national_code[:3]}***{self.national_code[-4:]}"
+
+    @property
+    def is_matched(self) -> bool:
+        return self.status == IdentityStatus.MATCHED

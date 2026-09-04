@@ -12,7 +12,7 @@
 | دیتابیس Production | PostgreSQL |
 | سرور Production | Ubuntu + Gunicorn + Nginx |
 
-> **وضعیت فعلی: فاز ۴ — کد یکبارمصرف پیامکی (OTP).**
+> **وضعیت فعلی: فاز ۵ — احراز هویت (تطبیق کد ملی و شماره موبایل).**
 > نقشه راه کامل: [`docs/roadmap.md`](docs/roadmap.md) · معماری و دیتابیس: [`docs/architecture.md`](docs/architecture.md)
 
 ---
@@ -137,6 +137,7 @@ python manage.py runserver
 | `/accounts/register/` | ثبت‌نام (سه مرحله‌ای با کد پیامکی) |
 | `/accounts/password/reset/` | بازیابی رمز با پیامک |
 | `/accounts/verify-mobile/` | تأیید شماره موبایل |
+| `/accounts/verify-identity/` | احراز هویت با کد ملی |
 | `/accounts/dashboard/` | داشبورد دانشجو |
 | `/accounts/profile/` | پروفایل و تغییر رمز |
 | `/admin/` | پنل مدیریت |
@@ -230,6 +231,44 @@ SMS_OTP_TEMPLATE=نام-الگو        # اختیاری، ارسال با ال�
 | `OTP_MAX_ATTEMPTS` | ۵ | حداکثر تلاش برای هر کد |
 | `OTP_RESEND_COOLDOWN_SECONDS` | ۹۰ | فاصله لازم بین دو ارسال |
 | `OTP_MAX_SENDS_PER_HOUR` | ۵ | سقف درخواست کد در ساعت |
+
+---
+
+## سرویس احراز هویت (تطبیق کد ملی و موبایل)
+
+در محیط توسعه نیازی به خرید سرویس نیست. رفتار شبیه‌سازی با
+`MOCK_IDENTITY_RESULT` در `.env` کنترل می‌شود:
+
+| مقدار | نتیجه |
+|---|---|
+| `matched` | همیشه تطبیق دارد (پیش‌فرض) |
+| `not_matched` | همیشه تطبیق ندارد — برای تست پیام خطا |
+| `failed` | همیشه خطای سرویس — برای تست قطعی سرویس |
+| `by_national_code` | ختم به ۰۰ تطبیق ندارد، ختم به ۹۹ خطا |
+
+> کد ملی باید رقم کنترلی درست داشته باشد وگرنه فرم قبل از تماس با سرویس
+> ردش می‌کند. نمونه کد معتبر برای تست: `0499370899`
+
+### وقتی سرویس واقعی را خریدید
+
+```env
+USE_MOCK_IDENTITY=False
+IDENTITY_PROVIDER=shahkar
+IDENTITY_API_BASE_URL=آدرس-سرویس
+IDENTITY_API_KEY=کلید-شما
+```
+
+نام فیلدهای درخواست و پاسخ را در `apps/accounts/services/identity.py`
+مطابق مستندات سرویسی که خریدید تنظیم کنید. بقیه پروژه دست‌نخورده می‌ماند.
+
+### اجباری بودن احراز هویت
+
+```env
+IDENTITY_REQUIRED_FOR_REGISTRATION=True   # پیش‌فرض
+```
+
+با `True` بدون تطبیق هویت حساب ساخته نمی‌شود. با `False` کاربر ثبت‌نام
+می‌کند اما تا تکمیل احراز هویت، گواهی برایش صادر نخواهد شد.
 
 ---
 

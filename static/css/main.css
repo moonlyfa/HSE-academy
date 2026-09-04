@@ -1512,3 +1512,18 @@ a.dash-nav__logout { text-decoration: none; }
 
 /* --- هشدار تأیید نشدن موبایل در داشبورد --- */
 .verify-status__row .btn { margin-top: var(--space-sm); }
+
+/* --- یادداشت حریم خصوصی در صفحات احراز هویت --- */
+.identity-note {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-sm);
+    margin-top: var(--space-lg);
+    padding: var(--space-md);
+    background: var(--color-surface-alt);
+    border-radius: var(--radius-md);
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+}
+
+.identity-note .icon { color: var(--color-primary); margin-top: 2px; }

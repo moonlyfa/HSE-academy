@@ -9,7 +9,7 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.forms import AdminPasswordChangeForm
 
-from .models import InstructorProfile, OtpCode, User
+from .models import IdentityVerification, InstructorProfile, OtpCode, User
 
 
 @admin.register(User)
@@ -156,6 +156,59 @@ class OtpCodeAdmin(admin.ModelAdmin):
         if obj.is_expired:
             return "منقضی"
         return "فعال"
+
+    def has_add_permission(self, request) -> bool:
+        return False
+
+    def has_change_permission(self, request, obj=None) -> bool:
+        return False
+
+
+@admin.register(IdentityVerification)
+class IdentityVerificationAdmin(admin.ModelAdmin):
+    """
+    سوابق استعلام هویت — فقط‌خواندنی.
+
+    کد ملی داده شخصی حساس است و اینجا ماسک‌شده نمایش داده می‌شود.
+    مقدار کامل فقط در صورت نیاز واقعی و از طریق دیتابیس قابل دسترسی است.
+    """
+
+    list_display = (
+        "masked_mobile",
+        "masked_national_code",
+        "status",
+        "provider",
+        "user",
+        "created_at",
+    )
+    list_filter = ("status", "provider", "created_at")
+    search_fields = ("mobile", "tracking_code")
+    date_hierarchy = "created_at"
+    ordering = ("-created_at",)
+    list_per_page = 50
+    list_select_related = ("user",)
+
+    readonly_fields = (
+        "user",
+        "masked_mobile",
+        "masked_national_code",
+        "status",
+        "provider",
+        "tracking_code",
+        "message",
+        "raw_response",
+        "ip_address",
+        "created_at",
+    )
+    exclude = ("mobile", "national_code")
+
+    @admin.display(description="شماره موبایل")
+    def masked_mobile(self, obj: IdentityVerification) -> str:
+        return obj.masked_mobile
+
+    @admin.display(description="کد ملی")
+    def masked_national_code(self, obj: IdentityVerification) -> str:
+        return obj.masked_national_code
 
     def has_add_permission(self, request) -> bool:
         return False

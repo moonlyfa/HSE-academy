@@ -40,6 +40,13 @@
             </a>
         {% endif %}
 
+        {% if not user.is_identity_verified %}
+            <a class="dash-nav__item {% if dash_active == 'identity' %}is-active{% endif %}"
+               href="{% url 'accounts:verify_identity' %}">
+                {% icon "shield" size=18 %}<span>احراز هویت</span>
+            </a>
+        {% endif %}
+
         <a class="dash-nav__item {% if dash_active == 'profile' %}is-active{% endif %}"
            href="{% url 'accounts:profile' %}">
             {% icon "users" size=18 %}<span>پروفایل</span>

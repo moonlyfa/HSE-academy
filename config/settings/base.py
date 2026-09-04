@@ -170,7 +170,7 @@ MESSAGE_TAGS = {
 # آدرس پنل مدیریت. در Production آن را به چیزی غیرقابل حدس تغییر دهید.
 ADMIN_URL = env("DJANGO_ADMIN_URL", default="admin").strip("/")
 
-SITE_NAME = env("SITE_NAME", default="آکادمی HSE")
+SITE_NAME = env("SITE_NAME", default="HSE Tech")
 SITE_DOMAIN = env("SITE_DOMAIN", default="127.0.0.1:8000")
 SITE_SUPPORT_PHONE = env("SITE_SUPPORT_PHONE", default="۰۲۱-۰۰۰۰۰۰۰۰")
 SITE_SUPPORT_EMAIL = env("SITE_SUPPORT_EMAIL", default="info@example.com")
@@ -200,6 +200,24 @@ SMS_API_KEY = env("SMS_API_KEY", default="")
 SMS_SENDER_NUMBER = env("SMS_SENDER_NUMBER", default="")
 SMS_OTP_TEMPLATE = env("SMS_OTP_TEMPLATE", default="")
 SMS_TIMEOUT_SECONDS = env.int("SMS_TIMEOUT_SECONDS", default=10)
+
+# ---------------------------------------------------------------------------
+# استعلام تطبیق شماره موبایل و کد ملی
+# ---------------------------------------------------------------------------
+IDENTITY_PROVIDER = env("IDENTITY_PROVIDER", default="mock")
+IDENTITY_API_BASE_URL = env("IDENTITY_API_BASE_URL", default="")
+IDENTITY_API_KEY = env("IDENTITY_API_KEY", default="")
+IDENTITY_API_TIMEOUT = env.int("IDENTITY_API_TIMEOUT", default=10)
+
+# رفتار سرویس آزمایشی: matched | not_matched | failed | by_national_code
+MOCK_IDENTITY_RESULT = env("MOCK_IDENTITY_RESULT", default="matched")
+
+# آیا برای تکمیل ثبت‌نام، احراز هویت اجباری باشد؟
+# True  = طبق خواسته کارفرما؛ بدون تطبیق کد ملی، حساب ساخته نمی‌شود.
+# False = حساب ساخته می‌شود اما تا احراز هویت، گواهی صادر نخواهد شد.
+IDENTITY_REQUIRED_FOR_REGISTRATION = env.bool(
+    "IDENTITY_REQUIRED_FOR_REGISTRATION", default=True
+)
 
 # ---------------------------------------------------------------------------
 # Cache

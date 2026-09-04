@@ -14,6 +14,7 @@ urlpatterns = [
     # --- ثبت‌نام سه‌مرحله‌ای ---
     path("register/", views.register_view, name="register"),
     path("register/verify/", views.register_verify_view, name="register_verify"),
+    path("register/identity/", views.register_identity_view, name="register_identity"),
     path("register/complete/", views.register_complete_view, name="register_complete"),
 
     # --- بازیابی رمز عبور با پیامک ---
@@ -26,4 +27,5 @@ urlpatterns = [
     path("profile/", views.profile_view, name="profile"),
     path("password/", views.change_password_view, name="change_password"),
     path("verify-mobile/", views.verify_mobile_view, name="verify_mobile"),
+    path("verify-identity/", views.verify_identity_view, name="verify_identity"),
 ]

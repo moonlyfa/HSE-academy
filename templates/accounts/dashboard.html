@@ -57,9 +57,14 @@
                                 {% if user.is_identity_verified %}
                                     هویت شما تأیید شده است.
                                 {% else %}
-                                    تطبیق کد ملی و شماره موبایل، پیش از صدور گواهی انجام می‌شود.
+                                    تطبیق کد ملی و شماره موبایل، پیش از صدور گواهی لازم است.
                                 {% endif %}
                             </p>
+                            {% if not user.is_identity_verified %}
+                                <a href="{% url 'accounts:verify_identity' %}" class="btn btn-accent btn-sm">
+                                    احراز هویت
+                                </a>
+                            {% endif %}
                         </div>
                     </div>
                 </div>

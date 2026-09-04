@@ -19,6 +19,9 @@ from apps.accounts.services.sms import SmsProvider, SmsResult
 
 User = get_user_model()
 
+# کد ملی معتبر برای عبور از گام احراز هویت در تست‌ها
+VALID_NATIONAL_CODE = "0499370899"
+
 
 class CapturingSmsProvider(SmsProvider):
     """سرویس پیامک آزمایشی که کدهای ارسالی را برای تست نگه می‌دارد."""
@@ -246,6 +249,10 @@ class RegistrationFlowTests(OtpTestMixin, TestCase):
         self._complete_step_one()
 
         self.client.post(reverse("accounts:register_verify"), {"code": self.last_code})
+        self.client.post(
+            reverse("accounts:register_identity"),
+            {"national_code": VALID_NATIONAL_CODE},
+        )
 
         self.client.post(
             reverse("accounts:register_complete"),
@@ -406,6 +413,10 @@ class RegistrationValidationTests(OtpTestMixin, TestCase):
         super().setUp()
         self.client.post(reverse("accounts:register"), {"mobile": "09121234567"})
         self.client.post(reverse("accounts:register_verify"), {"code": self.last_code})
+        self.client.post(
+            reverse("accounts:register_identity"),
+            {"national_code": VALID_NATIONAL_CODE},
+        )
         self.url = reverse("accounts:register_complete")
         self.valid = {
             "first_name": "نگین",
@@ -442,6 +453,14 @@ class PersianDigitFlowTests(OtpTestMixin, TestCase):
             str.maketrans("0123456789", "۰۱۲۳۴۵۶۷۸۹")
         )
         self.client.post(reverse("accounts:register_verify"), {"code": persian_code})
+
+        # کد ملی را هم با ارقام فارسی وارد می‌کنیم
+        persian_national = VALID_NATIONAL_CODE.translate(
+            str.maketrans("0123456789", "۰۱۲۳۴۵۶۷۸۹")
+        )
+        self.client.post(
+            reverse("accounts:register_identity"), {"national_code": persian_national}
+        )
 
         self.client.post(
             reverse("accounts:register_complete"),

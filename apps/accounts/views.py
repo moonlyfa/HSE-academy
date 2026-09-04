@@ -15,6 +15,7 @@ from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse
+from django.conf import settings
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -27,10 +28,12 @@ from .forms import (
     OtpVerifyForm,
     PasswordResetMobileForm,
     ProfileForm,
+    NationalCodeForm,
     RegisterMobileForm,
     SetNewPasswordForm,
 )
 from .models import OtpPurpose
+from .services.identity import verify_identity
 from .services.otp import seconds_until_resend, send_otp, verify_otp
 from .throttling import (
     LOCKOUT_SECONDS,
@@ -248,8 +251,17 @@ def register_verify_view(request: HttpRequest) -> HttpResponse:
     )
 
 
-def register_complete_view(request: HttpRequest) -> HttpResponse:
-    """گام ۳ — تکمیل نام و انتخاب رمز عبور."""
+IDENTITY_SESSION_KEY = "register_identity_verified"
+
+
+def register_identity_view(request: HttpRequest) -> HttpResponse:
+    """
+    گام ۳ — استعلام تطبیق کد ملی با شماره موبایل.
+
+    نکته مهم: بین «سرویس در دسترس نبود» و «کد ملی با شماره تطبیق ندارد»
+    تفاوت قائل می‌شویم. اولی خطای ماست و کاربر باید بتواند دوباره تلاش
+    کند؛ دومی یعنی واقعاً هویت تأیید نشده است.
+    """
     if request.user.is_authenticated:
         return redirect("accounts:dashboard")
 
@@ -258,13 +270,74 @@ def register_complete_view(request: HttpRequest) -> HttpResponse:
         messages.info(request, "برای ادامه، ابتدا شماره موبایل خود را تأیید کنید.")
         return redirect("accounts:register")
 
+    form = NationalCodeForm()
+
+    if request.method == "POST":
+        form = NationalCodeForm(request.POST)
+        if form.is_valid():
+            national_code = form.cleaned_data["national_code"]
+            result = verify_identity(
+                mobile, national_code, ip_address=get_client_ip(request)
+            )
+
+            if result.success and result.matched:
+                request.session[IDENTITY_SESSION_KEY] = national_code
+                messages.success(request, "احراز هویت شما با موفقیت انجام شد.")
+                return redirect("accounts:register_complete")
+
+            if result.success and not result.matched:
+                # سرویس جواب داد و گفت تطبیق ندارد — این خطای واقعی کاربر است.
+                form.add_error(
+                    "national_code",
+                    "کد ملی واردشده با این شماره موبایل مطابقت ندارد. "
+                    "لطفاً کد ملی صاحب همین شماره را وارد کنید.",
+                )
+            else:
+                # سرویس در دسترس نبود — تقصیر کاربر نیست.
+                messages.error(request, result.message)
+
+    return render(
+        request,
+        "accounts/register_identity.html",
+        {"form": form, "mobile": mobile},
+    )
+
+
+def register_complete_view(request: HttpRequest) -> HttpResponse:
+    """گام ۴ — تکمیل نام و انتخاب رمز عبور."""
+    if request.user.is_authenticated:
+        return redirect("accounts:dashboard")
+
+    mobile = _get_verified_mobile(request, OtpPurpose.REGISTER)
+    if not mobile:
+        messages.info(request, "برای ادامه، ابتدا شماره موبایل خود را تأیید کنید.")
+        return redirect("accounts:register")
+
+    national_code = request.session.get(IDENTITY_SESSION_KEY)
+
+    # اگر احراز هویت اجباری است، بدون آن نمی‌توان به این مرحله رسید.
+    if settings.IDENTITY_REQUIRED_FOR_REGISTRATION and not national_code:
+        messages.info(request, "برای تکمیل ثبت‌نام، ابتدا احراز هویت را انجام دهید.")
+        return redirect("accounts:register_identity")
+
     form = CompleteRegistrationForm()
 
     if request.method == "POST":
         form = CompleteRegistrationForm(request.POST)
         if form.is_valid():
             user = form.create_user(mobile)
+
+            if national_code:
+                user.national_code = national_code
+                user.is_identity_verified = True
+                user.save(update_fields=["national_code", "is_identity_verified", "updated_at"])
+                # سابقه استعلام را به کاربر تازه‌ساخته وصل می‌کنیم.
+                user.identity_verifications.model.objects.filter(
+                    mobile=mobile, user__isnull=True
+                ).update(user=user)
+
             _clear_flow(request, OtpPurpose.REGISTER)
+            request.session.pop(IDENTITY_SESSION_KEY, None)
 
             auth_login(request, user)
             logger.info("ثبت‌نام کامل شد. موبایل=%s", mask_mobile(user.mobile))
@@ -452,6 +525,45 @@ def logout_view(request: HttpRequest) -> HttpResponse:
         return redirect("core:home")
 
     return render(request, "accounts/logout_confirm.html")
+
+
+@login_required
+def verify_identity_view(request: HttpRequest) -> HttpResponse:
+    """احراز هویت برای کاربری که قبلاً ثبت‌نام کرده است."""
+    user = request.user
+
+    if user.is_identity_verified:
+        messages.info(request, "هویت شما قبلاً تأیید شده است.")
+        return redirect("accounts:dashboard")
+
+    form = NationalCodeForm()
+
+    if request.method == "POST":
+        form = NationalCodeForm(request.POST)
+        if form.is_valid():
+            national_code = form.cleaned_data["national_code"]
+            result = verify_identity(
+                user.mobile, national_code, user=user, ip_address=get_client_ip(request)
+            )
+
+            if result.success and result.matched:
+                user.national_code = national_code
+                user.is_identity_verified = True
+                user.save(
+                    update_fields=["national_code", "is_identity_verified", "updated_at"]
+                )
+                messages.success(request, "احراز هویت شما با موفقیت انجام شد.")
+                return redirect("accounts:dashboard")
+
+            if result.success and not result.matched:
+                form.add_error(
+                    "national_code",
+                    "کد ملی واردشده با شماره موبایل شما مطابقت ندارد.",
+                )
+            else:
+                messages.error(request, result.message)
+
+    return render(request, "accounts/verify_identity.html", {"form": form})
 
 
 @login_required

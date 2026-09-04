@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% load core_extras %}
+
+{% block title %}احراز هویت — {{ site.site_name }}{% endblock %}
+{% block extra_head %}<meta name="robots" content="noindex">{% endblock %}
+
+{% block breadcrumb %}
+    {% include "partials/breadcrumb.html" with current="احراز هویت" %}
+{% endblock %}
+
+{% block content %}
+<section class="section pt-4">
+    <div class="container">
+        <div class="row g-4">
+            <div class="col-lg-3">
+                {% include "accounts/partials/sidebar.html" with dash_active="identity" %}
+            </div>
+
+            <div class="col-lg-9">
+                <div class="auth-card auth-card--wide">
+
+                    <div class="auth-card__head">
+                        <span class="auth-icon">{% icon "shield" size=26 %}</span>
+                        <h1 class="h4">احراز هویت</h1>
+                        <p class="mb-0">
+                            کد ملی خود را وارد کنید تا با شماره
+                            <strong class="ltr d-inline-block">{{ user.mobile }}</strong>
+                            تطبیق داده شود.
+                        </p>
+                    </div>
+
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+                        {% include "accounts/partials/field.html" with field=form.national_code %}
+                        <button type="submit" class="btn btn-primary">استعلام هویت</button>
+                    </form>
+
+                    <div class="identity-note">
+                        {% icon "lock" size=18 %}
+                        <p class="mb-0">
+                            احراز هویت برای صدور گواهی پایان دوره الزامی است.
+                            کد ملی شما در هیچ صفحه عمومی سایت نمایش داده نمی‌شود.
+                        </p>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
