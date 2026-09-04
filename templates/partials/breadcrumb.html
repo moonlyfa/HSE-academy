@@ -1,3 +1,4 @@
+{% load core_extras %}
 {# مسیر راهنما — برای سئو و جهت‌یابی کاربر در صفحات داخلی #}
 <nav class="breadcrumb-bar" aria-label="مسیر صفحه">
     <div class="container">
@@ -10,3 +11,5 @@
         </ol>
     </div>
 </nav>
+{# همان مسیر بالا، این‌بار به زبان موتورهای جست‌وجو #}
+{% breadcrumb_jsonld items current %}

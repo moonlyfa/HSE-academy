@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% load core_extras %}
+
+{% block title %}{{ instructor.display_name }} — مدرس {{ site.site_name }}{% endblock %}
+{% block meta_description %}{% if instructor.specialty %}{{ instructor.display_name }}، {{ instructor.specialty }}. {% endif %}دوره‌های تدریس‌شده در {{ site.site_name }}.{% endblock %}
+
+{% block og_title %}{{ instructor.display_name }}{% endblock %}
+{% block og_description %}{{ instructor.specialty }}{% endblock %}
+{% block og_image %}
+    {% if instructor.avatar %}<meta property="og:image" content="{{ instructor.avatar.url }}">{% endif %}
+{% endblock %}
+
+{% block breadcrumb %}
+    {% include "partials/breadcrumb.html" with items=breadcrumb_items current=instructor.display_name %}
+{% endblock %}
+
+{% block content %}
+<section class="section pt-4">
+    <div class="container">
+
+        <div class="instructor-profile">
+            {% if instructor.avatar %}
+                <img class="instructor-profile__avatar" src="{{ instructor.avatar.url }}"
+                     alt="{{ instructor.display_name }}">
+            {% else %}
+                <span class="instructor-profile__avatar instructor-profile__avatar--empty">
+                    {{ instructor.display_name|first }}
+                </span>
+            {% endif %}
+
+            <div class="instructor-profile__body">
+                <h1 class="h2 mb-1">{{ instructor.display_name }}</h1>
+
+                {% if instructor.specialty %}
+                    <p class="instructor-profile__specialty">{% icon "graduation" size=18 %} {{ instructor.specialty }}</p>
+                {% endif %}
+
+                <p class="instructor-profile__count">
+                    {% icon "book" size=18 %}
+                    {{ total_count|fa_digits }} دوره منتشرشده در {{ site.site_name }}
+                </p>
+
+                {% if instructor.linkedin_url %}
+                    <a class="btn btn-outline-brand btn-sm mt-2" href="{{ instructor.linkedin_url }}"
+                       target="_blank" rel="noopener nofollow">
+                        {% icon "linkedin" size=16 %}
+                        <span>پروفایل لینکدین</span>
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if instructor.bio %}
+            <div class="content-block mt-4">
+                <h2 class="h4">درباره مدرس</h2>
+                {{ instructor.bio|linebreaks }}
+            </div>
+        {% endif %}
+
+        <div class="section-head mt-5">
+            <h2 class="h4">دوره‌های {{ instructor.display_name }}</h2>
+        </div>
+
+        {% if courses %}
+            <div class="row g-4">
+                {% for course in courses %}
+                    <div class="col-lg-4 col-md-6">
+                        {% include "courses/partials/course_card.html" with course=course %}
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-state">
+                {% icon "book" size=40 %}
+                <h3 class="h5 mt-3">فعلاً دوره‌ای از این مدرس منتشر نشده است</h3>
+                <p>می‌توانید سایر دوره‌های آکادمی را ببینید.</p>
+                <a href="{% url 'courses:list' %}" class="btn btn-primary mt-2">همه دوره‌ها</a>
+            </div>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

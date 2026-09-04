@@ -258,3 +258,62 @@
         start();
     });
 })();
+
+
+/* =========================================================================
+   کپی کردن نشانی دوره
+   -------------------------------------------------------------------------
+   چرا اینقدر مفصل برای یک دکمه کپی؟
+   متد مدرن navigator.clipboard فقط روی اتصال امن (https یا localhost) کار
+   می‌کند. اگر سایت روی http باز شود، این متد اصلاً وجود ندارد و دکمه بی‌صدا
+   بی‌اثر می‌شود. پس یک روش قدیمی‌تر هم به‌عنوان پشتیبان نگه می‌داریم.
+   ========================================================================= */
+(function () {
+    "use strict";
+
+    function legacyCopy(text) {
+        const field = document.createElement("textarea");
+        field.value = text;
+        field.setAttribute("readonly", "");
+        field.style.position = "fixed";
+        field.style.opacity = "0";
+        document.body.appendChild(field);
+        field.select();
+
+        let copied = false;
+        try {
+            copied = document.execCommand("copy");
+        } catch (error) {
+            copied = false;
+        }
+        document.body.removeChild(field);
+        return copied;
+    }
+
+    document.querySelectorAll("[data-copy-link]").forEach(function (button) {
+        const container = button.closest("[data-share-url]");
+        if (!container) return;
+
+        const url = container.getAttribute("data-share-url");
+        const feedback = container.querySelector("[data-copy-feedback]");
+
+        function announce(message) {
+            if (!feedback) return;
+            feedback.textContent = message;
+            feedback.hidden = false;
+            window.setTimeout(function () { feedback.hidden = true; }, 2500);
+        }
+
+        button.addEventListener("click", function () {
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(url).then(
+                    function () { announce("لینک کپی شد"); },
+                    function () { announce("کپی نشد؛ نشانی را از نوار آدرس بردارید."); }
+                );
+                return;
+            }
+
+            announce(legacyCopy(url) ? "لینک کپی شد" : "کپی نشد؛ نشانی را از نوار آدرس بردارید.");
+        });
+    });
+})();

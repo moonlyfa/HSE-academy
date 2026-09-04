@@ -12,7 +12,9 @@ Django اجازه نمی‌دهد بعد از اجرای اولین migrate، م
 
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 from django.db import models
+from django.urls import reverse
 from django.utils import timezone
+from django.utils.text import slugify
 
 from .managers import UserManager
 from .validators import validate_iranian_mobile, validate_national_code
@@ -170,6 +172,14 @@ class InstructorProfile(models.Model):
     )
 
     display_name = models.CharField("نام نمایشی", max_length=120)
+    slug = models.SlugField(
+        "نشانی یکتا (اسلاگ)",
+        max_length=140,
+        unique=True,
+        allow_unicode=True,
+        blank=True,
+        help_text="در آدرس صفحه مدرس استفاده می‌شود. خالی بگذارید تا خودکار ساخته شود.",
+    )
     specialty = models.CharField(
         "تخصص",
         max_length=150,
@@ -195,6 +205,31 @@ class InstructorProfile(models.Model):
 
     def __str__(self) -> str:
         return self.display_name
+
+    def save(self, *args, **kwargs):
+        """
+        اگر ادمین اسلاگ را خالی گذاشت، از روی نام مدرس ساخته می‌شود.
+
+        allow_unicode=True یعنی حروف فارسی هم در آدرس مجازند؛ اگر نام
+        کاملاً از کاراکترهایی باشد که اسلاگ نمی‌شوند، به شناسه عددی
+        برمی‌گردیم تا هیچ‌وقت اسلاگ خالی ذخیره نشود.
+        """
+        if not self.slug:
+            base = slugify(self.display_name, allow_unicode=True) or "instructor"
+            candidate = base
+            counter = 2
+            while (
+                InstructorProfile.objects.filter(slug=candidate)
+                .exclude(pk=self.pk)
+                .exists()
+            ):
+                candidate = f"{base}-{counter}"
+                counter += 1
+            self.slug = candidate
+        super().save(*args, **kwargs)
+
+    def get_absolute_url(self) -> str:
+        return reverse("core:instructor_detail", kwargs={"slug": self.slug})
 
     @property
     def published_course_count(self) -> int:

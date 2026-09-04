@@ -18,9 +18,16 @@ urlpatterns = [
     path("terms/", views.terms, name="terms"),
     # استعلام گواهی — صفحه مستقل، نه بخشی از صفحه اصلی
     path("certificate/verify/", views.certificate_verify, name="certificate_verify"),
-    # تقویم آموزشی و جست‌وجو در اپ دوره‌ها پیاده شده‌اند
+    # تقویم آموزشی، جست‌وجو و صفحات مدرسان در اپ دوره‌ها پیاده شده‌اند،
+    # اما آدرسشان در ریشه سایت است تا کوتاه و سئوپسند بماند.
     path("calendar/", course_views.training_calendar, name="calendar"),
     path("search/", course_views.search, name="search"),
+    path("instructors/", course_views.instructor_list, name="instructors"),
+    path(
+        "instructors/<uslug:slug>/",
+        course_views.instructor_detail,
+        name="instructor_detail",
+    ),
     # بررسی سلامت سرویس
     path("health/", views.health, name="health"),
 ]

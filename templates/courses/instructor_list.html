@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% load core_extras %}
+
+{% block title %}مدرسان — {{ site.site_name }}{% endblock %}
+{% block meta_description %}معرفی مدرسان {{ site.site_name }}؛ کارشناسان ایمنی، بهداشت و محیط زیست با سابقه اجرایی در صنعت.{% endblock %}
+
+{% block breadcrumb %}
+    {% include "partials/breadcrumb.html" with items=None current="مدرسان" %}
+{% endblock %}
+
+{% block content %}
+<section class="section pt-4">
+    <div class="container">
+
+        <div class="section-head">
+            <h1 class="h2">مدرسان {{ site.site_name }}</h1>
+            <p class="m-0">دوره‌های ما را کارشناسانی تدریس می‌کنند که خودشان سال‌ها در محیط واقعی صنعت کار کرده‌اند.</p>
+        </div>
+
+        {% if instructors %}
+            <div class="row g-4">
+                {% for instructor in instructors %}
+                    <div class="col-lg-3 col-md-6">
+                        {% include "courses/partials/instructor_card.html" with instructor=instructor %}
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-state">
+                {% icon "users" size=40 %}
+                <h2 class="h5 mt-3">هنوز مدرسی ثبت نشده است</h2>
+                <p>به‌زودی معرفی مدرسان در این صفحه قرار می‌گیرد.</p>
+                <a href="{% url 'courses:list' %}" class="btn btn-primary mt-2">مشاهده دوره‌ها</a>
+            </div>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

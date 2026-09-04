@@ -35,6 +35,10 @@
                            href="{% url 'core:calendar' %}">تقویم آموزشی</a>
                     </li>
                     <li class="nav-item">
+                        <a class="nav-link {% if nav_active == 'instructors' %}active{% endif %}"
+                           href="{% url 'core:instructors' %}">مدرسان</a>
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link {% if nav_active == 'verify' %}active{% endif %}"
                            href="{% url 'core:certificate_verify' %}">استعلام گواهی</a>
                     </li>

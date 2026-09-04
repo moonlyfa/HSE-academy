@@ -11,6 +11,8 @@
 
             {% if course.has_discount %}
                 <span class="course-card__badge">{{ course.discount_percent|fa_digits }}٪ تخفیف</span>
+            {% elif course.is_free %}
+                <span class="course-card__badge course-card__badge--free">رایگان</span>
             {% endif %}
         </div>
 
@@ -24,8 +26,12 @@
 
             <div class="course-card__meta">
                 <span>{% icon "video" size=16 %} {{ course.get_course_type_display }}</span>
+                <span>{% icon "chart" size=16 %} {{ course.get_level_display }}</span>
                 {% if course.duration_hours %}
                     <span>{% icon "clock" size=16 %} {{ course.duration_hours|fa_digits }} ساعت</span>
+                {% endif %}
+                {% if course.is_upcoming %}
+                    <span>{% icon "calendar" size=16 %} شروع {{ course.start_date|jalali }}</span>
                 {% endif %}
             </div>
 

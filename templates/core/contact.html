@@ -16,6 +16,20 @@
             <p class="m-0">سؤال یا درخواستی دارید؟ پیام بگذارید تا همکاران ما پاسخ دهند.</p>
         </div>
 
+        {% if requested_course %}
+            {# کاربر از صفحه دوره با دکمه «ثبت‌نام» به اینجا آمده است #}
+            <div class="alert alert-info d-flex flex-wrap align-items-center gap-2">
+                <span>
+                    درخواست شما برای دوره
+                    <strong>{{ requested_course.title }}</strong>
+                    ثبت می‌شود. فرم زیر را کامل کنید تا با شما تماس بگیریم.
+                </span>
+                <a class="btn btn-outline-brand btn-sm ms-auto" href="{{ requested_course.get_absolute_url }}">
+                    بازگشت به صفحه دوره
+                </a>
+            </div>
+        {% endif %}
+
         <div class="row g-4">
             <div class="col-lg-7">
                 <div class="verify-box">

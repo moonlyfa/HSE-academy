@@ -5,12 +5,14 @@
 مزیت: هیچ درخواست اضافه‌ای به شبکه زده نمی‌شود و رنگ آیکون از CSS ارث می‌برد.
 """
 
+import json
 import os
 
 from django import template
 from django.conf import settings
 from django.contrib.staticfiles import finders
 from django.templatetags.static import static
+from django.urls import reverse
 from django.utils.safestring import mark_safe
 
 from apps.core.jalali import PERSIAN_DIGITS as PERSIAN_TRANSLATION
@@ -67,6 +69,24 @@ _ICON_PATHS = {
         '<circle cx="12" cy="10" r="2.5"/>'
     ),
     "clock": '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/>',
+    "link": (
+        '<path d="M10 13a5 5 0 0 0 7 0l2-2a5 5 0 0 0-7-7l-1 1"/>'
+        '<path d="M14 11a5 5 0 0 0-7 0l-2 2a5 5 0 0 0 7 7l1-1"/>'
+    ),
+    "share": (
+        '<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/>'
+        '<circle cx="18" cy="19" r="3"/><path d="m8.6 10.6 6.8-4.2"/>'
+        '<path d="m8.6 13.4 6.8 4.2"/>'
+    ),
+    "linkedin": (
+        '<rect x="3" y="3" width="18" height="18" rx="3"/><path d="M7.5 10.5V17"/>'
+        '<path d="M11.5 17v-3.5a2.5 2.5 0 0 1 5 0V17"/>'
+        '<path d="M7.5 7.5v.01"/>'
+    ),
+    "send": '<path d="M21 3 10.5 13.5"/><path d="M21 3 14.5 21l-4-8-8-4L21 3Z"/>',
+    "graduation": (
+        '<path d="m12 4 10 5-10 5L2 9l10-5Z"/><path d="M6 11.5V16c0 1.7 2.7 3 6 3s6-1.3 6-3v-4.5"/>'
+    ),
 }
 
 
@@ -153,3 +173,136 @@ def static_v(path: str) -> str:
     if absolute_path:
         url = f"{url}?v={int(os.path.getmtime(absolute_path))}"
     return url
+
+
+# ---------------------------------------------------------------------------
+# داده ساختاریافته (Structured Data / JSON-LD)
+# ---------------------------------------------------------------------------
+#
+# گوگل علاوه بر متن صفحه، یک «خلاصه ماشین‌خوان» هم می‌خواند تا بفهمد این
+# صفحه دقیقاً چیست: دوره است؟ مقاله است؟ قیمتش چند است؟ اگر این خلاصه را
+# بدهیم، نتیجه جست‌وجو می‌تواند به شکل کارت غنی (Rich Result) نمایش داده شود.
+#
+# چرا JSON را در پایتون می‌سازیم و نه داخل قالب؟
+# چون اگر عنوان دوره کاراکتری مثل کوتیشن یا < داشته باشد، نوشتن دستی JSON
+# در قالب، ساختار را خراب می‌کند یا حتی راه تزریق اسکریپت باز می‌کند.
+# json.dumps این کار را درست انجام می‌دهد و ما هم < را جداگانه بی‌اثر می‌کنیم.
+
+
+def _json_ld(data: dict) -> str:
+    """تبدیل دیکشنری پایتون به تگ <script> امن."""
+    payload = json.dumps(data, ensure_ascii=False).replace("<", "\\u003c")
+    return mark_safe(  # noqa: S308 — خروجی با json.dumps ساخته شده و < خنثی شده است
+        f'<script type="application/ld+json">{payload}</script>'
+    )
+
+
+@register.simple_tag(takes_context=True)
+def breadcrumb_jsonld(context, items, current: str) -> str:
+    """
+    نسخه ماشین‌خوانِ همان مسیر راهنمایی که کاربر می‌بیند.
+
+    نتیجه‌اش این است که در گوگل به‌جای آدرس خام، مسیر
+    «صفحه اصلی › دوره‌ها › ایمنی صنعتی» زیر عنوان نمایش داده می‌شود.
+    """
+    request = context.get("request")
+    if request is None:
+        return ""
+
+    crumbs = [{"label": "صفحه اصلی", "url": reverse("core:home")}]
+    crumbs += list(items or [])
+
+    elements = [
+        {
+            "@type": "ListItem",
+            "position": position,
+            "name": crumb["label"],
+            "item": request.build_absolute_uri(crumb["url"]),
+        }
+        for position, crumb in enumerate(crumbs, start=1)
+    ]
+    elements.append(
+        {
+            "@type": "ListItem",
+            "position": len(elements) + 1,
+            "name": current,
+            "item": request.build_absolute_uri(request.path),
+        }
+    )
+
+    return _json_ld(
+        {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": elements,
+        }
+    )
+
+
+@register.simple_tag(takes_context=True)
+def course_jsonld(context, course) -> str:
+    """
+    معرفی ماشین‌خوان یک دوره برای موتورهای جست‌وجو.
+
+    فقط اطلاعاتی که واقعاً روی صفحه هم دیده می‌شود اینجا می‌آید؛ ادعای
+    اضافه (مثل امتیاز جعلی) هم خلاف واقع است و هم باعث جریمه سئو می‌شود.
+    """
+    request = context.get("request")
+    site = context.get("site")
+    site_name = getattr(site, "site_name", settings.SITE_NAME)
+
+    data = {
+        "@context": "https://schema.org",
+        "@type": "Course",
+        "name": course.title,
+        "description": course.meta_description or course.short_description or course.title,
+        "inLanguage": "fa-IR",
+        "provider": {
+            "@type": "Organization",
+            "name": site_name,
+            "url": request.build_absolute_uri("/") if request else "",
+        },
+    }
+
+    if request:
+        data["url"] = request.build_absolute_uri(course.get_absolute_url())
+        image = course.hero_image or course.thumbnail
+        if image:
+            data["image"] = request.build_absolute_uri(image.url)
+
+    if course.instructor:
+        data["instructor"] = {
+            "@type": "Person",
+            "name": course.instructor.display_name,
+        }
+
+    # قیمت به ریال/تومان: واحد پول ایران در استاندارد بین‌المللی IRR است.
+    data["offers"] = {
+        "@type": "Offer",
+        "price": str(course.final_price),
+        "priceCurrency": "IRR",
+        "availability": (
+            "https://schema.org/InStock"
+            if course.registration_open
+            else "https://schema.org/SoldOut"
+        ),
+        "category": "free" if course.is_free else "paid",
+    }
+
+    instance = {
+        "@type": "CourseInstance",
+        "courseMode": {
+            "online_live": "online",
+            "offline_recorded": "online",
+            "hybrid": "blended",
+        }.get(course.course_type, "online"),
+    }
+    if course.start_date:
+        instance["startDate"] = course.start_date.isoformat()
+    if course.end_date:
+        instance["endDate"] = course.end_date.isoformat()
+    if course.duration_hours:
+        instance["courseWorkload"] = f"PT{course.duration_hours}H"
+    data["hasCourseInstance"] = [instance]
+
+    return _json_ld(data)

@@ -1527,3 +1527,263 @@ a.dash-nav__logout { text-decoration: none; }
 }
 
 .identity-note .icon { color: var(--color-primary); margin-top: 2px; }
+
+/* =========================================================================
+   فاز ۸ — صفحات عمومی دوره‌ها و مدرسان
+   ========================================================================= */
+
+/* --- برچسب کم‌رنگ (کنار برچسب اصلی استفاده می‌شود) --- */
+.chip-soft {
+    background: var(--color-surface-alt);
+    color: var(--color-text-muted);
+    border: 1px solid var(--color-border);
+}
+
+a.chip:hover, a.chip-soft:hover { background: var(--color-primary-soft); color: var(--color-primary); }
+
+.chip-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-lg);
+}
+
+.chip-row__label { font-size: 0.88rem; color: var(--color-text-muted); }
+
+/* --- برچسب «رایگان» روی کارت دوره --- */
+.course-card__badge--free { background: var(--color-success); }
+
+/* --- سربرگ صفحه دسته‌بندی --- */
+.category-header {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-md);
+    margin-bottom: var(--space-lg);
+}
+
+.category-header__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 62px;
+    height: 62px;
+    border-radius: var(--radius-md);
+    background: var(--color-primary-soft);
+    color: var(--color-primary);
+}
+
+.category-header p { color: var(--color-text-muted); }
+.category-header__count { font-size: 0.88rem; color: var(--color-text-light); }
+
+/* --- نوار پرش به بخش‌های صفحه دوره --- */
+.course-anchors {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+    margin-top: var(--space-lg);
+    padding-bottom: var(--space-sm);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.course-anchors a {
+    padding: 0.35rem 0.9rem;
+    border-radius: var(--radius-full);
+    background: var(--color-surface-alt);
+    color: var(--color-text-muted);
+    font-size: 0.88rem;
+    font-weight: 500;
+}
+
+.course-anchors a:hover { background: var(--color-primary-soft); color: var(--color-primary); }
+
+.course-head__chips { display: flex; flex-wrap: wrap; gap: var(--space-sm); }
+
+/* --- وضعیت ثبت‌نام در کارت خرید --- */
+.purchase-card__status {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    margin: var(--space-md) 0 0;
+    font-size: 0.88rem;
+    font-weight: 600;
+}
+
+.purchase-card__status--open { color: var(--color-success); }
+.purchase-card__status--closed { color: var(--color-text-muted); }
+
+.purchase-card__note {
+    margin: var(--space-sm) 0 0;
+    font-size: 0.8rem;
+    color: var(--color-text-light);
+    line-height: 1.8;
+}
+
+a.purchase-card__instructor { display: block; color: inherit; }
+a.purchase-card__instructor:hover strong { color: var(--color-primary); }
+
+/* --- نوار اشتراک‌گذاری --- */
+.share-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-sm);
+    margin-top: var(--space-xl);
+    padding-top: var(--space-lg);
+    border-top: 1px solid var(--color-border);
+}
+
+.share-row__label {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs);
+    font-size: 0.9rem;
+    color: var(--color-text-muted);
+    margin-inline-end: var(--space-sm);
+}
+
+.share-row__done { font-size: 0.85rem; color: var(--color-success); font-weight: 600; }
+
+/* --- معرفی مدرس داخل صفحه دوره --- */
+.instructor-inline { display: flex; align-items: flex-start; gap: var(--space-md); }
+
+.instructor-avatar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 76px;
+    height: 76px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: var(--color-primary-soft);
+    color: var(--color-primary);
+    font-size: 1.6rem;
+    font-weight: 700;
+}
+
+.instructor-inline a.h5 { color: var(--color-text); }
+.instructor-inline a.h5:hover { color: var(--color-primary); }
+
+/* --- کارت مدرس --- */
+.instructor-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: var(--space-lg);
+    height: 100%;
+    color: inherit;
+}
+
+.instructor-card__avatar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 92px;
+    height: 92px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin-bottom: var(--space-md);
+    background: var(--color-primary-soft);
+    color: var(--color-primary);
+    font-size: 2rem;
+    font-weight: 700;
+}
+
+.instructor-card__name { font-size: 1.02rem; margin-bottom: var(--space-xs); }
+.instructor-card:hover .instructor-card__name { color: var(--color-primary); }
+
+.instructor-card__specialty {
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+    line-height: 1.8;
+    margin-bottom: var(--space-md);
+}
+
+.instructor-card__count {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs);
+    margin-top: auto;
+    padding: 0.2rem 0.8rem;
+    border-radius: var(--radius-full);
+    background: var(--color-surface-alt);
+    font-size: 0.82rem;
+    color: var(--color-text-muted);
+}
+
+/* --- صفحه یک مدرس --- */
+.instructor-profile {
+    display: flex;
+    align-items: center;
+    gap: var(--space-lg);
+    padding: var(--space-lg);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+}
+
+.instructor-profile__avatar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 118px;
+    height: 118px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: var(--color-primary-soft);
+    color: var(--color-primary);
+    font-size: 2.6rem;
+    font-weight: 700;
+}
+
+.instructor-profile__specialty,
+.instructor-profile__count {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    font-size: 0.92rem;
+    color: var(--color-text-muted);
+    margin-bottom: var(--space-xs);
+}
+
+.instructor-profile .icon { color: var(--color-primary); }
+
+@media (max-width: 575.98px) {
+    .instructor-profile { flex-direction: column; text-align: center; }
+    .instructor-inline { flex-direction: column; align-items: center; text-align: center; }
+    .category-header { flex-direction: column; }
+}
+
+/* --- هم‌قد شدن کارت‌های دوره در یک سطر --- */
+/* بدون این، کارتی که توضیح کوتاه‌تری دارد کوتاه‌تر می‌شود و ردیف ناهموار می‌شود. */
+.course-card { height: 100%; }
+
+/* --- نوار خرید چسبیده به پایین صفحه (فقط موبایل) --- */
+.mobile-buy-bar {
+    position: fixed;
+    inset-inline: 0;
+    bottom: 0;
+    z-index: 1030;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-md);
+    padding: var(--space-sm) var(--space-md);
+    background: var(--color-surface);
+    border-top: 1px solid var(--color-border);
+    box-shadow: 0 -2px 12px rgba(13, 40, 32, 0.08);
+}
+
+.mobile-buy-bar__price { font-size: 1.05rem; }
+.mobile-buy-bar__closed { font-size: 0.9rem; color: var(--color-text-muted); }
+.mobile-buy-bar .btn { white-space: nowrap; }
+
+@media (max-width: 991.98px) {
+    /* فوتر نباید زیر نوار خرید پنهان شود */
+    body:has(.mobile-buy-bar) .site-footer { padding-bottom: 5rem; }
+}

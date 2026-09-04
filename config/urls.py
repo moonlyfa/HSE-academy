@@ -8,7 +8,13 @@
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
-from django.urls import include, path
+from django.urls import include, path, register_converter
+
+from apps.core.converters import UnicodeSlugConverter
+
+# مبدل «uslug» اجازه می‌دهد آدرس دوره‌ها و مدرسان فارسی هم باشد.
+# باید پیش از استفاده در الگوها ثبت شود.
+register_converter(UnicodeSlugConverter, "uslug")
 
 urlpatterns = [
     # آدرس پنل مدیریت از طریق .env قابل تغییر است تا در Production

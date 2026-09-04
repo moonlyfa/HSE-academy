@@ -1,0 +1,23 @@
+{% load core_extras %}
+{# کارت مدرس — در صفحه اصلی، صفحه مدرسان و صفحه درباره ما استفاده می‌شود #}
+<a class="card-brand instructor-card" href="{{ instructor.get_absolute_url }}">
+    {% if instructor.avatar %}
+        <img class="instructor-card__avatar" src="{{ instructor.avatar.url }}"
+             alt="{{ instructor.display_name }}" loading="lazy">
+    {% else %}
+        <span class="instructor-card__avatar instructor-card__avatar--empty">
+            {{ instructor.display_name|first }}
+        </span>
+    {% endif %}
+
+    <h3 class="instructor-card__name">{{ instructor.display_name }}</h3>
+
+    {% if instructor.specialty %}
+        <p class="instructor-card__specialty">{{ instructor.specialty }}</p>
+    {% endif %}
+
+    <span class="instructor-card__count">
+        {% icon "book" size=16 %}
+        {{ instructor.num_courses|fa_digits }} دوره
+    </span>
+</a>

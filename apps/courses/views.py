@@ -5,10 +5,15 @@ Viewهای عمومی دوره‌ها.
 بتوان همان فیلتر را در صفحات دیگر (مثل جست‌وجو) هم استفاده کرد.
 """
 
+from urllib.parse import quote
+
 from django.core.paginator import Paginator
-from django.db.models import Count, Q, QuerySet
+from django.db.models import Count, Prefetch, Q, QuerySet
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, render
+from django.urls import reverse
+
+from apps.accounts.models import InstructorProfile
 
 from .models import Course, CourseCategory, CourseLevel, CourseType
 
@@ -32,7 +37,11 @@ def filter_courses(request: HttpRequest, queryset: QuerySet[Course]) -> QuerySet
     """
     category_slug = request.GET.get("category")
     if category_slug:
-        queryset = queryset.filter(category__slug=category_slug)
+        # زیردسته‌ها هم باید در نتیجه بیایند؛ وگرنه انتخاب یک دسته اصلی
+        # ظاهراً «هیچ دوره‌ای ندارد» در حالی که دوره‌ها زیر زیردسته‌اند.
+        queryset = queryset.filter(
+            Q(category__slug=category_slug) | Q(category__parent__slug=category_slug)
+        )
 
     course_type = request.GET.get("type")
     if course_type in CourseType.values:
@@ -68,9 +77,9 @@ def filter_courses(request: HttpRequest, queryset: QuerySet[Course]) -> QuerySet
 def _filter_context(request: HttpRequest) -> dict:
     """داده‌های مشترک نوار فیلتر — در صفحه دوره‌ها و جست‌وجو استفاده می‌شود."""
     return {
-        "categories": CourseCategory.objects.filter(is_active=True).annotate(
-            num_courses=Count("courses", filter=Q(courses__is_published=True))
-        ),
+        "categories": CourseCategory.objects.filter(
+            is_active=True, parent__isnull=True
+        ).annotate(num_courses=Count("courses", filter=Q(courses__is_published=True))),
         "course_types": CourseType.choices,
         "levels": CourseLevel.choices,
         "sort_options": [(key, label) for key, (label, _) in SORT_OPTIONS.items()],
@@ -82,6 +91,11 @@ def _filter_context(request: HttpRequest) -> dict:
         "selected_sort": request.GET.get("sort", DEFAULT_SORT),
         "query": request.GET.get("q", "").strip(),
     }
+
+
+def _courses_crumb() -> dict:
+    """حلقه مشترک همه مسیرهای راهنمای بخش دوره‌ها."""
+    return {"label": "دوره‌ها", "url": reverse("courses:list")}
 
 
 def course_list(request: HttpRequest) -> HttpResponse:
@@ -101,25 +115,72 @@ def course_list(request: HttpRequest) -> HttpResponse:
     params = request.GET.copy()
     params.pop("page", None)
 
+    active_category = None
+    if request.GET.get("category"):
+        active_category = (
+            CourseCategory.objects.filter(
+                slug=request.GET["category"], is_active=True
+            )
+            .prefetch_related(
+                Prefetch(
+                    "children",
+                    queryset=CourseCategory.objects.filter(is_active=True).annotate(
+                        num_courses=Count(
+                            "courses", filter=Q(courses__is_published=True)
+                        )
+                    ),
+                )
+            )
+            .first()
+        )
+
+    # وقتی روی یک دسته فیلتر شده‌ایم، همان دسته آخرین حلقه مسیر است
+    # و «دوره‌ها» به حلقه قبلی تبدیل می‌شود.
+    if active_category:
+        breadcrumb_items = [_courses_crumb()]
+        breadcrumb_current = active_category.name
+    else:
+        breadcrumb_items = []
+        breadcrumb_current = "همه دوره‌ها"
+
     context = {
         "page_obj": page,
         "courses": page.object_list,
         "total_count": paginator.count,
         "querystring": params.urlencode(),
-        "active_category": (
-            CourseCategory.objects.filter(slug=request.GET.get("category")).first()
-            if request.GET.get("category")
-            else None
-        ),
+        "active_category": active_category,
+        "breadcrumb_items": breadcrumb_items,
+        "breadcrumb_current": breadcrumb_current,
+        "nav_active": "courses",
         **_filter_context(request),
     }
     return render(request, "courses/course_list.html", context)
 
 
+def _share_links(request: HttpRequest, course: Course) -> dict:
+    """
+    لینک‌های اشتراک‌گذاری دوره.
+
+    اینها فقط «لینک» هستند، نه اسکریپت خارجی؛ پس اگر شبکه‌های اجتماعی
+    در دسترس نباشند صفحه سالم بالا می‌آید و چیزی کند نمی‌شود.
+    """
+    absolute_url = request.build_absolute_uri(course.get_absolute_url())
+    text = quote(f"{course.title} — {absolute_url}")
+
+    return {
+        "url": absolute_url,
+        "telegram": f"https://t.me/share/url?url={quote(absolute_url)}&text={quote(course.title)}",
+        "whatsapp": f"https://wa.me/?text={text}",
+        "email": f"mailto:?subject={quote(course.title)}&body={text}",
+    }
+
+
 def course_detail(request: HttpRequest, slug: str) -> HttpResponse:
     """صفحه جزئیات یک دوره."""
     course = get_object_or_404(
-        Course.objects.published().select_related("category", "instructor"),
+        Course.objects.published().select_related(
+            "category", "category__parent", "instructor"
+        ),
         slug=slug,
     )
 
@@ -127,14 +188,32 @@ def course_detail(request: HttpRequest, slug: str) -> HttpResponse:
         Course.objects.published()
         .filter(category=course.category)
         .exclude(pk=course.pk)
-        .select_related("category")[:3]
+        .select_related("category", "instructor")[:3]
     )
 
-    return render(
-        request,
-        "courses/course_detail.html",
-        {"course": course, "related_courses": related},
+    # مسیر راهنما: صفحه اصلی ← دوره‌ها ← [دسته والد ←] دسته ← عنوان دوره
+    breadcrumb_items = [_courses_crumb()]
+    if course.category.parent:
+        breadcrumb_items.append(
+            {
+                "label": course.category.parent.name,
+                "url": course.category.parent.get_absolute_url(),
+            }
+        )
+    breadcrumb_items.append(
+        {"label": course.category.name, "url": course.category.get_absolute_url()}
     )
+
+    context = {
+        "course": course,
+        "related_courses": related,
+        "share": _share_links(request, course),
+        "breadcrumb_items": breadcrumb_items,
+        # تا فاز سبد خرید، درخواست ثبت‌نام از راه فرم تماس ثبت می‌شود.
+        "enroll_url": f"{reverse('core:contact')}?course={course.slug}",
+        "nav_active": "courses",
+    }
+    return render(request, "courses/course_detail.html", context)
 
 
 def training_calendar(request: HttpRequest) -> HttpResponse:
@@ -153,7 +232,12 @@ def training_calendar(request: HttpRequest) -> HttpResponse:
     return render(
         request,
         "courses/calendar.html",
-        {"courses": courses, "total_count": courses.count(), **_filter_context(request)},
+        {
+            "courses": courses,
+            "total_count": courses.count(),
+            "nav_active": "calendar",
+            **_filter_context(request),
+        },
     )
 
 
@@ -183,5 +267,56 @@ def search(request: HttpRequest) -> HttpResponse:
             "courses": page.object_list,
             "total_count": paginator.count,
             "querystring": params.urlencode(),
+        },
+    )
+
+
+# ---------------------------------------------------------------------------
+# مدرسان
+# ---------------------------------------------------------------------------
+
+
+def instructor_list(request: HttpRequest) -> HttpResponse:
+    """فهرست مدرسان فعال آکادمی."""
+    instructors = InstructorProfile.objects.filter(is_active=True).annotate(
+        num_courses=Count("courses", filter=Q(courses__is_published=True))
+    )
+
+    return render(
+        request,
+        "courses/instructor_list.html",
+        {"instructors": instructors, "nav_active": "instructors"},
+    )
+
+
+def instructor_detail(request: HttpRequest, slug: str) -> HttpResponse:
+    """
+    صفحه یک مدرس: معرفی و دوره‌هایی که تدریس می‌کند.
+
+    فقط مدرسان فعال صفحه عمومی دارند؛ مدرسی که ادمین غیرفعالش کرده،
+    مثل صفحه‌ای که وجود ندارد رفتار می‌کند (۴۰۴).
+    """
+    instructor = get_object_or_404(
+        InstructorProfile.objects.filter(is_active=True), slug=slug
+    )
+
+    courses = (
+        Course.objects.published()
+        .filter(instructor=instructor)
+        .select_related("category", "instructor")
+        .order_by("-created_at")
+    )
+
+    return render(
+        request,
+        "courses/instructor_detail.html",
+        {
+            "instructor": instructor,
+            "courses": courses,
+            "total_count": courses.count(),
+            "breadcrumb_items": [
+                {"label": "مدرسان", "url": reverse("core:instructors")}
+            ],
+            "nav_active": "instructors",
         },
     )

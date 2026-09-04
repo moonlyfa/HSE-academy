@@ -12,25 +12,42 @@
 {% endblock %}
 
 {% block breadcrumb %}
-    {% include "partials/breadcrumb.html" with items=breadcrumb_items current="همه دوره‌ها" %}
+    {% include "partials/breadcrumb.html" with items=breadcrumb_items current=breadcrumb_current %}
 {% endblock %}
 
 {% block content %}
 <section class="section pt-4">
     <div class="container">
 
-        <div class="section-head">
-            <h1 class="h2">
-                {% if active_category %}{{ active_category.name }}{% else %}همه دوره‌ها{% endif %}
-            </h1>
-            <p class="m-0">
-                {% if active_category and active_category.description %}
-                    {{ active_category.description }}
-                {% else %}
-                    {{ total_count|fa_digits }} دوره یافت شد.
-                {% endif %}
-            </p>
-        </div>
+        {% if active_category %}
+            {# سربرگ اختصاصی دسته‌بندی: آیکون، توضیح و زیردسته‌ها #}
+            <div class="category-header">
+                <span class="category-header__icon">{% icon active_category.icon size=30 %}</span>
+                <div>
+                    <h1 class="h2 mb-1">{{ active_category.name }}</h1>
+                    {% if active_category.description %}
+                        <p class="mb-0">{{ active_category.description }}</p>
+                    {% endif %}
+                    <p class="category-header__count mb-0">{{ total_count|fa_digits }} دوره در این دسته‌بندی</p>
+                </div>
+            </div>
+
+            {% if active_category.children.all %}
+                <div class="chip-row">
+                    <span class="chip-row__label">زیردسته‌ها:</span>
+                    {% for child in active_category.children.all %}
+                        <a class="chip chip-soft" href="{{ child.get_absolute_url }}">
+                            {{ child.name }} ({{ child.num_courses|fa_digits }})
+                        </a>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% else %}
+            <div class="section-head">
+                <h1 class="h2">همه دوره‌ها</h1>
+                <p class="m-0">{{ total_count|fa_digits }} دوره یافت شد.</p>
+            </div>
+        {% endif %}
 
         <div class="row g-4">
 

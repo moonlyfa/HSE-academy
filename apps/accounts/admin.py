@@ -95,9 +95,11 @@ class InstructorProfileAdmin(admin.ModelAdmin):
     search_fields = ("display_name", "specialty", "bio")
     ordering = ("order", "display_name")
     readonly_fields = ("created_at", "updated_at")
+    # اسلاگ خودکار از روی نام ساخته می‌شود؛ ادمین می‌تواند دستی هم عوضش کند.
+    prepopulated_fields = {"slug": ("display_name",)}
 
     fieldsets = (
-        ("اطلاعات مدرس", {"fields": ("display_name", "specialty", "bio", "avatar")}),
+        ("اطلاعات مدرس", {"fields": ("display_name", "slug", "specialty", "bio", "avatar")}),
         ("حساب کاربری", {"fields": ("user", "linkedin_url")}),
         ("نمایش", {"fields": ("show_on_homepage", "is_active", "order")}),
         ("تاریخ‌ها", {"fields": ("created_at", "updated_at")}),
