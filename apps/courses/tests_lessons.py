@@ -171,10 +171,25 @@ class LessonAccessRuleTests(LessonTestMixin, TestCase):
         access = check_lesson_access(self.student, self.paid_lesson)
         self.assertFalse(access.allowed)
 
-    def test_free_course_needs_only_an_account(self):
+    def test_a_free_course_still_needs_an_enrollment(self):
+        """
+        تغییر رفتار در فاز ۱۴: پیش از آن، هر کاربر واردشده‌ای به دوره
+        رایگان دسترسی داشت. حالا ثبت‌نام لازم است — یک کلیک، اما رکوردش
+        ثبت می‌شود تا بشود فهمید چه کسی دوره را می‌گذراند و بعداً گواهی
+        صادر کرد.
+        """
         from django.contrib.auth.models import AnonymousUser
 
+        from apps.courses.enrollment import enroll
+        from apps.courses.models import EnrollmentSource
+
         self.assertFalse(check_lesson_access(AnonymousUser(), self.free_lesson).allowed)
+
+        access = check_lesson_access(self.student, self.free_lesson)
+        self.assertFalse(access.allowed)
+        self.assertEqual(access.reason, "free_enrollment_required")
+
+        enroll(self.student, self.free_course, source=EnrollmentSource.FREE)
         self.assertTrue(check_lesson_access(self.student, self.free_lesson).allowed)
 
     def test_staff_can_see_everything(self):

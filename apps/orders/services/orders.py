@@ -177,6 +177,13 @@ def mark_order_paid(order: Order) -> None:
                 used_count=F("used_count") + 1
             )
 
+        # دسترسی به دوره‌ها دقیقاً همین‌جا باز می‌شود — داخل همان
+        # transaction. اگر ساخت ثبت‌نام شکست بخورد، سفارش هم پرداخت‌شده
+        # ثبت نمی‌شود و کاربر پولی داده که دسترسی‌اش را نگرفته باشد.
+        from apps.courses.enrollment import enroll_from_order
+
+        enroll_from_order(order)
+
     logger.info(
         "پرداخت سفارش تأیید شد. شماره=%s مبلغ=%s زمان=%s",
         order.order_number,

@@ -7,6 +7,8 @@ from django.utils.html import format_html
 from .models import (
     Course,
     CourseCategory,
+    Enrollment,
+    EnrollmentStatus,
     Lesson,
     LessonAttachment,
     LessonProgress,
@@ -296,3 +298,91 @@ class LessonProgressAdmin(admin.ModelAdmin):
             .get_queryset(request)
             .select_related("user", "lesson", "lesson__section", "lesson__section__course")
         )
+
+
+@admin.register(Enrollment)
+class EnrollmentAdmin(admin.ModelAdmin):
+    """
+    مدیریت دسترسی دانشجویان.
+
+    برخلاف جدول تراکنش‌ها که فقط‌خواندنی است، اینجا افزودن دستی لازم است:
+    شرکتی که ده نفر را ثبت‌نام می‌کند، دانشجویی که خارج از سایت پرداخت
+    کرده، یا هدیه‌ای که پشتیبانی می‌دهد. اما وضعیت هر ثبت‌نام همیشه ثبت
+    می‌ماند تا معلوم باشد دسترسی از کجا آمده است.
+    """
+
+    list_display = (
+        "user",
+        "course",
+        "source",
+        "status_badge",
+        "access_until",
+        "created_at",
+    )
+    list_filter = ("status", "source", "course", "created_at")
+    search_fields = (
+        "user__mobile",
+        "user__first_name",
+        "user__last_name",
+        "course__title",
+        "order__order_number",
+    )
+    autocomplete_fields = ("course",)
+    date_hierarchy = "created_at"
+    ordering = ("-created_at",)
+    list_per_page = 50
+    readonly_fields = ("created_at", "updated_at")
+
+    fieldsets = (
+        ("ثبت‌نام", {"fields": ("user", "course", "source", "status")}),
+        (
+            "مدت دسترسی",
+            {
+                "description": (
+                    "«پایان دسترسی» را خالی بگذارید تا دسترسی دائمی باشد. "
+                    "هنگام خرید، این تاریخ خودکار از روی «مدت دسترسی» دوره پر می‌شود."
+                ),
+                "fields": ("starts_at", "expires_at"),
+            },
+        ),
+        ("سفارش مرتبط", {"fields": ("order",), "classes": ("collapse",)}),
+        ("یادداشت", {"fields": ("note",)}),
+        ("تاریخ‌ها", {"fields": ("created_at", "updated_at"), "classes": ("collapse",)}),
+    )
+
+    @admin.display(description="وضعیت", ordering="status")
+    def status_badge(self, obj: Enrollment):
+        if obj.status == EnrollmentStatus.ACTIVE and obj.is_expired:
+            return format_html('<span style="color:#d99400">منقضی شده</span>')
+
+        colors = {
+            EnrollmentStatus.ACTIVE: "#1e8449",
+            EnrollmentStatus.SUSPENDED: "#c0392b",
+            EnrollmentStatus.REFUNDED: "#7f8c8d",
+        }
+        return format_html(
+            '<span style="color:{};font-weight:600">{}</span>',
+            colors.get(obj.status, "#000"),
+            obj.get_status_display(),
+        )
+
+    @admin.display(description="دسترسی تا")
+    def access_until(self, obj: Enrollment) -> str:
+        if not obj.expires_at:
+            return "دائمی"
+        return f"{obj.expires_at:%Y-%m-%d} ({obj.days_remaining} روز)"
+
+    @admin.action(description="تعلیق دسترسی موارد انتخاب‌شده")
+    def suspend_selected(self, request, queryset):
+        updated = queryset.update(status=EnrollmentStatus.SUSPENDED)
+        self.message_user(request, f"دسترسی {updated} ثبت‌نام بسته شد.")
+
+    @admin.action(description="فعال کردن دسترسی موارد انتخاب‌شده")
+    def activate_selected(self, request, queryset):
+        updated = queryset.update(status=EnrollmentStatus.ACTIVE)
+        self.message_user(request, f"دسترسی {updated} ثبت‌نام فعال شد.")
+
+    actions = ("suspend_selected", "activate_selected")
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related("user", "course", "order")

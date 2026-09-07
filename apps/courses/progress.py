@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from django.db.models import Max, Sum
 from django.utils import timezone
 
-from .models import Course, Lesson, LessonProgress
+from .models import Course, Enrollment, Lesson, LessonProgress
 
 # ترتیب طبیعی درس‌های یک دوره: اول بر اساس فصل، بعد بر اساس خود درس.
 LESSON_ORDER = ("section__order", "section__id", "order", "id")
@@ -40,6 +40,7 @@ class CourseProgress:
     completed: int
     last_lesson: Lesson | None = None
     next_lesson: Lesson | None = None
+    enrollment: "Enrollment | None" = None
 
     @property
     def percent(self) -> int:
@@ -159,38 +160,53 @@ def save_position(user, lesson: Lesson, seconds: int) -> LessonProgress | None:
 
 def learner_courses(user) -> list[CourseProgress]:
     """
-    دوره‌هایی که کاربر شروع کرده است، از تازه‌ترین به قدیمی‌ترین.
+    دوره‌های کاربر — یعنی دوره‌هایی که در آن‌ها ثبت‌نام دارد.
 
-    امروز «دوره من» یعنی دوره‌ای که کاربر حداقل یک درسش را باز کرده باشد.
-    در فاز ۱۴ که ثبت‌نام ساخته شود، دوره‌های خریداری‌شده هم — حتی اگر هنوز
-    باز نشده باشند — از همین‌جا به فهرست اضافه می‌شوند.
+    تا پیش از فاز ۱۴، «دوره من» یعنی دوره‌ای که کاربر حداقل یک درسش را
+    باز کرده بود. حالا مبنا ثبت‌نام است، که دو تفاوت مهم دارد:
+
+    ۱. دوره‌ای که خریده‌اید ولی هنوز بازش نکرده‌اید هم در فهرست هست —
+       که همان چیزی است که کاربر انتظار دارد.
+    ۲. دوره‌ای که فقط پیش‌نمایش رایگانش را دیده‌اید، دیگر در فهرست
+       نمی‌آید. دیدن یک درس نمونه هنوز «دوره من» نیست.
+
+    ترتیب بر اساس آخرین فعالیت کاربر است، و دوره‌هایی که هنوز باز نشده‌اند
+    بر اساس تاریخ ثبت‌نام می‌آیند.
     """
     if not user.is_authenticated:
         return []
 
-    course_ids = (
-        LessonProgress.objects.filter(user=user)
-        .values("lesson__section__course")
-        .annotate(last_seen=Max("last_viewed_at"))
-        .order_by("-last_seen")
-    )
+    from .enrollment import enrolled_courses
 
-    ordered_ids = [row["lesson__section__course"] for row in course_ids]
-    if not ordered_ids:
+    enrollments = [
+        enrollment
+        for enrollment in enrolled_courses(user)
+        if enrollment.is_active and enrollment.course.is_published
+    ]
+    if not enrollments:
         return []
 
-    # دوره‌ای که ادمین از انتشار خارج کرده نباید در فهرست کاربر بماند؛
-    # وگرنه کاربر روی دوره‌ای کلیک می‌کند که صفحه‌اش ۴۰۴ می‌دهد.
-    courses = {
-        course.pk: course
-        for course in Course.objects.filter(
-            pk__in=ordered_ids, is_published=True
-        ).select_related("category", "instructor")
+    # آخرین فعالیت کاربر در هر دوره — با یک کوئری، نه یکی به‌ازای هر دوره.
+    last_seen = {
+        row["lesson__section__course"]: row["seen"]
+        for row in LessonProgress.objects.filter(
+            user=user,
+            lesson__section__course__in=[e.course_id for e in enrollments],
+        )
+        .values("lesson__section__course")
+        .annotate(seen=Max("last_viewed_at"))
     }
 
-    return [
-        course_progress(user, courses[pk]) for pk in ordered_ids if pk in courses
-    ]
+    enrollments.sort(
+        key=lambda e: last_seen.get(e.course_id) or e.created_at, reverse=True
+    )
+
+    result = []
+    for enrollment in enrollments:
+        progress = course_progress(user, enrollment.course)
+        progress.enrollment = enrollment
+        result.append(progress)
+    return result
 
 
 def learner_stats(user) -> dict:

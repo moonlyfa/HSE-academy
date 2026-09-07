@@ -10,7 +10,15 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
 
-from apps.courses.models import Course, CourseCategory, Lesson, LessonProgress, Section
+from apps.courses.enrollment import enroll
+from apps.courses.models import (
+    Course,
+    CourseCategory,
+    EnrollmentSource,
+    Lesson,
+    LessonProgress,
+    Section,
+)
 from apps.courses.progress import (
     course_progress,
     learner_courses,
@@ -63,6 +71,12 @@ class ProgressTestMixin:
         )
         cls.other = User.objects.create_user(
             mobile="09127654321", password="HseTech!2026"
+        )
+
+        # از فاز ۱۴ به بعد، دسترسی به هر دوره — حتی رایگان — از روی
+        # ثبت‌نام تعیین می‌شود، نه صرفاً وارد بودن کاربر.
+        cls.enrollment = enroll(
+            cls.student, cls.course, source=EnrollmentSource.FREE
         )
 
 
@@ -193,16 +207,42 @@ class ProgressRecordingTests(ProgressTestMixin, TestCase):
 
 
 class LearnerOverviewTests(ProgressTestMixin, TestCase):
-    def test_my_courses_lists_only_started_courses(self):
+    def test_my_courses_lists_enrolled_courses_only(self):
+        """دوره‌ای که در آن ثبت‌نام نکرده‌اید، «دوره من» نیست."""
         other_course = Course.objects.create(
             title="دوره دست‌نخورده", slug="untouched", category=self.category, is_published=True
         )
         Section.objects.create(course=other_course, title="فصل")
 
-        record_view(self.student, self.lesson_a)
+        titles = [p.course.title for p in learner_courses(self.student)]
+        self.assertEqual(titles, ["دوره رایگان"])
+
+    def test_an_enrolled_course_appears_before_it_is_opened(self):
+        """
+        تغییر رفتار در فاز ۱۴: قبلاً دوره فقط بعد از باز کردن اولین درس
+        در فهرست می‌آمد. حالا همین که ثبت‌نام کردید — یا خریدید — در
+        فهرست هست، که همان انتظار کاربر است.
+        """
+        self.assertEqual(LessonProgress.objects.filter(user=self.student).count(), 0)
 
         titles = [p.course.title for p in learner_courses(self.student)]
         self.assertEqual(titles, ["دوره رایگان"])
+
+    def test_watching_a_free_preview_does_not_add_the_course(self):
+        """دیدن یک درس نمونه هنوز «دوره من» نیست."""
+        paid = Course.objects.create(
+            title="دوره پولی", slug="paid", category=self.category,
+            price=900_000, is_published=True,
+        )
+        preview = Lesson.objects.create(
+            section=Section.objects.create(course=paid, title="فصل"),
+            title="نمونه",
+            is_free_preview=True,
+        )
+        record_view(self.student, preview)
+
+        titles = [p.course.title for p in learner_courses(self.student)]
+        self.assertNotIn("دوره پولی", titles)
 
     def test_my_courses_are_sorted_by_most_recent_activity(self):
         second = Course.objects.create(
@@ -211,6 +251,7 @@ class LearnerOverviewTests(ProgressTestMixin, TestCase):
         second_lesson = Lesson.objects.create(
             section=Section.objects.create(course=second, title="فصل"), title="درس"
         )
+        enroll(self.student, second, source=EnrollmentSource.FREE)
 
         record_view(self.student, self.lesson_a)
         record_view(self.student, second_lesson)
@@ -245,7 +286,23 @@ class LearnerOverviewTests(ProgressTestMixin, TestCase):
 
         self.assertEqual(learner_courses(self.student), [])
 
-    def test_my_courses_is_empty_without_any_activity(self):
+    def test_my_courses_is_empty_for_someone_with_no_enrollments(self):
+        self.assertEqual(learner_courses(self.other), [])
+
+    def test_a_suspended_enrollment_drops_out_of_my_courses(self):
+        from apps.courses.enrollment import revoke
+
+        revoke(self.enrollment)
+        self.assertEqual(learner_courses(self.student), [])
+
+    def test_an_expired_enrollment_drops_out_of_my_courses(self):
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        self.enrollment.expires_at = timezone.now() - timedelta(days=1)
+        self.enrollment.save()
+
         self.assertEqual(learner_courses(self.student), [])
 
 
@@ -335,10 +392,11 @@ class DashboardTests(ProgressTestMixin, TestCase):
     def setUp(self):
         self.client.force_login(self.student)
 
-    def test_dashboard_shows_the_empty_state_at_first(self):
+    def test_dashboard_shows_the_empty_state_without_enrollments(self):
+        self.client.force_login(self.other)
         response = self.client.get(reverse("accounts:dashboard"))
 
-        self.assertContains(response, "هنوز دوره‌ای را شروع نکرده‌اید")
+        self.assertContains(response, "هنوز در دوره‌ای ثبت‌نام نکرده‌اید")
 
     def test_dashboard_shows_a_continue_card_after_activity(self):
         record_view(self.student, self.lesson_b)

@@ -213,6 +213,21 @@ class Course(models.Model):
     certificate_available = models.BooleanField("دارای گواهی", default=True)
     exam_available = models.BooleanField("دارای آزمون", default=True)
 
+    access_duration_days = models.PositiveIntegerField(
+        "مدت دسترسی (روز)",
+        null=True,
+        blank=True,
+        help_text=(
+            "بعد از خرید، دانشجو چند روز به محتوای دوره دسترسی داشته باشد؟ "
+            "خالی بگذارید تا دسترسی دائمی باشد."
+        ),
+    )
+    vip_access = models.BooleanField(
+        "در دسترس کاربران ویژه",
+        default=True,
+        help_text="اگر خاموش باشد، این دوره حتی برای کاربران ویژه هم باید جداگانه خریداری شود.",
+    )
+
     # --- وضعیت ---
     is_featured = models.BooleanField("دوره منتخب", default=False)
     is_published = models.BooleanField(
@@ -601,3 +616,145 @@ class LessonProgress(models.Model):
 
     def __str__(self) -> str:
         return f"{self.user} — {self.lesson}"
+
+
+class EnrollmentSource(models.TextChoices):
+    """
+    ثبت‌نام از کجا آمده است؟
+
+    نگه داشتن این اطلاعات برای گزارش‌گیری لازم است: چند نفر خریده‌اند،
+    چند نفر دوره رایگان را برداشته‌اند، و چند نفر را پشتیبانی دستی
+    اضافه کرده است.
+    """
+
+    PURCHASE = "purchase", "خرید"
+    FREE = "free", "دوره رایگان"
+    MANUAL = "manual", "افزودن دستی توسط مدیر"
+    VIP = "vip", "اشتراک ویژه"
+    GIFT = "gift", "هدیه"
+
+
+class EnrollmentStatus(models.TextChoices):
+    ACTIVE = "active", "فعال"
+    SUSPENDED = "suspended", "تعلیق‌شده"
+    REFUNDED = "refunded", "بازگشت وجه"
+
+
+class Enrollment(models.Model):
+    """
+    ثبت‌نام یک کاربر در یک دوره — یعنی «این شخص به این دوره دسترسی دارد».
+
+    چرا مدل جدا لازم بود، وقتی سفارش پرداخت‌شده هم همین را می‌گفت؟
+    چون دسترسی همیشه از خرید نمی‌آید: دوره رایگان، دانشجویی که سازمانش
+    ثبت‌نامش کرده، شرکت‌کننده‌ای که پشتیبانی دستی اضافه کرده، و اشتراک
+    ویژه. اگر دسترسی را از روی سفارش می‌خواندیم، هیچ‌کدام از این‌ها جا
+    نمی‌شدند.
+
+    ضمناً دسترسی می‌تواند مدت‌دار باشد یا تعلیق شود — چیزی که یک سفارشِ
+    پرداخت‌شده به تنهایی نمی‌تواند بیان کند.
+    """
+
+    user = models.ForeignKey(
+        "accounts.User",
+        verbose_name="کاربر",
+        on_delete=models.CASCADE,
+        related_name="enrollments",
+    )
+    course = models.ForeignKey(
+        Course,
+        verbose_name="دوره",
+        on_delete=models.CASCADE,
+        related_name="enrollments",
+    )
+
+    source = models.CharField(
+        "منبع ثبت‌نام",
+        max_length=20,
+        choices=EnrollmentSource.choices,
+        default=EnrollmentSource.PURCHASE,
+    )
+    status = models.CharField(
+        "وضعیت",
+        max_length=20,
+        choices=EnrollmentStatus.choices,
+        default=EnrollmentStatus.ACTIVE,
+    )
+
+    order = models.ForeignKey(
+        "orders.Order",
+        verbose_name="سفارش",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="enrollments",
+        help_text="اگر ثبت‌نام از راه خرید بوده، سفارش مربوطه.",
+    )
+
+    starts_at = models.DateTimeField("شروع دسترسی", default=timezone.now)
+    expires_at = models.DateTimeField(
+        "پایان دسترسی",
+        null=True,
+        blank=True,
+        help_text="خالی یعنی دسترسی دائمی است.",
+    )
+
+    note = models.CharField("یادداشت", max_length=300, blank=True)
+
+    created_at = models.DateTimeField("تاریخ ثبت‌نام", auto_now_add=True)
+    updated_at = models.DateTimeField("آخرین تغییر", auto_now=True)
+
+    class Meta:
+        verbose_name = "ثبت‌نام"
+        verbose_name_plural = "ثبت‌نام‌ها"
+        ordering = ["-created_at"]
+        constraints = [
+            # یک کاربر در یک دوره فقط یک‌بار ثبت‌نام دارد. اگر دوباره
+            # بخرد، همان ردیف تمدید می‌شود نه اینکه ردیف دوم ساخته شود.
+            models.UniqueConstraint(
+                fields=["user", "course"], name="unique_enrollment_per_user_course"
+            )
+        ]
+        indexes = [
+            models.Index(fields=["user", "status"]),
+            models.Index(fields=["course", "status"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.user} — {self.course}"
+
+    @property
+    def is_expired(self) -> bool:
+        return bool(self.expires_at and timezone.now() > self.expires_at)
+
+    @property
+    def has_started(self) -> bool:
+        return timezone.now() >= self.starts_at
+
+    @property
+    def is_active(self) -> bool:
+        """
+        آیا این ثبت‌نام هم‌اکنون دسترسی می‌دهد؟
+
+        انقضا هربار محاسبه می‌شود، نه اینکه در فیلد status ذخیره شود.
+        اگر ذخیره می‌شد، دسترسی تا اجرای بعدی یک دستور زمان‌بندی‌شده باز
+        می‌ماند — یعنی ساعت‌ها بعد از تمام شدن مهلت.
+        """
+        return (
+            self.status == EnrollmentStatus.ACTIVE
+            and self.has_started
+            and not self.is_expired
+        )
+
+    @property
+    def days_remaining(self) -> int | None:
+        """چند روز تا پایان دسترسی؟ None یعنی دسترسی دائمی."""
+        if not self.expires_at:
+            return None
+        remaining = self.expires_at - timezone.now()
+        return max(remaining.days, 0)
+
+    @property
+    def is_expiring_soon(self) -> bool:
+        """کمتر از یک هفته تا پایان دسترسی."""
+        days = self.days_remaining
+        return days is not None and days <= 7

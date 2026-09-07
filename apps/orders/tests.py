@@ -543,7 +543,8 @@ class CoursePageCartTests(OrderTestMixin, TestCase):
         mark_order_paid(order)
 
         response = self.client.get(self.course_a.get_absolute_url())
-        self.assertContains(response, "شما این دوره را خریده‌اید")
+        # از فاز ۱۴، پیام از روی ثبت‌نام می‌آید نه از روی سفارش
+        self.assertContains(response, "شما در این دوره ثبت‌نام کرده‌اید")
         self.assertNotContains(response, "افزودن به سبد خرید")
 
 

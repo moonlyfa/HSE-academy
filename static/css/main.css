@@ -2488,3 +2488,17 @@ a.curriculum__lesson-link:hover { color: var(--color-primary); }
 }
 
 .payment-row:last-child { border-bottom: 0; }
+
+/* =========================================================================
+   فاز ۱۴ — ثبت‌نام و مدت دسترسی
+   ========================================================================= */
+.course-row__expiry {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    margin-top: var(--space-xs);
+    font-size: 0.8rem;
+    color: var(--color-text-light);
+}
+
+.course-row__expiry.is-soon { color: var(--color-warning); font-weight: 600; }

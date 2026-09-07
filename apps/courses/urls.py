@@ -14,6 +14,7 @@ urlpatterns = [
     path("", views.course_list, name="list"),
     # آدرس درس شامل اسلاگ دوره است تا هم خوانا باشد و هم بشود بررسی کرد
     # که درس واقعاً به همان دوره تعلق دارد.
+    path("<uslug:slug>/enroll/", views.enroll_free, name="enroll_free"),
     path("<uslug:slug>/lessons/<int:pk>/", views.lesson_detail, name="lesson"),
     path("<uslug:slug>/lessons/<int:pk>/video/", views.lesson_video, name="lesson_video"),
     path(

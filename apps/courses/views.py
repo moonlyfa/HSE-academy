@@ -7,6 +7,7 @@ Viewهای عمومی دوره‌ها.
 
 from urllib.parse import quote
 
+from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
@@ -19,6 +20,7 @@ from django.views.decorators.http import require_POST
 from apps.accounts.models import InstructorProfile
 
 from .access import check_lesson_access
+from .enrollment import active_enrollment
 from .models import (
     Course,
     CourseCategory,
@@ -234,6 +236,7 @@ def course_detail(request: HttpRequest, slug: str) -> HttpResponse:
         "curriculum": _curriculum_for(course, request.user),
         "progress": course_progress(request.user, course),
         "in_cart": course.pk in request.session.get("cart", []),
+        "enrollment": active_enrollment(request.user, course),
         "already_purchased": course.pk in purchased_course_ids(request.user),
         "related_courses": related,
         "share": _share_links(request, course),
@@ -592,3 +595,36 @@ def lesson_position(request: HttpRequest, slug: str, pk: int) -> JsonResponse:
 
     save_position(request.user, lesson, seconds)
     return JsonResponse({"ok": True})
+
+
+@login_required
+@require_POST
+def enroll_free(request: HttpRequest, slug: str) -> HttpResponse:
+    """
+    ثبت‌نام در دوره رایگان.
+
+    دوره رایگان از مسیر سبد خرید و پرداخت رد نمی‌شود؛ همین یک دکمه کافی
+    است. اما رکورد ثبت‌نام مثل بقیه ساخته می‌شود تا در «دوره‌های من»،
+    گزارش‌های مدیر و بعداً صدور گواهی، هیچ فرقی با دوره پولی نداشته باشد.
+    """
+    from .enrollment import enroll
+    from .models import EnrollmentSource
+
+    course = get_object_or_404(Course.objects.published(), slug=slug)
+
+    if not course.is_free:
+        messages.error(request, "این دوره رایگان نیست.")
+        return redirect(course.get_absolute_url())
+
+    if not course.registration_open:
+        messages.error(request, "مهلت ثبت‌نام این دوره به پایان رسیده است.")
+        return redirect(course.get_absolute_url())
+
+    enroll(request.user, course, source=EnrollmentSource.FREE)
+    messages.success(request, f"ثبت‌نام شما در «{course.title}» انجام شد.")
+
+    progress = course_progress(request.user, course)
+    if progress.resume_lesson:
+        return redirect(progress.resume_lesson.get_absolute_url())
+
+    return redirect(course.get_absolute_url())

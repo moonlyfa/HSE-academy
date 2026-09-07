@@ -262,7 +262,7 @@ class SuccessfulPaymentTests(PaymentTestMixin, TestCase):
 
         access = check_lesson_access(self.user, self.lesson)
         self.assertTrue(access.allowed)
-        self.assertEqual(access.reason, "purchased")
+        self.assertEqual(access.reason, "enrolled")
 
     def test_paying_does_not_unlock_it_for_someone_else(self):
         self._complete()

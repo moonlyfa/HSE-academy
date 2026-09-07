@@ -22,7 +22,12 @@ from apps.courses.models import Course
 
 from .cart import Cart
 from .models import Order, OrderStatus
-from .services import check_coupon, create_order, purchased_course_ids
+from .services import (
+    check_coupon,
+    create_order,
+    mark_order_paid,
+    purchased_course_ids,
+)
 
 COUPON_SESSION_KEY = "coupon_code"
 
@@ -224,6 +229,15 @@ def checkout_view(request: HttpRequest) -> HttpResponse:
 
         cart.clear()
         request.session.pop(COUPON_SESSION_KEY, None)
+
+        # سفارش با مبلغ صفر — دوره رایگان، یا تخفیف صددرصدی — به درگاه
+        # فرستاده نمی‌شود. تا پیش از این، چنین سفارشی برای همیشه در حالت
+        # «در انتظار پرداخت» می‌ماند چون درگاه مبلغ صفر را نمی‌پذیرد.
+        if order.total == 0:
+            mark_order_paid(order)
+            messages.success(
+                request, "ثبت‌نام شما انجام شد و دسترسی به دوره‌ها فعال است."
+            )
 
         return redirect("orders:detail", order_number=order.order_number)
 

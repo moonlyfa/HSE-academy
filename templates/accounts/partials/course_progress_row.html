@@ -16,6 +16,14 @@
         </h3>
 
         {% include "courses/partials/progress_bar.html" with progress=progress %}
+
+        {% if progress.enrollment.expires_at %}
+            <span class="course-row__expiry {% if progress.enrollment.is_expiring_soon %}is-soon{% endif %}">
+                {% icon "clock" size=14 %}
+                دسترسی تا {{ progress.enrollment.expires_at|jalali }}
+                ({{ progress.enrollment.days_remaining|fa_digits }} روز)
+            </span>
+        {% endif %}
     </div>
 
     <div class="course-row__action">

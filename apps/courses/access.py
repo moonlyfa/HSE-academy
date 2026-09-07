@@ -17,6 +17,8 @@ from dataclasses import dataclass
 
 from django.urls import reverse
 
+from .models import Enrollment
+
 
 @dataclass(frozen=True)
 class LessonAccess:
@@ -66,31 +68,57 @@ def check_lesson_access(user, lesson) -> LessonAccess:
     if staff:
         return LessonAccess(True, "staff")
 
-    # دوره رایگان: فقط لازم است کاربر حساب داشته باشد تا بدانیم چه کسی
-    # دوره را می‌گذراند. در فاز ۱۴ همین‌جا رکورد ثبت‌نام هم ساخته می‌شود.
+    # --- ثبت‌نام: تنها منبع حقیقت برای دسترسی ---
+    #
+    # ثبت‌نام می‌تواند از خرید بیاید، از دوره رایگان، از افزودن دستی
+    # پشتیبانی، یا از اشتراک ویژه. هر کدام که باشد، پاسخ از یک جا می‌آید.
+    # ثبت‌نام منقضی‌شده یا تعلیق‌شده هم دسترسی نمی‌دهد.
+    from .enrollment import active_enrollment
+
+    if user.is_authenticated:
+        enrollment = active_enrollment(user, course)
+        if enrollment is not None:
+            return LessonAccess(True, "enrolled")
+
+        if course.vip_access and user.has_active_vip:
+            return LessonAccess(True, "vip")
+
+        # ثبت‌نامی هست ولی دیگر معتبر نیست — کاربر باید بداند چرا.
+        expired = Enrollment.objects.filter(user=user, course=course).first()
+        if expired is not None:
+            if expired.is_expired:
+                return LessonAccess(
+                    False,
+                    "enrollment_expired",
+                    "مهلت دسترسی شما به این دوره به پایان رسیده است.",
+                    "تمدید دسترسی",
+                    course.get_absolute_url(),
+                )
+            return LessonAccess(
+                False,
+                "enrollment_suspended",
+                "دسترسی شما به این دوره موقتاً بسته شده است. با پشتیبانی تماس بگیرید.",
+                "تماس با پشتیبانی",
+                reverse("core:contact"),
+            )
+
+    # دوره رایگان: کاربر واردشده با یک کلیک ثبت‌نام می‌شود.
     if course.is_free:
         if user.is_authenticated:
-            return LessonAccess(True, "free_course")
+            return LessonAccess(
+                False,
+                "free_enrollment_required",
+                "این دوره رایگان است؛ فقط کافی است در آن ثبت‌نام کنید.",
+                "ثبت‌نام رایگان",
+                course.get_absolute_url(),
+            )
         return LessonAccess(
             False,
             "login_required",
-            "این دوره رایگان است؛ برای مشاهده درس‌ها فقط کافی است وارد حساب خود شوید.",
+            "این دوره رایگان است؛ برای مشاهده درس‌ها وارد حساب خود شوید.",
             "ورود یا ثبت‌نام",
             f"{reverse('accounts:login')}?next={lesson.get_absolute_url()}",
         )
-
-    # کاربری که دوره را خریده است.
-    #
-    # «خریده» یعنی این دوره در یک سفارش با وضعیت «پرداخت شده» وجود دارد،
-    # و آن وضعیت فقط بعد از تأیید سرور به سرورِ درگاه ثبت می‌شود. یعنی
-    # کسی که فقط سفارش ثبت کرده — یا از آدرس بازگشتی درگاه دستکاری‌شده
-    # برگشته — از این در رد نمی‌شود.
-    #
-    # در فاز ۱۴ این بررسی به مدل Enrollment منتقل می‌شود تا بشود مدت
-    # دسترسی و تاریخ انقضا را هم مدیریت کرد. تا آن موقع، سفارش پرداخت‌شده
-    # همان نقش را بازی می‌کند.
-    if user.is_authenticated and _has_paid_for(user, course):
-        return LessonAccess(True, "purchased")
 
     # برای مهمان هم همین پیام درست است، نه «وارد شوید»: ورود به سایت به
     # تنهایی این درس را باز نمی‌کند و پیام «وارد شوید» انتظار اشتباه
@@ -102,14 +130,3 @@ def check_lesson_access(user, lesson) -> LessonAccess:
         "ثبت‌نام در دوره",
         course.get_absolute_url(),
     )
-
-
-def _has_paid_for(user, course) -> bool:
-    """آیا این دوره در سفارشی پرداخت‌شده از این کاربر هست؟"""
-    # اینجا وارد می‌شود نه در بالای فایل: اپ سفارش‌ها به اپ دوره‌ها وابسته
-    # است و وارد کردن دوطرفه در بالای فایل، حلقه import می‌سازد.
-    from apps.orders.models import OrderStatus
-
-    return course.order_items.filter(
-        order__user=user, order__status=OrderStatus.PAID
-    ).exists()
