@@ -2,7 +2,7 @@
 
 from django.urls import path
 
-from . import views
+from . import views, views_payment
 
 app_name = "orders"
 
@@ -16,4 +16,16 @@ urlpatterns = [
     path("orders/", views.order_list, name="list"),
     path("orders/<str:order_number>/", views.order_detail, name="detail"),
     path("orders/<str:order_number>/cancel/", views.order_cancel, name="cancel"),
+    # --- پرداخت ---
+    path(
+        "orders/<str:order_number>/pay/",
+        views_payment.payment_start,
+        name="payment_start",
+    ),
+    path(
+        "payments/mock/<str:authority>/",
+        views_payment.mock_gateway,
+        name="mock_gateway",
+    ),
+    path("payments/callback/", views_payment.payment_callback, name="payment_callback"),
 ]

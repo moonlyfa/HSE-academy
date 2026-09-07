@@ -16,7 +16,7 @@ from django.utils import timezone
 from apps.core.jalali import to_persian_digits
 from apps.courses.models import Course
 
-from .models import Coupon, Order, OrderItem, OrderStatus
+from apps.orders.models import Coupon, Order, OrderItem, OrderStatus
 
 logger = logging.getLogger("hse.orders")
 

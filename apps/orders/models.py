@@ -13,6 +13,7 @@
 from __future__ import annotations
 
 import secrets
+from datetime import timedelta
 
 from django.db import models
 from django.urls import reverse
@@ -332,3 +333,116 @@ class OrderItem(models.Model):
     @property
     def has_discount(self) -> bool:
         return self.final_price < self.unit_price
+
+
+class PaymentStatus(models.TextChoices):
+    """
+    وضعیت یک تراکنش پرداخت.
+
+    توجه: وضعیت تراکنش با وضعیت سفارش یکی نیست. یک سفارش می‌تواند چند
+    تراکنش داشته باشد (کاربر یک‌بار ناموفق باشد و دوباره تلاش کند)، اما
+    فقط یکی از آن‌ها موفق می‌شود.
+    """
+
+    PENDING = "pending", "در انتظار پرداخت"
+    SUCCESS = "success", "موفق"
+    FAILED = "failed", "ناموفق"
+    CANCELED = "canceled", "انصراف کاربر"
+
+
+class Payment(models.Model):
+    """
+    یک تلاش پرداخت.
+
+    چرا جدا از سفارش؟
+    چون پرداخت ممکن است چند بار تکرار شود: کارت کاربر موجودی ندارد، از
+    درگاه برمی‌گردد، دوباره تلاش می‌کند. اگر همه اطلاعات پرداخت روی خود
+    سفارش بود، هر تلاش تازه، رد تلاش قبلی را پاک می‌کرد و دیگر نمی‌شد
+    فهمید چه اتفاقی افتاده — همان چیزی که هنگام اختلاف مالی لازم است.
+    """
+
+    order = models.ForeignKey(
+        Order,
+        verbose_name="سفارش",
+        on_delete=models.PROTECT,
+        related_name="payments",
+    )
+    gateway = models.CharField("درگاه", max_length=30, default="mock")
+
+    # مبلغ اینجا هم ذخیره می‌شود تا هنگام تأیید بشود بررسی کرد که مبلغ
+    # اعلامی درگاه دقیقاً با همان مبلغی که فرستادیم یکی است.
+    amount = models.PositiveIntegerField("مبلغ (تومان)")
+
+    status = models.CharField(
+        "وضعیت",
+        max_length=20,
+        choices=PaymentStatus.choices,
+        default=PaymentStatus.PENDING,
+    )
+
+    # --- شناسه‌های درگاه ---
+    authority = models.CharField(
+        "شناسه تراکنش درگاه",
+        max_length=100,
+        blank=True,
+        db_index=True,
+        help_text="کدی که درگاه هنگام شروع پرداخت می‌دهد و در بازگشت با آن شناسایی می‌شود.",
+    )
+    ref_id = models.CharField(
+        "شماره پیگیری بانک",
+        max_length=100,
+        blank=True,
+        help_text="فقط بعد از تأیید موفق پرداخت پر می‌شود.",
+    )
+    card_pan = models.CharField(
+        "چهار رقم آخر کارت",
+        max_length=20,
+        blank=True,
+        help_text="هرگز شماره کامل کارت ذخیره نمی‌شود.",
+    )
+
+    error_code = models.CharField("کد خطا", max_length=50, blank=True)
+    error_message = models.CharField("پیام خطا", max_length=300, blank=True)
+
+    # پاسخ خام درگاه برای پیگیری اختلاف‌های مالی نگه داشته می‌شود.
+    raw_response = models.JSONField("پاسخ درگاه", default=dict, blank=True)
+
+    created_at = models.DateTimeField("زمان شروع", auto_now_add=True)
+    updated_at = models.DateTimeField("آخرین تغییر", auto_now=True)
+    verified_at = models.DateTimeField("زمان تأیید", null=True, blank=True)
+
+    class Meta:
+        verbose_name = "تراکنش پرداخت"
+        verbose_name_plural = "تراکنش‌های پرداخت"
+        ordering = ["-created_at"]
+        indexes = [models.Index(fields=["order", "-created_at"])]
+
+    def __str__(self) -> str:
+        return f"{self.order.order_number} — {self.get_status_display()}"
+
+    @property
+    def is_successful(self) -> bool:
+        return self.status == PaymentStatus.SUCCESS
+
+    @property
+    def is_pending(self) -> bool:
+        return self.status == PaymentStatus.PENDING
+
+    def is_expired(self, minutes: int | None = None) -> bool:
+        """
+        آیا مهلت این تراکنش تمام شده است؟
+
+        کاربری که صفحه درگاه را باز گذاشته و یک ساعت بعد برگشته، نباید
+        تراکنشی را تأیید کند که سفارشش شاید در این فاصله لغو شده باشد.
+        """
+        from django.conf import settings
+
+        limit = minutes if minutes is not None else settings.PAYMENT_EXPIRY_MINUTES
+        return timezone.now() > self.created_at + timedelta(minutes=limit)
+
+    @property
+    def masked_card(self) -> str:
+        """نمایش امن شماره کارت — فقط چهار رقم آخر."""
+        if not self.card_pan:
+            return ""
+        return f"**** **** **** {self.card_pan[-4:]}"

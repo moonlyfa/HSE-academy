@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% load core_extras %}
+
+{% block title %}
+    {% if success %}پرداخت موفق{% else %}پرداخت ناموفق{% endif %} — {{ site.site_name }}
+{% endblock %}
+{% block extra_head %}<meta name="robots" content="noindex">{% endblock %}
+
+{% block content %}
+<section class="section pt-4">
+    <div class="container">
+        <div class="gateway-wrap">
+            <div class="result-card result-card--{% if success %}success{% else %}failed{% endif %}">
+                <span class="result-card__icon">
+                    {% if success %}{% icon "check" size=34 %}{% else %}{% icon "close" size=34 %}{% endif %}
+                </span>
+
+                {% if success %}
+                    <h1 class="h4 mt-3">پرداخت با موفقیت انجام شد</h1>
+                    <p>دسترسی شما به دوره‌های این سفارش هم‌اکنون فعال است.</p>
+                {% else %}
+                    <h1 class="h4 mt-3">پرداخت انجام نشد</h1>
+                    <p>{{ message|default:"تراکنش شما تأیید نشد. اگر مبلغی کسر شده باشد، تا ۷۲ ساعت آینده به حساب شما برمی‌گردد." }}</p>
+                {% endif %}
+
+                <ul class="summary-list text-start">
+                    <li>
+                        <span>شماره سفارش</span>
+                        <strong class="ltr">{{ order.order_number }}</strong>
+                    </li>
+                    <li>
+                        <span>مبلغ</span>
+                        <strong>{{ payment.amount|toman }} تومان</strong>
+                    </li>
+                    {% if payment.ref_id %}
+                        <li>
+                            <span>شماره پیگیری</span>
+                            <strong class="ltr">{{ payment.ref_id }}</strong>
+                        </li>
+                    {% endif %}
+                    {% if payment.masked_card %}
+                        <li>
+                            <span>کارت</span>
+                            <strong class="ltr">{{ payment.masked_card }}</strong>
+                        </li>
+                    {% endif %}
+                    <li>
+                        <span>وضعیت</span>
+                        <strong>{{ payment.get_status_display }}</strong>
+                    </li>
+                </ul>
+
+                <div class="result-card__actions">
+                    {% if success %}
+                        <a class="btn btn-accent" href="{% url 'accounts:my_courses' %}">
+                            رفتن به دوره‌های من
+                        </a>
+                    {% elif order.is_payable %}
+                        <form method="post" action="{% url 'orders:payment_start' order.order_number %}">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-accent">تلاش دوباره</button>
+                        </form>
+                    {% endif %}
+
+                    <a class="btn btn-outline-brand" href="{{ order.get_absolute_url }}">
+                        مشاهده سفارش
+                    </a>
+                </div>
+
+                {% if not success %}
+                    <p class="small text-muted mt-3 mb-0">
+                        اگر مشکل ادامه داشت، شماره سفارش را برای پشتیبانی بفرستید:
+                        <a href="{% url 'core:contact' %}">فرم تماس</a>
+                    </p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

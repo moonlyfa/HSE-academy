@@ -8,6 +8,7 @@ Viewهای سبد خرید، تسویه و سفارش‌ها.
 
 from __future__ import annotations
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse
@@ -273,7 +274,13 @@ def order_detail(request: HttpRequest, order_number: str) -> HttpResponse:
     return render(
         request,
         "orders/order_detail.html",
-        {"order": order, "statuses": OrderStatus},
+        {
+            "order": order,
+            "statuses": OrderStatus,
+            "payments": order.payments.order_by("-created_at"),
+            # برای اینکه در محیط آزمایشی، کاربر بداند پرداخت واقعی نیست.
+            "mock_payment": settings.USE_MOCK_PAYMENT,
+        },
     )
 
 

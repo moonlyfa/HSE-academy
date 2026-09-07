@@ -3,7 +3,7 @@
 from django.contrib import admin
 from django.utils.html import format_html
 
-from .models import Coupon, Order, OrderItem, OrderStatus
+from .models import Coupon, Order, OrderItem, OrderStatus, Payment, PaymentStatus
 
 
 @admin.register(Coupon)
@@ -147,3 +147,61 @@ class OrderAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         return super().get_queryset(request).select_related("user", "coupon")
+
+
+@admin.register(Payment)
+class PaymentAdmin(admin.ModelAdmin):
+    """
+    تراکنش‌های پرداخت — کاملاً فقط‌خواندنی.
+
+    این جدول سند مالی است. اگر از پنل قابل ویرایش باشد، هنگام اختلاف با
+    بانک یا کاربر، هیچ‌کس نمی‌تواند به آن استناد کند.
+    """
+
+    list_display = (
+        "order",
+        "gateway",
+        "amount_display",
+        "status_badge",
+        "ref_id",
+        "created_at",
+        "verified_at",
+    )
+    list_filter = ("status", "gateway", "created_at")
+    search_fields = ("order__order_number", "authority", "ref_id", "order__user__mobile")
+    date_hierarchy = "created_at"
+    ordering = ("-created_at",)
+    list_per_page = 50
+
+    def has_add_permission(self, request) -> bool:
+        return False
+
+    def has_change_permission(self, request, obj=None) -> bool:
+        return False
+
+    def has_delete_permission(self, request, obj=None) -> bool:
+        return False
+
+    def get_readonly_fields(self, request, obj=None):
+        return [field.name for field in self.model._meta.fields]
+
+    @admin.display(description="مبلغ", ordering="amount")
+    def amount_display(self, obj: Payment) -> str:
+        return f"{obj.amount:,}"
+
+    @admin.display(description="وضعیت", ordering="status")
+    def status_badge(self, obj: Payment):
+        colors = {
+            PaymentStatus.SUCCESS: "#1e8449",
+            PaymentStatus.PENDING: "#d99400",
+            PaymentStatus.FAILED: "#c0392b",
+            PaymentStatus.CANCELED: "#7f8c8d",
+        }
+        return format_html(
+            '<span style="color:{};font-weight:600">{}</span>',
+            colors.get(obj.status, "#000"),
+            obj.get_status_display(),
+        )
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related("order", "order__user")

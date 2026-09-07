@@ -241,6 +241,24 @@ IDENTITY_REQUIRED_FOR_REGISTRATION = env.bool(
 )
 
 # ---------------------------------------------------------------------------
+# درگاه پرداخت
+# ---------------------------------------------------------------------------
+PAYMENT_PROVIDER = env("PAYMENT_PROVIDER", default="mock")
+PAYMENT_TIMEOUT_SECONDS = env.int("PAYMENT_TIMEOUT_SECONDS", default=15)
+
+# مهلت اعتبار یک تراکنش. اگر کاربر صفحه درگاه را باز بگذارد و نیم‌ساعت
+# بعد برگردد، تراکنش دیگر پذیرفته نمی‌شود و باید از نو شروع کند.
+PAYMENT_EXPIRY_MINUTES = env.int("PAYMENT_EXPIRY_MINUTES", default=20)
+
+# --- زرین‌پال (فاز ۱۳) ---
+ZARINPAL_MERCHANT_ID = env("ZARINPAL_MERCHANT_ID", default="")
+ZARINPAL_SANDBOX = env.bool("ZARINPAL_SANDBOX", default=True)
+
+# رفتار درگاه آزمایشی هنگام تست خودکار: success | failed | ask
+# مقدار ask یعنی صفحه‌ای نمایش داده می‌شود تا خودتان نتیجه را انتخاب کنید.
+MOCK_PAYMENT_RESULT = env("MOCK_PAYMENT_RESULT", default="ask")
+
+# ---------------------------------------------------------------------------
 # Cache
 # ---------------------------------------------------------------------------
 # از کش برای محدودسازی تلاش‌های ناموفق ورود و در فاز ۴ برای محدودیت ارسال

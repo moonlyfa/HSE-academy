@@ -79,7 +79,22 @@ def check_lesson_access(user, lesson) -> LessonAccess:
             f"{reverse('accounts:login')}?next={lesson.get_absolute_url()}",
         )
 
-    # --- فاز ۱۴: بررسی ثبت‌نام کاربر در دوره اینجا اضافه می‌شود ---
+    # کاربری که دوره را خریده است.
+    #
+    # «خریده» یعنی این دوره در یک سفارش با وضعیت «پرداخت شده» وجود دارد،
+    # و آن وضعیت فقط بعد از تأیید سرور به سرورِ درگاه ثبت می‌شود. یعنی
+    # کسی که فقط سفارش ثبت کرده — یا از آدرس بازگشتی درگاه دستکاری‌شده
+    # برگشته — از این در رد نمی‌شود.
+    #
+    # در فاز ۱۴ این بررسی به مدل Enrollment منتقل می‌شود تا بشود مدت
+    # دسترسی و تاریخ انقضا را هم مدیریت کرد. تا آن موقع، سفارش پرداخت‌شده
+    # همان نقش را بازی می‌کند.
+    if user.is_authenticated and _has_paid_for(user, course):
+        return LessonAccess(True, "purchased")
+
+    # برای مهمان هم همین پیام درست است، نه «وارد شوید»: ورود به سایت به
+    # تنهایی این درس را باز نمی‌کند و پیام «وارد شوید» انتظار اشتباه
+    # می‌سازد. سبد خرید هم برای مهمان کار می‌کند.
     return LessonAccess(
         False,
         "purchase_required",
@@ -87,3 +102,14 @@ def check_lesson_access(user, lesson) -> LessonAccess:
         "ثبت‌نام در دوره",
         course.get_absolute_url(),
     )
+
+
+def _has_paid_for(user, course) -> bool:
+    """آیا این دوره در سفارشی پرداخت‌شده از این کاربر هست؟"""
+    # اینجا وارد می‌شود نه در بالای فایل: اپ سفارش‌ها به اپ دوره‌ها وابسته
+    # است و وارد کردن دوطرفه در بالای فایل، حلقه import می‌سازد.
+    from apps.orders.models import OrderStatus
+
+    return course.order_items.filter(
+        order__user=user, order__status=OrderStatus.PAID
+    ).exists()

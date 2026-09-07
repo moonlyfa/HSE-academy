@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% load core_extras %}
+
+{% block title %}درگاه پرداخت آزمایشی — {{ site.site_name }}{% endblock %}
+{% block extra_head %}<meta name="robots" content="noindex">{% endblock %}
+
+{% block content %}
+<section class="section pt-4">
+    <div class="container">
+        <div class="gateway-wrap">
+
+            <div class="gateway-card">
+                <div class="gateway-card__head">
+                    {% icon "lock" size=22 %}
+                    <div>
+                        <strong class="d-block">درگاه پرداخت آزمایشی</strong>
+                        <span class="small">شبیه‌سازی درگاه بانکی — هیچ پولی جابه‌جا نمی‌شود</span>
+                    </div>
+                </div>
+
+                <div class="gateway-card__body">
+                    <ul class="summary-list">
+                        <li>
+                            <span>پذیرنده</span>
+                            <strong>{{ site.site_name }}</strong>
+                        </li>
+                        <li>
+                            <span>شماره سفارش</span>
+                            <strong class="ltr">{{ order.order_number }}</strong>
+                        </li>
+                        <li class="summary-list__total">
+                            <span>مبلغ قابل پرداخت</span>
+                            <strong>{{ payment.amount|toman }} تومان</strong>
+                        </li>
+                    </ul>
+
+                    <div class="gateway-note">
+                        {% icon "shield" size=18 %}
+                        <p class="mb-0">
+                            این صفحه فقط در محیط آزمایشی وجود دارد و جای درگاه واقعی
+                            بانک را می‌گیرد. با انتخاب هر دکمه، همان مسیری طی می‌شود
+                            که در درگاه واقعی طی خواهد شد.
+                        </p>
+                    </div>
+
+                    <form method="post" class="gateway-actions">
+                        {% csrf_token %}
+                        <button type="submit" name="decision" value="success"
+                                class="btn btn-accent">
+                            {% icon "check" size=18 %}
+                            <span>پرداخت موفق</span>
+                        </button>
+                        <button type="submit" name="decision" value="failed"
+                                class="btn btn-outline-brand">
+                            {% icon "close" size=18 %}
+                            <span>پرداخت ناموفق</span>
+                        </button>
+                    </form>
+
+                    <a class="gateway-cancel" href="{{ order.get_absolute_url }}">
+                        بازگشت به سفارش بدون پرداخت
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
