@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% load core_extras %}
+
+{% block title %}سبد خرید — {{ site.site_name }}{% endblock %}
+{% block extra_head %}<meta name="robots" content="noindex">{% endblock %}
+
+{% block breadcrumb %}
+    {% include "partials/breadcrumb.html" with items=None current="سبد خرید" %}
+{% endblock %}
+
+{% block content %}
+<section class="section pt-4">
+    <div class="container">
+        <div class="section-head">
+            <h1 class="h2">سبد خرید</h1>
+            <p class="m-0">دوره‌های انتخابی خود را بررسی کنید و سفارش را نهایی کنید.</p>
+        </div>
+
+        {% if lines %}
+            <div class="row g-4">
+                <div class="col-lg-8">
+                    {% for line in lines %}
+                        <article class="cart-line">
+                            <a class="cart-line__media" href="{{ line.course.get_absolute_url }}">
+                                {% if line.course.thumbnail %}
+                                    <img src="{{ line.course.thumbnail.url }}" alt="{{ line.course.title }}" loading="lazy">
+                                {% else %}
+                                    <span class="card-media__placeholder">{% icon "book" size=24 %}</span>
+                                {% endif %}
+                            </a>
+
+                            <div class="cart-line__body">
+                                <span class="course-card__category">{{ line.course.category.name }}</span>
+                                <h2 class="cart-line__title">
+                                    <a href="{{ line.course.get_absolute_url }}">{{ line.course.title }}</a>
+                                </h2>
+                                <div class="cart-line__meta">
+                                    <span>{% icon "video" size=15 %} {{ line.course.get_course_type_display }}</span>
+                                    {% if line.course.duration_hours %}
+                                        <span>{% icon "clock" size=15 %} {{ line.course.duration_hours|fa_digits }} ساعت</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <div class="cart-line__price">
+                                {% if line.final_price == 0 %}
+                                    <strong class="text-success">رایگان</strong>
+                                {% else %}
+                                    {% if line.has_discount %}
+                                        <del class="course-card__old-price">{{ line.unit_price|toman }}</del>
+                                    {% endif %}
+                                    <strong>{{ line.final_price|toman }}</strong>
+                                    <span class="course-card__currency">تومان</span>
+                                {% endif %}
+
+                                <form method="post" action="{% url 'orders:cart_remove' line.course.slug %}">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn-link-danger" aria-label="حذف از سبد">
+                                        {% icon "close" size=15 %}<span>حذف</span>
+                                    </button>
+                                </form>
+                            </div>
+                        </article>
+                    {% endfor %}
+
+                    <a href="{% url 'courses:list' %}" class="btn btn-outline-brand btn-sm mt-2">
+                        {% icon "arrow-left" size=16 %}
+                        <span>افزودن دوره دیگر</span>
+                    </a>
+                </div>
+
+                {# --- خلاصه فاکتور --- #}
+                <div class="col-lg-4">
+                    <aside class="summary-card">
+                        <h2 class="h6 mb-3">خلاصه سفارش</h2>
+
+                        {% if coupon_check and coupon_check.valid %}
+                            <div class="coupon-applied">
+                                <span>
+                                    {% icon "check" size=16 %}
+                                    کد <strong>{{ coupon_check.coupon.code }}</strong> اعمال شد
+                                </span>
+                                <form method="post" action="{% url 'orders:coupon_remove' %}">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn-link-danger">حذف</button>
+                                </form>
+                            </div>
+                        {% else %}
+                            <form method="post" action="{% url 'orders:coupon_apply' %}" class="coupon-form">
+                                {% csrf_token %}
+                                <label for="couponCode" class="form-label">کد تخفیف دارید؟</label>
+                                <div class="coupon-form__row">
+                                    <input type="text" id="couponCode" name="code" class="form-control ltr"
+                                           placeholder="مثلاً NOWRUZ" autocomplete="off">
+                                    <button type="submit" class="btn btn-outline-brand">اعمال</button>
+                                </div>
+                            </form>
+                        {% endif %}
+
+                        <ul class="summary-list">
+                            <li>
+                                <span>جمع اقلام ({{ lines|length|fa_digits }} دوره)</span>
+                                <strong>{{ subtotal|toman }} تومان</strong>
+                            </li>
+                            {% if discount %}
+                                <li class="summary-list__discount">
+                                    <span>تخفیف</span>
+                                    <strong>−{{ discount|toman }} تومان</strong>
+                                </li>
+                            {% endif %}
+                            <li class="summary-list__total">
+                                <span>مبلغ قابل پرداخت</span>
+                                <strong>{{ total|toman }} تومان</strong>
+                            </li>
+                        </ul>
+
+                        {% if user.is_authenticated %}
+                            <a href="{% url 'orders:checkout' %}" class="btn btn-accent w-100 mt-3">
+                                ادامه و تسویه حساب
+                            </a>
+                        {% else %}
+                            <a href="{% url 'accounts:login' %}?next={% url 'orders:checkout' %}"
+                               class="btn btn-accent w-100 mt-3">
+                                ورود و تسویه حساب
+                            </a>
+                            <p class="summary-card__note">
+                                سبد خرید شما محفوظ می‌ماند؛ بعد از ورود به همین صفحه برمی‌گردید.
+                            </p>
+                        {% endif %}
+                    </aside>
+                </div>
+            </div>
+        {% else %}
+            <div class="empty-state">
+                {% icon "book" size=40 %}
+                <h2 class="h5 mt-3">سبد خرید شما خالی است</h2>
+                <p class="mb-3">از میان دوره‌های تخصصی، دوره مناسب خود را انتخاب کنید.</p>
+                <a href="{% url 'courses:list' %}" class="btn btn-primary">مشاهده دوره‌ها</a>
+            </div>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

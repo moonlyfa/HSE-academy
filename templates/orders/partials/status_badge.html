@@ -1,0 +1,9 @@
+{% load core_extras %}
+{# نشان وضعیت سفارش — رنگ از خود وضعیت می‌آید تا در همه صفحه‌ها یکسان باشد #}
+<span class="order-status order-status--{{ order.status }}">
+    {% if order.status == "paid" %}{% icon "check" size=15 %}
+    {% elif order.status == "pending" %}{% icon "clock" size=15 %}
+    {% elif order.status == "canceled" %}{% icon "close" size=15 %}
+    {% else %}{% icon "lock" size=15 %}{% endif %}
+    <span>{{ order.get_status_display }}</span>
+</span>

@@ -65,6 +65,15 @@
                         {% icon "search" size=20 %}
                     </button>
 
+                    {# --- سبد خرید --- #}
+                    <a class="btn-icon btn-icon--cart" href="{% url 'orders:cart' %}"
+                       aria-label="سبد خرید" title="سبد خرید">
+                        {% icon "cart" size=20 %}
+                        {% if cart_count %}
+                            <span class="btn-icon__badge">{{ cart_count|fa_digits }}</span>
+                        {% endif %}
+                    </a>
+
                     {% if user.is_authenticated %}
                         <a class="btn btn-outline-brand btn-sm" href="{% url 'accounts:dashboard' %}">
                             {% icon "users" size=18 %}

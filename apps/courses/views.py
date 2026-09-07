@@ -224,11 +224,17 @@ def course_detail(request: HttpRequest, slug: str) -> HttpResponse:
         {"label": course.category.name, "url": course.category.get_absolute_url()}
     )
 
+    # apps.orders به apps.courses وابسته است؛ برای اینکه وابستگی دوطرفه
+    # نشود، این تابع همین‌جا وارد می‌شود نه در بالای فایل.
+    from apps.orders.services import purchased_course_ids
+
     context = {
         "course": course,
         # ساختار دوره به‌همراه وضعیت قفل هر درس برای همین بازدیدکننده
         "curriculum": _curriculum_for(course, request.user),
         "progress": course_progress(request.user, course),
+        "in_cart": course.pk in request.session.get("cart", []),
+        "already_purchased": course.pk in purchased_course_ids(request.user),
         "related_courses": related,
         "share": _share_links(request, course),
         "breadcrumb_items": breadcrumb_items,

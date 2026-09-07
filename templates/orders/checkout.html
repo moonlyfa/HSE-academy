@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% load core_extras %}
+
+{% block title %}تسویه حساب — {{ site.site_name }}{% endblock %}
+{% block extra_head %}<meta name="robots" content="noindex">{% endblock %}
+
+{% block breadcrumb %}
+    {% include "partials/breadcrumb.html" with items=None current="تسویه حساب" %}
+{% endblock %}
+
+{% block content %}
+<section class="section pt-4">
+    <div class="container">
+        <div class="section-head">
+            <h1 class="h2">تسویه حساب</h1>
+            <p class="m-0">سفارش خود را بررسی و تأیید کنید.</p>
+        </div>
+
+        <form method="post">
+            {% csrf_token %}
+            <div class="row g-4">
+                <div class="col-lg-8">
+                    <div class="verify-box">
+                        <h2 class="h6 mb-3">اطلاعات خریدار</h2>
+
+                        <ul class="summary-list">
+                            <li><span>نام</span><strong>{{ user.get_full_name|default:"—" }}</strong></li>
+                            <li><span>شماره موبایل</span><strong class="ltr">{{ user.mobile }}</strong></li>
+                        </ul>
+
+                        <p class="small text-muted mb-0">
+                            برای اصلاح این اطلاعات به
+                            <a href="{% url 'accounts:profile' %}">صفحه پروفایل</a>
+                            بروید.
+                        </p>
+                    </div>
+
+                    <div class="verify-box mt-4">
+                        <h2 class="h6 mb-3">دوره‌های این سفارش</h2>
+
+                        {% for line in lines %}
+                            <div class="checkout-line">
+                                <span>{{ line.course.title }}</span>
+                                <strong>
+                                    {% if line.final_price == 0 %}
+                                        رایگان
+                                    {% else %}
+                                        {{ line.final_price|toman }} تومان
+                                    {% endif %}
+                                </strong>
+                            </div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="verify-box mt-4">
+                        <label for="orderNote" class="form-label">یادداشت (اختیاری)</label>
+                        <textarea id="orderNote" name="note" class="form-control" rows="3"
+                                  placeholder="اگر نکته‌ای درباره این سفارش دارید بنویسید."></textarea>
+                    </div>
+                </div>
+
+                <div class="col-lg-4">
+                    <aside class="summary-card">
+                        <h2 class="h6 mb-3">مبلغ قابل پرداخت</h2>
+
+                        <ul class="summary-list">
+                            <li>
+                                <span>جمع اقلام</span>
+                                <strong>{{ subtotal|toman }} تومان</strong>
+                            </li>
+                            {% if discount %}
+                                <li class="summary-list__discount">
+                                    <span>تخفیف ({{ coupon.code }})</span>
+                                    <strong>−{{ discount|toman }} تومان</strong>
+                                </li>
+                            {% endif %}
+                            <li class="summary-list__total">
+                                <span>پرداخت نهایی</span>
+                                <strong>{{ total|toman }} تومان</strong>
+                            </li>
+                        </ul>
+
+                        <button type="submit" class="btn btn-accent w-100 mt-3">
+                            ثبت سفارش
+                        </button>
+
+                        <p class="summary-card__note">
+                            با ثبت سفارش،
+                            <a href="{% url 'core:terms' %}" target="_blank">قوانین و مقررات</a>
+                            را می‌پذیرید.
+                        </p>
+                    </aside>
+                </div>
+            </div>
+        </form>
+    </div>
+</section>
+{% endblock %}

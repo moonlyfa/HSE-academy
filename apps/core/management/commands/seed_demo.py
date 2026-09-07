@@ -20,6 +20,7 @@ from django.utils import timezone
 
 from apps.accounts.models import InstructorProfile
 from apps.core.models import FAQ, Feature, HeroSlide, Partner, SiteSetting, Testimonial
+from apps.orders.models import Coupon, DiscountType, Order
 from apps.courses.models import (
     Course,
     CourseCategory,
@@ -225,6 +226,7 @@ class Command(BaseCommand):
         self._seed_faqs()
         self._seed_testimonials()
         self._seed_partners()
+        self._seed_coupons()
 
         self.stdout.write("")
         self.stdout.write(self.style.SUCCESS("داده نمونه با موفقیت ساخته شد."))
@@ -232,9 +234,15 @@ class Command(BaseCommand):
 
     # ------------------------------------------------------------------
     def _reset(self):
-        # فصل‌ها و درس‌ها با حذف دوره خودکار پاک می‌شوند (on_delete=CASCADE)
-        for model in (Course, CourseCategory, InstructorProfile, Feature, HeroSlide,
-                      FAQ, Testimonial, Partner):
+        # فصل‌ها و درس‌ها با حذف دوره خودکار پاک می‌شوند (on_delete=CASCADE).
+        #
+        # سفارش‌ها باید *قبل* از دوره‌ها پاک شوند: دوره فروخته‌شده با
+        # on_delete=PROTECT محافظت می‌شود و حذفش خطا می‌دهد. این عمدی است —
+        # در سایت واقعی هیچ‌وقت نباید دوره‌ای که فاکتور دارد حذف شود. اینجا
+        # چون دستور فقط در محیط توسعه اجرا می‌شود، سفارش‌های آزمایشی هم
+        # همراه بقیه داده نمونه پاک می‌شوند.
+        for model in (Order, Coupon, Course, CourseCategory, InstructorProfile,
+                      Feature, HeroSlide, FAQ, Testimonial, Partner):
             deleted, _ = model.objects.all().delete()
             self.stdout.write(f"  پاک شد: {model._meta.verbose_name_plural} ({deleted})")
 
@@ -449,6 +457,32 @@ class Command(BaseCommand):
                 f"✓ {courses.count()} دوره فصل‌بندی شد ({lesson_total} درس)"
             )
         )
+
+    def _seed_coupons(self):
+        """
+        دو کد تخفیف نمونه تا بتوانید سبد خرید را کامل امتحان کنید.
+
+        کدها با update_or_create ساخته می‌شوند و شمارنده استفاده دست
+        نمی‌خورد، تا اجرای دوباره این دستور آمار واقعی را پاک نکند.
+        """
+        samples = [
+            ("NOWRUZ", DiscountType.PERCENT, 20, "تخفیف نمونه ۲۰ درصدی"),
+            ("HSE500", DiscountType.FIXED, 500_000, "تخفیف نمونه ۵۰۰ هزار تومانی"),
+        ]
+
+        for code, kind, value, description in samples:
+            Coupon.objects.update_or_create(
+                code=code,
+                defaults={
+                    "discount_type": kind,
+                    "value": value,
+                    "description": description,
+                    "is_active": True,
+                    "per_user_limit": 0,  # در محیط آزمایشی محدودیت نداشته باشد
+                },
+            )
+
+        self.stdout.write(self.style.SUCCESS(f"✓ {len(samples)} کد تخفیف نمونه"))
 
     def _seed_faqs(self):
         for index, (question, answer) in enumerate(FAQS):

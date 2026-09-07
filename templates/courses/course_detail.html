@@ -192,13 +192,41 @@
                         {% endif %}
                     </div>
 
-                    {% if course.registration_open %}
+                    {% if already_purchased %}
+                        <p class="purchase-card__status purchase-card__status--open">
+                            {% icon "check" size=16 %} شما این دوره را خریده‌اید
+                        </p>
+                        {% if progress.resume_lesson %}
+                            <a href="{{ progress.resume_lesson.get_absolute_url }}" class="btn btn-accent w-100 mt-2">
+                                ادامه یادگیری
+                            </a>
+                        {% endif %}
+                    {% elif course.registration_open %}
                         <p class="purchase-card__status purchase-card__status--open">
                             {% icon "check" size=16 %} ثبت‌نام این دوره باز است
                         </p>
-                        <a href="{{ enroll_url }}" class="btn btn-accent w-100 mt-2">ثبت‌نام در دوره</a>
+
+                        {% if in_cart %}
+                            <a href="{% url 'orders:cart' %}" class="btn btn-accent w-100 mt-2">
+                                {% icon "check" size=18 %}
+                                <span>در سبد خرید — مشاهده سبد</span>
+                            </a>
+                        {% else %}
+                            <form method="post" action="{% url 'orders:cart_add' course.slug %}" class="mt-2">
+                                {% csrf_token %}
+                                <input type="hidden" name="next" value="{{ request.path }}">
+                                <button type="submit" class="btn btn-accent w-100">
+                                    {% if course.is_free %}
+                                        شرکت در این دوره رایگان
+                                    {% else %}
+                                        افزودن به سبد خرید
+                                    {% endif %}
+                                </button>
+                            </form>
+                        {% endif %}
+
                         <p class="purchase-card__note">
-                            پس از ثبت درخواست، همکاران ما برای هماهنگی با شما تماس می‌گیرند.
+                            پس از تکمیل خرید، دسترسی به همه درس‌های دوره فعال می‌شود.
                         </p>
                     {% else %}
                         <p class="purchase-card__status purchase-card__status--closed">

@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% load core_extras %}
+
+{% block title %}سفارش‌های من — {{ site.site_name }}{% endblock %}
+{% block extra_head %}<meta name="robots" content="noindex">{% endblock %}
+
+{% block breadcrumb %}
+    {% include "partials/breadcrumb.html" with items=None current="سفارش‌های من" %}
+{% endblock %}
+
+{% block content %}
+<section class="section pt-4">
+    <div class="container">
+        <div class="row g-4">
+            <div class="col-lg-3">
+                {% include "accounts/partials/sidebar.html" with dash_active="orders" %}
+            </div>
+
+            <div class="col-lg-9">
+                <div class="section-head">
+                    <h1 class="h3">سفارش‌های من</h1>
+                    <p class="m-0">تاریخچه سفارش‌ها و وضعیت پرداخت هرکدام.</p>
+                </div>
+
+                {% if orders %}
+                    {% for order in orders %}
+                        <article class="order-row">
+                            <div class="order-row__head">
+                                <a class="order-row__number ltr" href="{{ order.get_absolute_url }}">
+                                    {{ order.order_number }}
+                                </a>
+                                {% include "orders/partials/status_badge.html" with order=order %}
+                            </div>
+
+                            <ul class="order-row__items">
+                                {% for item in order.items.all %}
+                                    <li>{{ item.title }}</li>
+                                {% endfor %}
+                            </ul>
+
+                            <div class="order-row__foot">
+                                <span class="text-muted small">{{ order.created_at|jalali }}</span>
+                                <strong>{{ order.total|toman }} تومان</strong>
+                                <a class="btn btn-outline-brand btn-sm" href="{{ order.get_absolute_url }}">
+                                    جزئیات
+                                </a>
+                            </div>
+                        </article>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state">
+                        {% icon "lock" size=40 %}
+                        <h2 class="h6 mt-3">هنوز سفارشی ثبت نکرده‌اید</h2>
+                        <p class="mb-3">با انتخاب دوره و تکمیل سبد خرید، اولین سفارش شما اینجا ثبت می‌شود.</p>
+                        <a href="{% url 'courses:list' %}" class="btn btn-primary">مشاهده دوره‌ها</a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

@@ -30,9 +30,10 @@
         <span class="dash-nav__item is-disabled" aria-disabled="true">
             {% icon "certificate" size=18 %}<span>گواهی‌های من</span><small>فاز ۱۷</small>
         </span>
-        <span class="dash-nav__item is-disabled" aria-disabled="true">
-            {% icon "lock" size=18 %}<span>سفارش‌ها و پرداخت‌ها</span><small>فاز ۱۱</small>
-        </span>
+        <a class="dash-nav__item {% if dash_active == 'orders' %}is-active{% endif %}"
+           href="{% url 'orders:list' %}">
+            {% icon "receipt" size=18 %}<span>سفارش‌ها و پرداخت‌ها</span>
+        </a>
 
         {% if not user.is_mobile_verified %}
             <a class="dash-nav__item {% if dash_active == 'verify' %}is-active{% endif %}"

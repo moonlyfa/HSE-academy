@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% load core_extras %}
+
+{% block title %}سفارش {{ order.order_number }} — {{ site.site_name }}{% endblock %}
+{% block extra_head %}<meta name="robots" content="noindex">{% endblock %}
+
+{% block breadcrumb %}
+    {% include "partials/breadcrumb.html" with items=breadcrumb_items current=order.order_number %}
+{% endblock %}
+
+{% block content %}
+<section class="section pt-4">
+    <div class="container">
+        <div class="row g-4">
+            <div class="col-lg-8">
+
+                {# --- وضعیت سفارش --- #}
+                <div class="order-banner order-banner--{{ order.status }}">
+                    <div>
+                        <span class="order-banner__label">شماره سفارش</span>
+                        <strong class="ltr d-block">{{ order.order_number }}</strong>
+                    </div>
+                    {% include "orders/partials/status_badge.html" with order=order %}
+                </div>
+
+                {% if order.status == "pending" %}
+                    <div class="alert alert-warning mt-3">
+                        این سفارش هنوز پرداخت نشده است. دسترسی به دوره‌ها پس از
+                        تأیید پرداخت فعال می‌شود.
+                    </div>
+                {% elif order.status == "paid" %}
+                    <div class="alert alert-success mt-3">
+                        پرداخت این سفارش تأیید شده است.
+                    </div>
+                {% endif %}
+
+                <div class="verify-box mt-4">
+                    <h2 class="h6 mb-3">دوره‌های این سفارش</h2>
+
+                    {% for item in order.items.all %}
+                        <div class="order-item">
+                            <div>
+                                <a href="{{ item.course.get_absolute_url }}">{{ item.title }}</a>
+                                {% if item.has_discount %}
+                                    <span class="chip chip-accent chip-sm">تخفیف‌دار</span>
+                                {% endif %}
+                            </div>
+                            <strong>
+                                {% if item.final_price == 0 %}
+                                    رایگان
+                                {% else %}
+                                    {{ item.final_price|toman }} تومان
+                                {% endif %}
+                            </strong>
+                        </div>
+                    {% endfor %}
+                </div>
+
+                {% if order.note %}
+                    <div class="verify-box mt-4">
+                        <h2 class="h6 mb-2">یادداشت شما</h2>
+                        <p class="mb-0">{{ order.note }}</p>
+                    </div>
+                {% endif %}
+            </div>
+
+            <div class="col-lg-4">
+                <aside class="summary-card">
+                    <h2 class="h6 mb-3">صورتحساب</h2>
+
+                    <ul class="summary-list">
+                        <li><span>تاریخ ثبت</span><strong>{{ order.created_at|jalali }}</strong></li>
+                        <li><span>جمع اقلام</span><strong>{{ order.subtotal|toman }} تومان</strong></li>
+                        {% if order.discount_amount %}
+                            <li class="summary-list__discount">
+                                <span>تخفیف{% if order.coupon_code %} ({{ order.coupon_code }}){% endif %}</span>
+                                <strong>−{{ order.discount_amount|toman }} تومان</strong>
+                            </li>
+                        {% endif %}
+                        <li class="summary-list__total">
+                            <span>مبلغ قابل پرداخت</span>
+                            <strong>{{ order.total|toman }} تومان</strong>
+                        </li>
+                        {% if order.paid_at %}
+                            <li><span>زمان پرداخت</span><strong>{{ order.paid_at|jalali }}</strong></li>
+                        {% endif %}
+                    </ul>
+
+                    {% if order.is_payable %}
+                        {# دکمه پرداخت در فاز ۱۲ به درگاه آزمایشی وصل می‌شود #}
+                        <button class="btn btn-accent w-100 mt-3" disabled>
+                            پرداخت آنلاین (به‌زودی)
+                        </button>
+                        <p class="summary-card__note">
+                            برای هماهنگی پرداخت، با پشتیبانی تماس بگیرید یا از
+                            <a href="{% url 'core:contact' %}">فرم تماس</a> استفاده کنید.
+                        </p>
+
+                        <form method="post" action="{% url 'orders:cancel' order.order_number %}"
+                              class="mt-2">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-outline-brand w-100">
+                                لغو سفارش
+                            </button>
+                        </form>
+                    {% endif %}
+
+                    <a href="{% url 'orders:list' %}" class="btn btn-outline-brand w-100 mt-2">
+                        بازگشت به سفارش‌ها
+                    </a>
+                </aside>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
