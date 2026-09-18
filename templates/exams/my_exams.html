@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% load core_extras %}
+
+{% block title %}آزمون‌های من — {{ site.site_name }}{% endblock %}
+{% block extra_head %}<meta name="robots" content="noindex">{% endblock %}
+
+{% block breadcrumb %}
+    {% include "partials/breadcrumb.html" with items=None current="آزمون‌های من" %}
+{% endblock %}
+
+{% block content %}
+<section class="section pt-4">
+    <div class="container">
+        <div class="row g-4">
+            <div class="col-lg-3">
+                {% include "accounts/partials/sidebar.html" with dash_active="exams" %}
+            </div>
+
+            <div class="col-lg-9">
+                <div class="section-head">
+                    <h1 class="h3">آزمون‌های من</h1>
+                    <p class="m-0">
+                        کارنامه همه آزمون‌هایی که در آن‌ها شرکت کرده‌اید.
+                        {% if passed_count %}
+                            تا اینجا در {{ passed_count|fa_digits }} آزمون قبول شده‌اید.
+                        {% endif %}
+                    </p>
+                </div>
+
+                {% if attempts %}
+                    {% include "exams/partials/attempt_list.html" with attempts=attempts show_exam=True %}
+                {% else %}
+                    <div class="empty-state">
+                        {% icon "check" size=36 %}
+                        <p class="mt-3 mb-0">هنوز در آزمونی شرکت نکرده‌اید.</p>
+                        <a class="btn btn-outline-primary btn-sm mt-3" href="{% url 'accounts:my_courses' %}">
+                            دوره‌های من
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

@@ -232,8 +232,9 @@ def course_detail(request: HttpRequest, slug: str) -> HttpResponse:
         {"label": course.category.name, "url": course.category.get_absolute_url()}
     )
 
-    # apps.orders به apps.courses وابسته است؛ برای اینکه وابستگی دوطرفه
-    # نشود، این تابع همین‌جا وارد می‌شود نه در بالای فایل.
+    # apps.orders و apps.exams به apps.courses وابسته‌اند؛ برای اینکه
+    # وابستگی دوطرفه نشود، این دو همین‌جا وارد می‌شوند نه در بالای فایل.
+    from apps.exams.summary import exam_card
     from apps.orders.services import purchased_course_ids
 
     context = {
@@ -249,6 +250,8 @@ def course_detail(request: HttpRequest, slug: str) -> HttpResponse:
             request.user, course.online_sessions.upcoming()[:5]
         ),
         "enrollment": active_enrollment(request.user, course),
+        # کارت آزمون پایان دوره. None یعنی این دوره آزمون فعالی ندارد.
+        "exam_card": exam_card(request.user, course),
         "already_purchased": course.pk in purchased_course_ids(request.user),
         "related_courses": related,
         "share": _share_links(request, course),

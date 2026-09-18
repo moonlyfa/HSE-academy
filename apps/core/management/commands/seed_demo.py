@@ -20,6 +20,7 @@ from django.utils import timezone
 
 from apps.accounts.models import InstructorProfile
 from apps.core.models import FAQ, Feature, HeroSlide, Partner, SiteSetting, Testimonial
+from apps.exams.models import Exam, ExamAttempt, Question, QuestionOption
 from apps.orders.models import Coupon, DiscountType, Order
 from apps.courses.models import (
     Course,
@@ -134,6 +135,69 @@ CURRICULUM = [
     ),
 ]
 
+EXAM_QUESTIONS = [
+    (
+        "بر اساس سلسله‌مراتب کنترل خطر، مؤثرترین اقدام کدام است؟",
+        [
+            ("حذف کامل خطر از فرآیند", True),
+            ("استفاده از تجهیزات حفاظت فردی", False),
+            ("نصب علائم هشداردهنده", False),
+            ("آموزش کارکنان", False),
+        ],
+        "حذف خطر بالاترین سطح سلسله‌مراتب کنترل است؛ تجهیزات حفاظت فردی آخرین لایه دفاعی محسوب می‌شود.",
+    ),
+    (
+        "در ماتریس ارزیابی ریسک، ریسک از حاصل‌ضرب کدام دو عامل به دست می‌آید؟",
+        [
+            ("احتمال وقوع × شدت پیامد", True),
+            ("تعداد کارکنان × ساعت کاری", False),
+            ("هزینه کنترل × زمان اجرا", False),
+            ("سابقه حادثه × تعداد بازرسی", False),
+        ],
+        "ریسک = احتمال وقوع × شدت پیامد؛ همین رابطه مبنای اولویت‌بندی اقدامات کنترلی است.",
+    ),
+    (
+        "کدام مورد جزو وظایف کارفرما در قانون کار ایران است؟",
+        [
+            ("تأمین رایگان تجهیزات حفاظت فردی", True),
+            ("پرداخت جریمه حوادث توسط کارگر", False),
+            ("کاهش حقوق در صورت بروز حادثه", False),
+            ("واگذاری مسئولیت ایمنی به پیمانکار", False),
+        ],
+        "تأمین تجهیزات حفاظت فردی به‌صورت رایگان بر عهده کارفرماست و قابل واگذاری نیست.",
+    ),
+    (
+        "پیش از ورود به فضای بسته، اولین اقدام ضروری چیست؟",
+        [
+            ("سنجش گازها و اطمینان از کفایت اکسیژن", True),
+            ("روشن کردن چراغ‌های داخل فضا", False),
+            ("ورود سریع برای کاهش زمان مواجهه", False),
+            ("بستن درِ فضا برای جلوگیری از نشت", False),
+        ],
+        "بدون سنجش گاز و تأیید اکسیژن کافی، ورود به فضای بسته ممنوع است.",
+    ),
+    (
+        "استاندارد ISO 45001 مربوط به کدام حوزه است؟",
+        [
+            ("سیستم مدیریت ایمنی و بهداشت شغلی", True),
+            ("سیستم مدیریت کیفیت", False),
+            ("سیستم مدیریت زیست‌محیطی", False),
+            ("سیستم مدیریت انرژی", False),
+        ],
+        "ISO 45001 استاندارد سیستم مدیریت ایمنی و بهداشت شغلی است؛ کیفیت ISO 9001 و محیط‌زیست ISO 14001 است.",
+    ),
+    (
+        "کدام گزینه «شبه‌حادثه» (Near Miss) را توصیف می‌کند؟",
+        [
+            ("رویدادی که می‌توانست منجر به آسیب شود اما نشد", True),
+            ("حادثه‌ای که منجر به فوت شده است", False),
+            ("بیماری شغلی ثبت‌شده در پرونده کارگر", False),
+            ("خسارت مالی بدون علت مشخص", False),
+        ],
+        "ثبت شبه‌حادثه‌ها مهم‌ترین ابزار پیشگیری است، چون بدون تحمیل آسیب، ضعف سیستم را نشان می‌دهند.",
+    ),
+]
+
 FAQS = [
     ("گواهی پایان دوره چگونه صادر می‌شود؟",
      "پس از تکمیل دوره و قبولی در آزمون پایانی، گواهی به‌صورت خودکار صادر می‌شود و از طریق داشبورد کاربری قابل دانلود است."),
@@ -225,6 +289,7 @@ class Command(BaseCommand):
         instructors = self._seed_instructors()
         self._seed_courses(instructors)
         self._seed_online_sessions()
+        self._seed_exams()
         self._seed_faqs()
         self._seed_testimonials()
         self._seed_partners()
@@ -243,7 +308,7 @@ class Command(BaseCommand):
         # در سایت واقعی هیچ‌وقت نباید دوره‌ای که فاکتور دارد حذف شود. اینجا
         # چون دستور فقط در محیط توسعه اجرا می‌شود، سفارش‌های آزمایشی هم
         # همراه بقیه داده نمونه پاک می‌شوند.
-        for model in (Order, Coupon, Course, CourseCategory, InstructorProfile,
+        for model in (ExamAttempt, Order, Coupon, Course, CourseCategory, InstructorProfile,
                       Feature, HeroSlide, FAQ, Testimonial, Partner):
             deleted, _ = model.objects.all().delete()
             self.stdout.write(f"  پاک شد: {model._meta.verbose_name_plural} ({deleted})")
@@ -503,6 +568,53 @@ class Command(BaseCommand):
                 created += 1
 
         self.stdout.write(self.style.SUCCESS(f"✓ {created} جلسه کلاس آنلاین"))
+
+    def _seed_exams(self):
+        """
+        برای دوره‌های فصل‌بندی‌شده یک آزمون نمونه با شش سؤال می‌سازد.
+
+        آزمون‌ها منتشر می‌شوند تا بتوانید کل مسیر — شروع، پاسخ، پایان
+        زمان و کارنامه — را بدون وارد کردن دستی سؤال امتحان کنید.
+        """
+        courses = Course.objects.filter(Q(is_featured=True) | Q(price=0))
+        made = 0
+
+        for course in courses:
+            exam, _ = Exam.objects.update_or_create(
+                course=course,
+                defaults={
+                    "title": f"آزمون پایان دوره {course.title}",
+                    "description": (
+                        "به هر سؤال یک پاسخ بدهید. پاسخ‌ها همان لحظه انتخاب ذخیره "
+                        "می‌شوند و در پایان مهلت، همان‌ها تصحیح خواهند شد."
+                    ),
+                    "question_count": 5,
+                    "time_limit_minutes": 15,
+                    "pass_score": 70,
+                    "max_attempts": 3,
+                    "is_published": True,
+                },
+            )
+
+            for index, (text, options, explanation) in enumerate(EXAM_QUESTIONS):
+                question, _ = Question.objects.update_or_create(
+                    exam=exam,
+                    text=text,
+                    defaults={"order": index, "explanation": explanation, "points": 1},
+                )
+                for option_index, (option_text, is_correct) in enumerate(options):
+                    QuestionOption.objects.update_or_create(
+                        question=question,
+                        text=option_text,
+                        defaults={"is_correct": is_correct, "order": option_index},
+                    )
+            made += 1
+
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"✓ {made} آزمون ({len(EXAM_QUESTIONS)} سؤال برای هرکدام)"
+            )
+        )
 
     def _seed_coupons(self):
         """

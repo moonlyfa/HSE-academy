@@ -59,6 +59,7 @@
                     {% if course.full_description %}<a href="#about-course">درباره دوره</a>{% endif %}
                     {% if curriculum or course.syllabus_items %}<a href="#syllabus">سرفصل‌ها</a>{% endif %}
                     {% if session_rows %}<a href="#online-sessions">کلاس‌های آنلاین</a>{% endif %}
+                    {% if exam_card %}<a href="#exam">آزمون</a>{% endif %}
                     {% if course.target_audience %}<a href="#audience">مخاطبان</a>{% endif %}
                     {% if course.prerequisites %}<a href="#prerequisites">پیش‌نیازها</a>{% endif %}
                     {% if course.instructor %}<a href="#instructor">مدرس</a>{% endif %}
@@ -131,6 +132,31 @@
                             دکمه ورود به کلاس، کمی پیش از شروع هر جلسه و فقط برای
                             دانشجویان ثبت‌نام‌شده فعال می‌شود.
                         </p>
+                    </div>
+                {% endif %}
+
+                {% if exam_card %}
+                    <div class="content-block" id="exam">
+                        <h2 class="h4">آزمون پایان دوره</h2>
+
+                        <p>
+                            {{ exam_card.exam.questions_per_attempt|fa_digits }} سؤال ·
+                            {% if exam_card.exam.has_time_limit %}
+                                {{ exam_card.exam.time_limit_minutes|fa_digits }} دقیقه ·
+                            {% endif %}
+                            نمره قبولی {{ exam_card.exam.pass_score|fa_digits }}٪
+                        </p>
+
+                        {% if exam_card.best %}
+                            <p class="{% if exam_card.passed %}text-success{% else %}text-danger{% endif %}">
+                                بهترین نتیجه شما: {{ exam_card.best.score|fa_digits }}٪
+                                ({% if exam_card.passed %}قبول{% else %}مردود{% endif %})
+                            </p>
+                        {% endif %}
+
+                        <a class="btn btn-outline-brand" href="{{ exam_card.exam.get_absolute_url }}">
+                            {% icon "check" size=18 %}<span>صفحه آزمون</span>
+                        </a>
                     </div>
                 {% endif %}
 

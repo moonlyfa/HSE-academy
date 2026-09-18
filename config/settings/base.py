@@ -48,6 +48,7 @@ LOCAL_APPS = [
     "apps.accounts",
     "apps.courses",
     "apps.orders",
+    "apps.exams",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -282,6 +283,14 @@ ONLINE_SESSION_JOIN_LEAD_MINUTES = env.int(
     "ONLINE_SESSION_JOIN_LEAD_MINUTES", default=30
 )
 ONLINE_SESSION_GRACE_MINUTES = env.int("ONLINE_SESSION_GRACE_MINUTES", default=30)
+
+# ---------------------------------------------------------------------------
+# آزمون
+# ---------------------------------------------------------------------------
+# مهلت آزمون در سرور نگه داشته می‌شود، اما ثبت نهایی دانشجو چند ثانیه در
+# راه است. این ارفاق باعث می‌شود پاسخِ کسی که در ثانیه آخر دکمه را زده
+# دور ریخته نشود. خیلی بزرگ نکنید؛ هر ثانیه‌اش یعنی وقت اضافه.
+EXAM_SUBMIT_GRACE_SECONDS = env.int("EXAM_SUBMIT_GRACE_SECONDS", default=60)
 
 # ---------------------------------------------------------------------------
 # Cache

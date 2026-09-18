@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% load core_extras %}
+
+{% block title %}{{ exam.title }} — {{ course.title }}{% endblock %}
+{% block meta_description %}آزمون پایان دوره {{ course.title }} در {{ site.site_name }}.{% endblock %}
+{% block extra_head %}<meta name="robots" content="noindex">{% endblock %}
+
+{% block breadcrumb %}
+    {% include "partials/breadcrumb.html" with items=breadcrumb_items current=exam.title %}
+{% endblock %}
+
+{% block content %}
+<section class="section pt-4">
+    <div class="container">
+        <div class="row g-4 justify-content-center">
+            <div class="col-lg-8">
+
+                <div class="section-head">
+                    <span class="chip mb-3">{% icon "check" size=16 %}<span>آزمون</span></span>
+                    <h1 class="h2">{{ exam.title }}</h1>
+                    <p class="m-0">
+                        دوره: <a href="{{ course.get_absolute_url }}">{{ course.title }}</a>
+                    </p>
+                </div>
+
+                {% if exam.description %}
+                    <div class="content-block">
+                        {{ exam.description|linebreaks }}
+                    </div>
+                {% endif %}
+
+                {# --- قوانین آزمون: دانشجو باید قبل از شروع همه را بداند --- #}
+                <div class="content-block">
+                    <h2 class="h5">قوانین این آزمون</h2>
+                    <ul class="summary-list">
+                        <li>
+                            <span>تعداد سؤال</span>
+                            <strong>{{ exam.questions_per_attempt|fa_digits }}</strong>
+                        </li>
+                        <li>
+                            <span>مدت آزمون</span>
+                            <strong>
+                                {% if exam.has_time_limit %}
+                                    {{ exam.time_limit_minutes|fa_digits }} دقیقه
+                                {% else %}
+                                    بدون محدودیت زمانی
+                                {% endif %}
+                            </strong>
+                        </li>
+                        <li>
+                            <span>نمره قبولی</span>
+                            <strong>{{ exam.pass_score|fa_digits }}٪</strong>
+                        </li>
+                        <li>
+                            <span>دفعات مجاز</span>
+                            <strong>
+                                {% if exam.max_attempts %}
+                                    {{ exam.max_attempts|fa_digits }} بار
+                                    {% if attempts_left is not None %}
+                                        (باقی‌مانده: {{ attempts_left|fa_digits }})
+                                    {% endif %}
+                                {% else %}
+                                    نامحدود
+                                {% endif %}
+                            </strong>
+                        </li>
+                    </ul>
+
+                    {% if exam.has_time_limit %}
+                        <p class="small text-muted mb-0">
+                            زمان از لحظه شروع می‌گذرد؛ بستن صفحه آن را متوقف نمی‌کند.
+                            پاسخ‌های شما همان لحظه انتخاب ذخیره می‌شوند و اگر مهلت تمام
+                            شود، همان‌ها تصحیح می‌شوند.
+                        </p>
+                    {% endif %}
+                </div>
+
+                {# --- دکمه شروع یا دلیل بسته بودن --- #}
+                <div class="content-block text-center">
+                    {% if running_attempt %}
+                        <p class="mb-3">آزمون شما در جریان است.</p>
+                        <a class="btn btn-primary btn-lg" href="{% url 'exams:take' running_attempt.pk %}">
+                            {% icon "arrow-left" size=18 %}<span>ادامه آزمون</span>
+                        </a>
+                    {% elif can_start.allowed %}
+                        <form method="post" action="{% url 'exams:start' course.slug %}">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                {% icon "check" size=18 %}<span>شروع آزمون</span>
+                            </button>
+                        </form>
+                        {% if exam.has_time_limit %}
+                            <p class="small text-muted mt-3 mb-0">
+                                با زدن این دکمه، زمان‌سنج شروع می‌شود.
+                            </p>
+                        {% endif %}
+                    {% else %}
+                        <div class="lesson-locked">
+                            <span class="lesson-locked__icon">{% icon "lock" size=28 %}</span>
+                            <p class="mt-3">{{ can_start.message }}</p>
+                            {% if can_start.action_url %}
+                                <a class="btn btn-primary" href="{{ can_start.action_url }}">
+                                    {{ can_start.action_label }}
+                                </a>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                </div>
+
+                {# --- کارنامه‌های قبلی --- #}
+                {% if attempts %}
+                    <div class="content-block">
+                        <h2 class="h5">کارنامه‌های شما</h2>
+                        {% include "exams/partials/attempt_list.html" with attempts=attempts %}
+                    </div>
+                {% endif %}
+
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

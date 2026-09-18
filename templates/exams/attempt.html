@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% load core_extras %}
+
+{% block title %}{{ exam.title }} — در حال برگزاری{% endblock %}
+{% block extra_head %}<meta name="robots" content="noindex">{% endblock %}
+
+{% block content %}
+<section class="section pt-4">
+    <div class="container">
+        <div class="row g-4 justify-content-center">
+            <div class="col-lg-9">
+
+                <div class="exam-head">
+                    <div>
+                        <h1 class="h4 mb-1">{{ exam.title }}</h1>
+                        <p class="small text-muted m-0">{{ course.title }}</p>
+                    </div>
+
+                    {% if attempt.expires_at %}
+                        {# زمان‌سنج فقط برای راحتی است؛ مهلت واقعی را سرور نگه می‌دارد. #}
+                        <div class="exam-timer"
+                             id="exam-timer"
+                             data-remaining="{{ remaining_seconds }}"
+                             role="timer"
+                             aria-live="off">
+                            {% icon "clock" size=18 %}
+                            <span class="exam-timer__value" data-timer-value>—</span>
+                        </div>
+                    {% endif %}
+                </div>
+
+                <p class="small text-muted">
+                    {{ rows|length|fa_digits }} سؤال ·
+                    به هر سؤال یک پاسخ بدهید و در پایان دکمه «ثبت نهایی» را بزنید.
+                </p>
+
+                <form method="post"
+                      id="exam-form"
+                      data-answer-url="{% url 'exams:answer' attempt.pk %}">
+                    {% csrf_token %}
+
+                    {% for row in rows %}
+                        <div class="exam-question" id="q{{ row.number }}">
+                            <div class="exam-question__head">
+                                <span class="exam-question__number">{{ row.number|fa_digits }}</span>
+                                <p class="exam-question__text">{{ row.question.text|linebreaksbr }}</p>
+                            </div>
+
+                            <div class="exam-options">
+                                {% for option in row.options %}
+                                    <label class="exam-option">
+                                        <input type="radio"
+                                               name="question_{{ row.answer.pk }}"
+                                               value="{{ option.pk }}"
+                                               data-answer="{{ row.answer.pk }}"
+                                               {% if row.answer.selected_option_id == option.pk %}checked{% endif %}>
+                                        <span>{{ option.text }}</span>
+                                    </label>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    {% endfor %}
+
+                    <div class="exam-submit">
+                        <p class="small text-muted mb-3">
+                            بعد از ثبت نهایی، امکان تغییر پاسخ‌ها وجود ندارد.
+                        </p>
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            {% icon "check" size=18 %}<span>ثبت نهایی و مشاهده نمره</span>
+                        </button>
+                    </div>
+                </form>
+
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
