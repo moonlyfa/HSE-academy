@@ -5,6 +5,7 @@ Viewهای عمومی دوره‌ها.
 بتوان همان فیلتر را در صفحات دیگر (مثل جست‌وجو) هم استفاده کرد.
 """
 
+import logging
 from urllib.parse import quote
 
 from django.contrib import messages
@@ -19,8 +20,9 @@ from django.views.decorators.http import require_POST
 
 from apps.accounts.models import InstructorProfile
 
-from .access import check_lesson_access
+from .access import check_lesson_access, check_session_access
 from .enrollment import active_enrollment
+from .live import sessions_with_access, user_sessions
 from .models import (
     Course,
     CourseCategory,
@@ -28,6 +30,7 @@ from .models import (
     CourseType,
     Lesson,
     LessonAttachment,
+    OnlineSession,
 )
 from .progress import (
     LessonProgress,
@@ -36,8 +39,11 @@ from .progress import (
     save_position,
     set_completed,
 )
+from .services import get_skyroom_service
 from .serving import serve_protected_file
 from .storages import protected_storage
+
+logger = logging.getLogger("hse.skyroom")
 
 # گزینه‌های مرتب‌سازی: کلیدِ داخل آدرس → (برچسب فارسی، فیلد مرتب‌سازی)
 SORT_OPTIONS = {
@@ -236,6 +242,12 @@ def course_detail(request: HttpRequest, slug: str) -> HttpResponse:
         "curriculum": _curriculum_for(course, request.user),
         "progress": course_progress(request.user, course),
         "in_cart": course.pk in request.session.get("cart", []),
+        # جلسه‌های آنلاینِ تمام‌نشده. عنوان و ساعت را همه می‌بینند (برای
+        # فروش دوره لازم است)، اما لینک ورود فقط از راه View بررسی‌کننده
+        # دسترسی تحویل داده می‌شود.
+        "session_rows": sessions_with_access(
+            request.user, course.online_sessions.upcoming()[:5]
+        ),
         "enrollment": active_enrollment(request.user, course),
         "already_purchased": course.pk in purchased_course_ids(request.user),
         "related_courses": related,
@@ -477,6 +489,12 @@ def lesson_detail(request: HttpRequest, slug: str, pk: int) -> HttpResponse:
                 if index is not None and index + 1 < len(siblings)
                 else None
             ),
+            # جلسه‌های آنلاینی که مدیر به همین درس وصل کرده است. قول این
+            # بخش در فاز ۹ داده شده بود: «لینک ورود پیش از شروع جلسه در
+            # همین صفحه قرار می‌گیرد».
+            "session_rows": sessions_with_access(
+                request.user, lesson.online_sessions.all()
+            ),
             "lesson_position": (index + 1) if index is not None else None,
             "lesson_total": len(siblings),
             "breadcrumb_items": [
@@ -628,3 +646,93 @@ def enroll_free(request: HttpRequest, slug: str) -> HttpResponse:
         return redirect(progress.resume_lesson.get_absolute_url())
 
     return redirect(course.get_absolute_url())
+
+
+# ---------------------------------------------------------------------------
+# کلاس‌های آنلاین
+# ---------------------------------------------------------------------------
+
+
+def _session_or_404(slug: str, pk: int) -> OnlineSession:
+    """
+    جلسه را همراه دوره‌اش پیدا می‌کند.
+
+    مثل آدرس درس، آدرس جلسه هم اسلاگ دوره را دارد و بررسی می‌کنیم که
+    جلسه واقعاً به همان دوره تعلق داشته باشد؛ وگرنه شناسه جلسه‌ای از یک
+    دوره گران، زیر آدرس یک دوره رایگان قابل صدا زدن می‌شد.
+    """
+    session = get_object_or_404(
+        OnlineSession.objects.select_related("course", "course__instructor"), pk=pk
+    )
+
+    if session.course.slug != slug:
+        raise Http404("این جلسه متعلق به این دوره نیست.")
+
+    if not session.course.is_published:
+        raise Http404("دوره منتشر نشده است.")
+
+    return session
+
+
+@login_required
+def session_join(request: HttpRequest, slug: str, pk: int) -> HttpResponse:
+    """
+    ورود به کلاس آنلاین.
+
+    این View تنها راه رسیدن به آدرس کلاس است. هیچ‌جای سایت لینک واقعی
+    را در HTML نمی‌گذارد؛ پس کسی نمی‌تواند با دیدن سورس صفحه یا
+    فوروارد کردن یک لینک عمومی، وارد کلاسی شود که در آن ثبت‌نام ندارد.
+
+    اگر شرایط ورود فراهم نباشد، کاربر با پیام روشن به صفحه دوره
+    برمی‌گردد — نه یک خطای فنی.
+    """
+    session = _session_or_404(slug, pk)
+    access = check_session_access(request.user, session)
+
+    if not access.allowed:
+        messages.error(request, access.message or "ورود به این کلاس امکان‌پذیر نیست.")
+        return redirect(session.course.get_absolute_url())
+
+    link = get_skyroom_service().join_link(session, request.user)
+
+    if not link.success:
+        logger.warning(
+            "ورود به کلاس ناموفق. جلسه=%s کاربر=%s علت=%s",
+            session.pk,
+            request.user.masked_mobile,
+            link.message,
+        )
+        messages.error(request, link.message or "ورود به این کلاس امکان‌پذیر نیست.")
+        return redirect(session.course.get_absolute_url())
+
+    logger.info(
+        "ورود به کلاس. جلسه=%s دوره=%s کاربر=%s سرویس=%s",
+        session.pk,
+        session.course.slug,
+        request.user.masked_mobile,
+        link.provider,
+    )
+
+    # خود آدرس کلاس در پاسخ نمی‌نشیند؛ مرورگر با یک Redirect به آن
+    # می‌رود و صفحه‌ای که لینک را نشان بدهد اصلاً ساخته نمی‌شود.
+    return redirect(link.url)
+
+
+@login_required
+def my_sessions(request: HttpRequest) -> HttpResponse:
+    """
+    کلاس‌های آنلاین کاربر — پیش‌رو و برگزارشده.
+
+    فقط جلسه‌های دوره‌هایی که کاربر در آن‌ها ثبت‌نام فعال دارد؛ همان
+    فهرستی که دانشجو برای پاسخ به «کلاس بعدی من کِی است؟» باز می‌کند.
+    """
+    sessions = user_sessions(request.user)
+
+    return render(
+        request,
+        "courses/my_sessions.html",
+        {
+            "upcoming_rows": sessions_with_access(request.user, sessions.upcoming()),
+            "past_rows": sessions_with_access(request.user, sessions.past()[:20]),
+        },
+    )

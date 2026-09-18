@@ -119,7 +119,10 @@ def icon(name: str, size: int = 24, css_class: str = "") -> str:
     )
 
 
-@register.filter(name="jalali")
+# expects_localtime=True یعنی جنگو پیش از رسیدن مقدار به این فیلتر، آن را
+# به ساعت محلی (Asia/Tehran) تبدیل می‌کند. بدون این، زمانِ ذخیره‌شده که
+# UTC است چاپ می‌شد و کلاس ساعت ۲۱:۰۰ تهران، «۱۷:۳۰ روز قبل» دیده می‌شد.
+@register.filter(name="jalali", expects_localtime=True)
 def jalali(value, with_weekday: bool = False) -> str:
     """
     تبدیل تاریخ میلادی به شمسی در قالب.
@@ -129,6 +132,21 @@ def jalali(value, with_weekday: bool = False) -> str:
     if value is None:
         return ""
     return to_jalali_string(value, with_weekday=with_weekday)
+
+
+@register.filter(name="jalali_time", expects_localtime=True)
+def jalali_time(value, with_weekday: bool = False) -> str:
+    """
+    تاریخ و ساعت با هم — برای رویدادهای زمان‌دار مثل کلاس آنلاین.
+
+    نمونه: {{ session.starts_at|jalali_time }}  →  ۱۱ شهریور ۱۴۰۵ ساعت ۱۸:۳۰
+    """
+    if value is None:
+        return ""
+
+    date_text = to_jalali_string(value, with_weekday=with_weekday)
+    clock = to_persian_digits(f"{value:%H:%M}")
+    return f"{date_text} ساعت {clock}"
 
 
 @register.filter(name="fa_digits")

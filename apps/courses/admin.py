@@ -12,6 +12,8 @@ from .models import (
     Lesson,
     LessonAttachment,
     LessonProgress,
+    OnlineSession,
+    OnlineSessionStatus,
     Section,
 )
 
@@ -89,6 +91,21 @@ class LessonInline(admin.TabularInline):
             return "ابتدا درس را ذخیره کنید."
         url = reverse("admin:courses_lesson_change", args=[obj.pk])
         return format_html('<a href="{}">ویرایش محتوا</a>', url)
+
+
+class OnlineSessionInline(admin.TabularInline):
+    """
+    برنامه کلاس‌های آنلاین، روی همان صفحه ویرایش دوره.
+
+    چیدن جلسه‌ها کنار خود دوره است چون مدیر معمولاً هر هفته یک ردیف
+    اضافه می‌کند و نباید برای این کار صفحه عوض کند.
+    """
+
+    model = OnlineSession
+    extra = 0
+    fields = ("title", "starts_at", "duration_minutes", "meeting_url", "status")
+    ordering = ("starts_at",)
+    show_change_link = True
 
 
 class LessonAttachmentInline(admin.TabularInline):
@@ -196,7 +213,7 @@ class CourseAdmin(admin.ModelAdmin):
     ordering = ("-created_at",)
     list_per_page = 25
     readonly_fields = ("created_at", "updated_at", "thumbnail_preview")
-    inlines = (SectionInline,)
+    inlines = (SectionInline, OnlineSessionInline)
 
     fieldsets = (
         (
@@ -218,6 +235,17 @@ class CourseAdmin(admin.ModelAdmin):
         ),
         ("تصاویر", {"fields": ("thumbnail", "thumbnail_preview", "hero_image")}),
         ("امکانات", {"fields": ("certificate_available", "exam_available")}),
+        (
+            "دسترسی",
+            {
+                "description": (
+                    "«مدت دسترسی» صفر یعنی دسترسی دائمی است. «دوره اشتراک ویژه» "
+                    "یعنی کاربران دارای اشتراک ویژه بدون خرید جداگانه به این دوره "
+                    "دسترسی دارند."
+                ),
+                "fields": ("access_duration_days", "vip_access"),
+            },
+        ),
         ("وضعیت انتشار", {"fields": ("is_featured", "is_published", "created_at", "updated_at")}),
         ("سئو", {"fields": ("meta_title", "meta_description"), "classes": ("collapse",)}),
     )
@@ -386,3 +414,83 @@ class EnrollmentAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         return super().get_queryset(request).select_related("user", "course", "order")
+
+
+@admin.register(OnlineSession)
+class OnlineSessionAdmin(admin.ModelAdmin):
+    """
+    مدیریت کلاس‌های آنلاین.
+
+    ستون «لینک» فقط می‌گوید لینک ثبت شده یا نه و خودِ آدرس را در فهرست
+    چاپ نمی‌کند؛ صفحه فهرست معمولاً روی نمایشگر جلسه یا در اسکرین‌شات
+    دیده می‌شود.
+    """
+
+    list_display = (
+        "title",
+        "course",
+        "starts_at",
+        "duration_minutes",
+        "link_status",
+        "state_badge",
+    )
+    list_filter = ("status", "course")
+    search_fields = ("title", "description", "course__title")
+    autocomplete_fields = ("course", "lesson")
+    date_hierarchy = "starts_at"
+    ordering = ("-starts_at",)
+    list_per_page = 30
+    readonly_fields = ("ends_at", "created_at", "updated_at")
+
+    fieldsets = (
+        ("جلسه", {"fields": ("course", "title", "description", "lesson")}),
+        (
+            "زمان",
+            {
+                "description": "پایان جلسه خودکار از روی شروع و مدت حساب می‌شود.",
+                "fields": ("starts_at", "duration_minutes", "ends_at"),
+            },
+        ),
+        (
+            "ورود به کلاس",
+            {
+                "description": (
+                    "لینک را از پنل اسکای‌روم کپی کنید. این آدرس در هیچ صفحه‌ای "
+                    "نمایش داده نمی‌شود؛ فقط کاربری که در دوره ثبت‌نام فعال دارد، "
+                    "با کلیک روی دکمه ورود به آن هدایت می‌شود. «شناسه کلاس» فقط "
+                    "برای حالت اتصال خودکار به API اسکای‌روم لازم است."
+                ),
+                "fields": ("meeting_url", "room_id"),
+            },
+        ),
+        ("وضعیت", {"fields": ("status", "cancel_reason")}),
+        ("تاریخ‌ها", {"fields": ("created_at", "updated_at"), "classes": ("collapse",)}),
+    )
+
+    @admin.display(description="لینک ورود")
+    def link_status(self, obj: OnlineSession) -> str:
+        return "ثبت شده" if obj.has_link else "ثبت نشده"
+
+    @admin.display(description="وضعیت")
+    def state_badge(self, obj: OnlineSession):
+        colors = {
+            "live": "#1e8449",
+            "upcoming": "#2471a3",
+            "finished": "#7f8c8d",
+            "cancelled": "#c0392b",
+        }
+        return format_html(
+            '<span style="color:{};font-weight:600">{}</span>',
+            colors[obj.state],
+            obj.state_label,
+        )
+
+    @admin.action(description="لغو جلسه‌های انتخاب‌شده")
+    def cancel_selected(self, request, queryset):
+        updated = queryset.update(status=OnlineSessionStatus.CANCELLED)
+        self.message_user(request, f"{updated} جلسه لغو شد.")
+
+    actions = ("cancel_selected",)
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related("course")

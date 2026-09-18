@@ -28,6 +28,7 @@ from apps.courses.models import (
     CourseType,
     Lesson,
     LessonType,
+    OnlineSession,
     Section,
 )
 
@@ -223,6 +224,7 @@ class Command(BaseCommand):
         self._seed_categories()
         instructors = self._seed_instructors()
         self._seed_courses(instructors)
+        self._seed_online_sessions()
         self._seed_faqs()
         self._seed_testimonials()
         self._seed_partners()
@@ -457,6 +459,50 @@ class Command(BaseCommand):
                 f"✓ {courses.count()} دوره فصل‌بندی شد ({lesson_total} درس)"
             )
         )
+
+    def _seed_online_sessions(self):
+        """
+        برای دوره‌های آنلاین، چند جلسه نمونه می‌سازد.
+
+        یکی از جلسه‌ها عمداً «همین حالا» در جریان است تا بتوانید دکمه
+        فعالِ «ورود به کلاس» را ببینید، و بقیه در روزهای آینده‌اند.
+        لینک نمونه به یک آدرس بی‌خطر اشاره می‌کند؛ لینک واقعی اسکای‌روم
+        را در پنل مدیریت وارد می‌کنید.
+        """
+        courses = Course.objects.filter(course_type=CourseType.ONLINE_LIVE)[:4]
+        now = timezone.now()
+
+        plan = [
+            ("جلسه اول — معارفه و کلیات", -20, 90),
+            ("جلسه دوم — کارگاه عملی", 3 * 24 * 60, 120),
+            ("جلسه سوم — پرسش و پاسخ", 10 * 24 * 60, 60),
+        ]
+
+        created = 0
+        for course in courses:
+            for title, offset_minutes, duration in plan:
+                session, _ = OnlineSession.objects.update_or_create(
+                    course=course,
+                    title=title,
+                    defaults={
+                        "starts_at": now + timedelta(minutes=offset_minutes),
+                        "duration_minutes": duration,
+                        "meeting_url": "https://www.skyroom.online/ch/example/demo-class",
+                        "description": "جلسه نمونه برای آزمایش مسیر ورود به کلاس.",
+                    },
+                )
+                # درسِ زنده همین دوره را — اگر ساخته شده — به جلسه اول وصل
+                # می‌کنیم تا دکمه ورود در صفحه همان درس هم دیده شود.
+                if offset_minutes < 0 and session.lesson_id is None:
+                    live_lesson = Lesson.objects.filter(
+                        section__course=course, lesson_type=LessonType.LIVE
+                    ).first()
+                    if live_lesson:
+                        session.lesson = live_lesson
+                        session.save(update_fields=["lesson"])
+                created += 1
+
+        self.stdout.write(self.style.SUCCESS(f"✓ {created} جلسه کلاس آنلاین"))
 
     def _seed_coupons(self):
         """

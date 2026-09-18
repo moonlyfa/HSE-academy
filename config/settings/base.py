@@ -259,6 +259,31 @@ ZARINPAL_SANDBOX = env.bool("ZARINPAL_SANDBOX", default=True)
 MOCK_PAYMENT_RESULT = env("MOCK_PAYMENT_RESULT", default="ask")
 
 # ---------------------------------------------------------------------------
+# کلاس آنلاین (اسکای‌روم)
+# ---------------------------------------------------------------------------
+# manual = لینک کلاس را خودتان از پنل اسکای‌روم کپی و در پنل مدیریت وارد
+#          می‌کنید. این حالت هیچ سرویسی نمی‌خواهد و همین امروز کار می‌کند.
+# skyroom = سایت با API اسکای‌روم حرف می‌زند و برای هر دانشجو یک لینک
+#          ورود شخصی و کوتاه‌مدت می‌سازد.
+SKYROOM_PROVIDER = env("SKYROOM_PROVIDER", default="manual")
+SKYROOM_API_URL = env(
+    "SKYROOM_API_URL", default="https://www.skyroom.online/skyroom/api"
+)
+SKYROOM_API_KEY = env("SKYROOM_API_KEY", default="")
+SKYROOM_TIMEOUT_SECONDS = env.int("SKYROOM_TIMEOUT_SECONDS", default=10)
+
+# اعتبار لینک ورود شخصی (ثانیه). کوتاه است تا اگر کسی لینکش را برای
+# دیگری فرستاد، تا فردا قابل استفاده نماند.
+SKYROOM_LINK_TTL_SECONDS = env.int("SKYROOM_LINK_TTL_SECONDS", default=3600)
+
+# دکمه ورود چند دقیقه قبل از شروع کلاس فعال شود و تا چند دقیقه بعد از
+# پایان آن باز بماند.
+ONLINE_SESSION_JOIN_LEAD_MINUTES = env.int(
+    "ONLINE_SESSION_JOIN_LEAD_MINUTES", default=30
+)
+ONLINE_SESSION_GRACE_MINUTES = env.int("ONLINE_SESSION_GRACE_MINUTES", default=30)
+
+# ---------------------------------------------------------------------------
 # Cache
 # ---------------------------------------------------------------------------
 # از کش برای محدودسازی تلاش‌های ناموفق ورود و در فاز ۴ برای محدودیت ارسال

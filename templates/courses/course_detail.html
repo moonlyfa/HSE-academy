@@ -58,6 +58,7 @@
                 <nav class="course-anchors" aria-label="بخش‌های این صفحه">
                     {% if course.full_description %}<a href="#about-course">درباره دوره</a>{% endif %}
                     {% if curriculum or course.syllabus_items %}<a href="#syllabus">سرفصل‌ها</a>{% endif %}
+                    {% if session_rows %}<a href="#online-sessions">کلاس‌های آنلاین</a>{% endif %}
                     {% if course.target_audience %}<a href="#audience">مخاطبان</a>{% endif %}
                     {% if course.prerequisites %}<a href="#prerequisites">پیش‌نیازها</a>{% endif %}
                     {% if course.instructor %}<a href="#instructor">مدرس</a>{% endif %}
@@ -112,6 +113,24 @@
                                 <li>{{ item }}</li>
                             {% endfor %}
                         </ol>
+                    </div>
+                {% endif %}
+
+                {% if session_rows %}
+                    <div class="content-block" id="online-sessions">
+                        <div class="d-flex justify-content-between align-items-end flex-wrap gap-2 mb-3">
+                            <h2 class="h4 m-0">کلاس‌های آنلاین</h2>
+                            <span class="small text-muted">
+                                زمان‌ها به وقت ایران است.
+                            </span>
+                        </div>
+
+                        {% include "courses/partials/online_sessions.html" with rows=session_rows %}
+
+                        <p class="small text-muted mt-3 mb-0">
+                            دکمه ورود به کلاس، کمی پیش از شروع هر جلسه و فقط برای
+                            دانشجویان ثبت‌نام‌شده فعال می‌شود.
+                        </p>
                     </div>
                 {% endif %}
 

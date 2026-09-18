@@ -2502,3 +2502,67 @@ a.curriculum__lesson-link:hover { color: var(--color-primary); }
 }
 
 .course-row__expiry.is-soon { color: var(--color-warning); font-weight: 600; }
+
+/* =========================================================================
+   فاز ۱۵ — کلاس‌های آنلاین
+   ========================================================================= */
+.session-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.session-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    flex-wrap: wrap;
+    padding: var(--space-md);
+    margin-bottom: var(--space-sm);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+}
+
+/* جلسه‌ای که همین حالا برقرار است باید از بقیه جدا دیده شود. */
+.session-row--live {
+    border-color: var(--color-success);
+    background: rgba(30, 132, 73, 0.05);
+}
+
+.session-row--finished,
+.session-row--cancelled { opacity: 0.75; }
+
+.session-row__when {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-sm);
+    min-width: 15rem;
+}
+
+.session-row__when .icon { color: var(--color-secondary); margin-top: 2px; }
+
+.session-row__main { flex: 1 1 14rem; }
+
+.session-row__title { display: block; }
+
+.session-row__action {
+    text-align: center;
+    min-width: 10rem;
+    margin-inline-start: auto;
+}
+
+.session-state {
+    display: inline-block;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--color-text-light);
+}
+
+.session-state--live { color: var(--color-success); }
+.session-state--cancelled { color: var(--color-danger); }
+.session-state--upcoming { color: var(--color-secondary); }
+
+@media (max-width: 575.98px) {
+    .session-row__action { text-align: start; margin-inline-start: 0; }
+}

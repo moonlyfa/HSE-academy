@@ -21,6 +21,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 
+from apps.courses.live import upcoming_session_rows
 from apps.courses.progress import learner_courses, learner_stats
 
 from .forms import (
@@ -593,6 +594,10 @@ def dashboard_view(request: HttpRequest) -> HttpResponse:
             "recent_courses": courses[:3],
             "current_progress": current,
             "resume_lesson": current.resume_lesson if current else None,
+            # نزدیک‌ترین کلاس‌های آنلاین. «کلاس بعدی من کِی است؟» سؤالی
+            # است که دانشجو هر روز می‌پرسد؛ جوابش باید در همان صفحه اول
+            # باشد، نه دو کلیک آن‌طرف‌تر.
+            "session_rows": upcoming_session_rows(request.user, limit=3),
         },
     )
 
