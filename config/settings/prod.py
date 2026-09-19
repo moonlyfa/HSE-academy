@@ -36,6 +36,12 @@ X_FRAME_OPTIONS = "DENY"
 # چون پشت Nginx هستیم، Django باید بفهمد درخواست اصلی HTTPS بوده است.
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
+# در سرور، IP واقعی کاربر از هدر X-Forwarded-For خوانده می‌شود — به شرطی
+# که Nginx آن را خودش بازنویسی کند:
+#     proxy_set_header X-Forwarded-For $remote_addr;
+# بدون آن، سقف‌های محدودسازی نرخ با یک هدر ساختگی دور زده می‌شوند.
+TRUST_X_FORWARDED_FOR = env.bool("TRUST_X_FORWARDED_FOR", default=True)
+
 # ---------------------------------------------------------------------------
 # ایمیل
 # ---------------------------------------------------------------------------

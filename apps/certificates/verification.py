@@ -26,11 +26,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 
-from django.conf import settings
-from django.core.cache import cache
-from django.utils import timezone
-
-from apps.accounts.throttling import get_client_ip
+from apps.core.throttling import CERTIFICATE_LOOKUP_LIMIT
 
 from .models import Certificate
 
@@ -144,38 +140,14 @@ def verify(*, code: str = "", token: str = "") -> VerificationResult:
 # ---------------------------------------------------------------------------
 # بدون این، یک برنامه ساده می‌تواند کدها را از ۰۰۰۰۱ به بالا امتحان کند و
 # ببیند کدام‌ها گواهی واقعی‌اند. سقف در حدی است که هیچ کارفرمای واقعی به
-# آن نمی‌خورد اما شمردن کدها را بی‌فایده می‌کند.
-
-
-def _throttle_key(ip: str) -> str:
-    """
-    کلید شمارنده، به تفکیک ساعت.
-
-    گذاشتن ساعت داخل کلید یعنی پنجره شمارش هر ساعت از نو باز می‌شود و
-    لازم نیست از Cache بپرسیم «چقدر از عمر این کلید مانده» — چیزی که
-    همه بک‌اندهای Cache جواب نمی‌دهند.
-    """
-    hour = timezone.now().strftime("%Y%m%d%H")
-    return f"certificate-lookup:{ip}:{hour}"
+# آن نمی‌خورد اما شمردن کدها را بی‌فایده می‌کند. خودِ شمارنده، ابزار
+# مشترک پروژه است (apps/core/throttling.py).
 
 
 def is_throttled(request) -> bool:
-    limit = settings.CERTIFICATE_LOOKUP_MAX_PER_HOUR
-    if not limit:
-        return False
-    return cache.get(_throttle_key(get_client_ip(request)), 0) >= limit
+    return CERTIFICATE_LOOKUP_LIMIT.is_exceeded(request)
 
 
 def register_lookup(request) -> None:
     """یک استعلام را در شمارنده ساعتی همان IP ثبت می‌کند."""
-    limit = settings.CERTIFICATE_LOOKUP_MAX_PER_HOUR
-    if not limit:
-        return
-
-    ip = get_client_ip(request)
-    key = _throttle_key(ip)
-    count = cache.get(key, 0) + 1
-    cache.set(key, count, 3600)
-
-    if count == limit:
-        logger.warning("سقف استعلام گواهی برای این IP پر شد. IP=%s", ip)
+    CERTIFICATE_LOOKUP_LIMIT.record(request)

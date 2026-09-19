@@ -69,6 +69,10 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    # هدرهای امنیتی که جنگو خودش نمی‌فرستد: CSP و Permissions-Policy.
+    "apps.core.middleware.SecurityHeadersMiddleware",
+    # محدودسازی تلاش ورود به پنل مدیریت (فرم ورود پنل، فرم خود جنگو است).
+    "apps.core.middleware.AdminLoginThrottleMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -120,6 +124,20 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
+
+# ---------------------------------------------------------------------------
+# نشست (Session) و کوکی‌ها
+# ---------------------------------------------------------------------------
+# دو هفته اعتبار: کاربری که دوره خریده نباید هر روز دوباره وارد شود، اما
+# نشست ابدی هم روی یک کامپیوتر مشترک خطرناک است.
+SESSION_COOKIE_AGE = env.int("SESSION_COOKIE_AGE", default=60 * 60 * 24 * 14)
+
+# SameSite=Lax یعنی کوکی در درخواست‌هایی که از سایت دیگری آمده‌اند فرستاده
+# نمی‌شود (مگر پیمایش ساده). این یک لایه دفاع اضافه در برابر CSRF است،
+# روی محافظت خود جنگو.
+SESSION_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_SAMESITE = "Lax"
+SESSION_COOKIE_HTTPONLY = True
 
 LOGIN_URL = "/accounts/login/"
 LOGIN_REDIRECT_URL = "/accounts/dashboard/"
@@ -293,6 +311,62 @@ ONLINE_SESSION_GRACE_MINUTES = env.int("ONLINE_SESSION_GRACE_MINUTES", default=3
 # راه است. این ارفاق باعث می‌شود پاسخِ کسی که در ثانیه آخر دکمه را زده
 # دور ریخته نشود. خیلی بزرگ نکنید؛ هر ثانیه‌اش یعنی وقت اضافه.
 EXAM_SUBMIT_GRACE_SECONDS = env.int("EXAM_SUBMIT_GRACE_SECONDS", default=60)
+
+# ---------------------------------------------------------------------------
+# امنیت و محدودسازی نرخ درخواست
+# ---------------------------------------------------------------------------
+# آیا هدر X-Forwarded-For قابل اعتماد است؟ فقط وقتی سایت پشت Proxy خودمان
+# (Nginx) باشد. اگر همیشه باور شود، هرکسی می‌تواند با هدر ساختگی سقف‌ها را
+# دور بزند: هر درخواست، یک IP جدید. در Production روشن است.
+TRUST_X_FORWARDED_FOR = env.bool("TRUST_X_FORWARDED_FOR", default=False)
+
+# سقف‌های ساعتی به‌ازای هر IP. صفر یعنی بدون محدودیت.
+#
+# اعداد عمداً سخاوتمندند: در ایران یک شرکت یا آموزشگاه معمولاً با یک IP
+# مشترک به اینترنت وصل است، و ثبت‌نام گروهی ده‌ها کارمند از همان IP یک
+# اتفاق عادی است — نه حمله. سقف باید جلوی اسکریپت را بگیرد، نه جلوی
+# مشتری سازمانی را.
+CONTACT_MAX_PER_HOUR = env.int("CONTACT_MAX_PER_HOUR", default=10)
+REGISTRATION_MAX_PER_HOUR = env.int("REGISTRATION_MAX_PER_HOUR", default=40)
+PASSWORD_RESET_MAX_PER_HOUR = env.int("PASSWORD_RESET_MAX_PER_HOUR", default=20)
+
+# ورود به پنل مدیریت: تعداد مدیران کم است و هیچ مدیری در یک ساعت بیست بار
+# رمز را اشتباه نمی‌زند؛ پس سقف می‌تواند سخت‌گیر باشد.
+ADMIN_LOGIN_MAX_PER_HOUR = env.int("ADMIN_LOGIN_MAX_PER_HOUR", default=20)
+
+# --- Content Security Policy ---
+# سایت هیچ فایل جاوااسکریپت یا CSS خارجی ندارد، پس می‌توانیم سخت‌گیرترین
+# حالت را بگذاریم: مرورگر اجازه ندارد اسکریپتی از جای دیگری اجرا کند. اگر
+# روزی کسی موفق شود متنی داخل صفحه تزریق کند، همین یک هدر جلوی اجرایش را
+# می‌گیرد.
+#
+# style-src ناچاراً 'unsafe-inline' دارد چون چند قالب از style درون‌خطی
+# برای مقدار متغیرهای CSS استفاده می‌کنند. خطر CSS تزریقی در مقایسه با
+# اسکریپت ناچیز است و کل خروجی قالب‌ها هم Escape می‌شود.
+CSP_ENABLED = env.bool("CSP_ENABLED", default=True)
+
+# حالت گزارش‌محور: سیاست اعمال نمی‌شود، فقط تخلف‌ها در کنسول مرورگر دیده
+# می‌شوند. برای اولین روزهای استقرار مفید است.
+CSP_REPORT_ONLY = env.bool("CSP_REPORT_ONLY", default=False)
+
+CSP_DIRECTIVES = [
+    "default-src 'self'",
+    "script-src 'self'",
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data:",
+    "font-src 'self'",
+    "connect-src 'self'",
+    "form-action 'self'",
+    "base-uri 'self'",
+    "object-src 'none'",
+    "frame-src 'none'",
+    # همان کاری که X_FRAME_OPTIONS می‌کند، با پشتیبانی بهتر مرورگرهای تازه.
+    "frame-ancestors 'none'",
+]
+
+# سایت به دوربین، میکروفون و موقعیت مکانی نیازی ندارد؛ بستنشان جلوی
+# سوءاستفاده یک اسکریپت تزریق‌شده یا افزونه مرورگر را می‌گیرد.
+PERMISSIONS_POLICY = "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
 
 # ---------------------------------------------------------------------------
 # سئو

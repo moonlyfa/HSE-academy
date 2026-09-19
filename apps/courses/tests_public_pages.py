@@ -18,8 +18,13 @@ from apps.courses.tests import CourseTestMixin
 
 
 def json_ld_blocks(html: str) -> list[dict]:
-    """همه بلوک‌های داده ساختاریافته صفحه را می‌خواند و به دیکشنری تبدیل می‌کند."""
-    pattern = r'<script type="application/ld\+json">(.*?)</script>'
+    """
+    همه بلوک‌های داده ساختاریافته صفحه را می‌خواند و به دیکشنری تبدیل می‌کند.
+
+    الگو صفت‌های اضافه تگ را هم می‌پذیرد؛ از فاز ۲۱ این بلوک‌ها یک
+    `nonce` می‌گیرند تا با سیاست امنیتی محتوا (CSP) سازگار بمانند.
+    """
+    pattern = r'<script type="application/ld\+json"[^>]*>(.*?)</script>'
     return [json.loads(block) for block in re.findall(pattern, html, re.DOTALL)]
 
 

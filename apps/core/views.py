@@ -13,6 +13,7 @@ from apps.accounts.models import InstructorProfile
 from apps.courses.models import Course, CourseCategory
 
 from .forms import ContactForm
+from .throttling import CONTACT_LIMIT
 from .models import FAQ, Feature, HeroSlide, Partner, SiteSetting, Testimonial
 
 
@@ -99,9 +100,19 @@ def contact(request: HttpRequest) -> HttpResponse:
         requested_course = Course.objects.published().filter(slug=course_slug).first()
 
     if request.method == "POST":
+        # فرم عمومی و بدون ورود است؛ بدون سقف، با یک اسکریپت ساده هزاران
+        # پیام ثبت می‌شود و صندوق پیام‌های پشتیبانی بی‌استفاده می‌ماند.
+        if CONTACT_LIMIT.is_exceeded(request):
+            messages.error(
+                request,
+                "تعداد پیام‌های ارسالی شما زیاد بوده است. لطفاً کمی بعد دوباره تلاش کنید.",
+            )
+            return redirect("core:contact")
+
         form = ContactForm(request.POST)
         if form.is_valid():
             form.save()
+            CONTACT_LIMIT.record(request)
             messages.success(
                 request,
                 "پیام شما با موفقیت ثبت شد. همکاران ما در اولین فرصت پاسخ می‌دهند.",

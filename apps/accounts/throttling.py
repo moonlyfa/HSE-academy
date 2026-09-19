@@ -17,23 +17,14 @@ import logging
 from django.core.cache import cache
 from django.http import HttpRequest
 
+# تشخیص IP در فاز ۲۱ به ابزار مشترک منتقل شد تا همه‌جا یک قاعده داشته
+# باشد (از جمله بحث اعتماد به هدر X-Forwarded-For).
+from apps.core.throttling import get_client_ip  # noqa: F401 — از همین‌جا هم صادر می‌شود
+
 logger = logging.getLogger("hse.accounts")
 
 MAX_ATTEMPTS = 5
 LOCKOUT_SECONDS = 15 * 60  # ۱۵ دقیقه
-
-
-def get_client_ip(request: HttpRequest) -> str:
-    """
-    آدرس IP کاربر.
-
-    در Production پشت Nginx، آدرس واقعی در هدر X-Forwarded-For است.
-    اولین مقدار این هدر، IP خود کاربر است.
-    """
-    forwarded = request.META.get("HTTP_X_FORWARDED_FOR", "")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
-    return request.META.get("REMOTE_ADDR", "unknown")
 
 
 def _cache_key(mobile: str, ip: str) -> str:

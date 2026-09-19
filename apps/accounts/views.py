@@ -38,6 +38,8 @@ from .forms import (
 from .models import OtpPurpose
 from .services.identity import verify_identity
 from .services.otp import seconds_until_resend, send_otp, verify_otp
+from apps.core.throttling import PASSWORD_RESET_LIMIT, REGISTRATION_LIMIT
+
 from .throttling import (
     LOCKOUT_SECONDS,
     get_client_ip,
@@ -201,9 +203,19 @@ def register_view(request: HttpRequest) -> HttpResponse:
     form = RegisterMobileForm()
 
     if request.method == "POST":
+        # سرویس پیامک برای هر شماره سقف دارد، اما یک مهاجم می‌تواند با
+        # هزار شماره مختلف کار کند؛ این سقف روی خود IP است.
+        if REGISTRATION_LIMIT.is_exceeded(request):
+            messages.error(
+                request,
+                "تعداد تلاش‌های ثبت‌نام از این دستگاه زیاد بوده است. کمی بعد دوباره تلاش کنید.",
+            )
+            return render(request, "accounts/register_mobile.html", {"form": form})
+
         form = RegisterMobileForm(request.POST)
         if form.is_valid():
             mobile = form.cleaned_data["mobile"]
+            REGISTRATION_LIMIT.record(request)
 
             if _send_and_report(request, mobile, OtpPurpose.REGISTER):
                 _set_pending_mobile(request, mobile, OtpPurpose.REGISTER)
@@ -366,9 +378,17 @@ def password_reset_view(request: HttpRequest) -> HttpResponse:
     form = PasswordResetMobileForm()
 
     if request.method == "POST":
+        if PASSWORD_RESET_LIMIT.is_exceeded(request):
+            messages.error(
+                request,
+                "تعداد درخواست‌های بازیابی از این دستگاه زیاد بوده است. کمی بعد دوباره تلاش کنید.",
+            )
+            return render(request, "accounts/password_reset.html", {"form": form})
+
         form = PasswordResetMobileForm(request.POST)
         if form.is_valid():
             mobile = form.cleaned_data["mobile"]
+            PASSWORD_RESET_LIMIT.record(request)
 
             # اگر شماره در سایت نباشد، عمداً همان پیام موفقیت را نشان
             # می‌دهیم و کدی نمی‌فرستیم. این‌طور کسی نمی‌تواند با این فرم

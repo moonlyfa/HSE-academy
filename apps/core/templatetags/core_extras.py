@@ -215,11 +215,18 @@ def static_v(path: str) -> str:
 # json.dumps این کار را درست انجام می‌دهد و ما هم < را جداگانه بی‌اثر می‌کنیم.
 
 
-def _json_ld(data: dict) -> str:
-    """تبدیل دیکشنری پایتون به تگ <script> امن."""
+def _json_ld(data: dict, request=None) -> str:
+    """
+    تبدیل دیکشنری پایتون به تگ <script> امن.
+
+    `nonce` از میان‌افزار امنیتی می‌آید تا این بلوک‌ها در مرورگرهایی که
+    CSP را روی داده‌های درون‌خطی هم اعمال می‌کنند حذف نشوند.
+    """
     payload = json.dumps(data, ensure_ascii=False).replace("<", "\\u003c")
+    nonce = getattr(request, "csp_nonce", "") if request is not None else ""
+    nonce_attr = f' nonce="{nonce}"' if nonce else ""
     return mark_safe(  # noqa: S308 — خروجی با json.dumps ساخته شده و < خنثی شده است
-        f'<script type="application/ld+json">{payload}</script>'
+        f'<script type="application/ld+json"{nonce_attr}>{payload}</script>'
     )
 
 
@@ -261,7 +268,8 @@ def breadcrumb_jsonld(context, items, current: str) -> str:
             "@context": "https://schema.org",
             "@type": "BreadcrumbList",
             "itemListElement": elements,
-        }
+        },
+        request,
     )
 
 
@@ -331,7 +339,7 @@ def course_jsonld(context, course) -> str:
         instance["courseWorkload"] = f"PT{course.duration_hours}H"
     data["hasCourseInstance"] = [instance]
 
-    return _json_ld(data)
+    return _json_ld(data, request)
 
 
 @register.simple_tag(takes_context=True)
@@ -385,7 +393,7 @@ def organization_jsonld(context) -> str:
     if social:
         data["sameAs"] = social
 
-    return _json_ld(data)
+    return _json_ld(data, request)
 
 
 @register.simple_tag(takes_context=True)
@@ -419,7 +427,8 @@ def website_jsonld(context) -> str:
                 },
                 "query-input": "required name=search_term_string",
             },
-        }
+        },
+        request,
     )
 
 
@@ -454,11 +463,11 @@ def article_jsonld(context, post) -> str:
     if post.cover:
         data["image"] = request.build_absolute_uri(post.cover.url)
 
-    return _json_ld(data)
+    return _json_ld(data, request)
 
 
-@register.simple_tag
-def faq_jsonld(faqs) -> str:
+@register.simple_tag(takes_context=True)
+def faq_jsonld(context, faqs) -> str:
     """
     سؤالات متداول به شکل ماشین‌خوان.
 
@@ -484,7 +493,8 @@ def faq_jsonld(faqs) -> str:
             "@context": "https://schema.org",
             "@type": "FAQPage",
             "mainEntity": questions,
-        }
+        },
+        context.get("request"),
     )
 
 
@@ -514,4 +524,4 @@ def person_jsonld(context, instructor) -> str:
     if instructor.avatar:
         data["image"] = request.build_absolute_uri(instructor.avatar.url)
 
-    return _json_ld(data)
+    return _json_ld(data, request)
