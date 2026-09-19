@@ -3,6 +3,12 @@
 
 {% block title %}{{ site.meta_title|default:site.site_name }} — {{ site.site_tagline }}{% endblock %}
 
+{# معرفی ماشین‌خوان خود آکادمی و سایت — فقط در صفحه اصلی #}
+{% block extra_head %}
+    {% organization_jsonld %}
+    {% website_jsonld %}
+{% endblock %}
+
 {% block content %}
 
 {# --- اسلایدر تصویری بالای صفحه: فقط تصویر، بدون هیچ متنی --- #}

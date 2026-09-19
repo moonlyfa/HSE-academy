@@ -10,6 +10,8 @@
     {% if instructor.avatar %}<meta property="og:image" content="{{ instructor.avatar.url }}">{% endif %}
 {% endblock %}
 
+{% block extra_head %}{% person_jsonld instructor %}{% endblock %}
+
 {% block breadcrumb %}
     {% include "partials/breadcrumb.html" with items=breadcrumb_items current=instructor.display_name %}
 {% endblock %}

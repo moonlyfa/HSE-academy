@@ -2,10 +2,12 @@
 
 from types import SimpleNamespace
 
+from django.conf import settings
 from django.contrib import messages
 from django.db.models import Count, Q
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
+from django.urls import reverse
 
 from apps.accounts.models import InstructorProfile
 from apps.courses.models import Course, CourseCategory
@@ -178,6 +180,46 @@ def certificate_verify(request: HttpRequest) -> HttpResponse:
         "nav_active": "verify",
     }
     return render(request, "core/certificate_verify.html", context)
+
+
+def robots_txt(request: HttpRequest) -> HttpResponse:
+    """
+    فایل robots.txt — با View ساخته می‌شود، نه به‌صورت فایل ثابت.
+
+    دو دلیل: آدرس نقشه سایت باید کامل (با دامنه واقعی همین درخواست) نوشته
+    شود، و روی سرور آزمایشی باید بتوان کل سایت را با یک تنظیم از دید
+    موتورهای جست‌وجو بست.
+
+    مسیرهای بسته‌شده، صفحه‌های شخصی و خریدند: داشبورد، سبد خرید، پرداخت،
+    آزمون و گواهی. اینها نه برای موتور جست‌وجو فایده‌ای دارند و نه باید
+    در نتایج دیده شوند. (بستن در robots.txt جای کنترل دسترسی را نمی‌گیرد؛
+    آن کار در خود Viewها انجام می‌شود.)
+    """
+    sitemap_url = request.build_absolute_uri(reverse("sitemap"))
+
+    if not settings.SEO_ALLOW_INDEXING:
+        # سرور آزمایشی: هیچ صفحه‌ای نباید ایندکس شود.
+        body = "User-agent: *\nDisallow: /\n"
+        return HttpResponse(body, content_type="text/plain; charset=utf-8")
+
+    disallowed = [
+        "/accounts/",
+        "/cart/",
+        "/checkout/",
+        "/orders/",
+        "/payments/",
+        "/exam/",
+        "/certificates/",
+        "/search/",
+        "/protected-media/",
+        f"/{settings.ADMIN_URL}/",
+    ]
+
+    lines = ["User-agent: *"]
+    lines += [f"Disallow: {path}" for path in disallowed]
+    lines += ["", f"Sitemap: {sitemap_url}", ""]
+
+    return HttpResponse("\n".join(lines), content_type="text/plain; charset=utf-8")
 
 
 def health(request: HttpRequest) -> JsonResponse:

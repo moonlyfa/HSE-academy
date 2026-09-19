@@ -3,6 +3,7 @@
 
 {% block title %}{% if active_category %}{{ active_category.name }}{% else %}مقالات و اخبار{% endif %} — {{ site.site_name }}{% endblock %}
 {% block meta_description %}{% if active_category and active_category.meta_description %}{{ active_category.meta_description }}{% else %}مقاله‌های تخصصی و اخبار حوزه ایمنی، بهداشت و محیط زیست در {{ site.site_name }}.{% endif %}{% endblock %}
+{% block canonical %}{{ seo_canonical|default:request.build_absolute_uri }}{% endblock %}
 
 {% block breadcrumb %}
     {% include "partials/breadcrumb.html" with items=breadcrumb_items current=breadcrumb_current %}

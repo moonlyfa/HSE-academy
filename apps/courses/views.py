@@ -19,6 +19,7 @@ from django.urls import reverse
 from django.views.decorators.http import require_POST
 
 from apps.accounts.models import InstructorProfile
+from apps.core.seo import listing_seo
 
 from .access import check_lesson_access, check_session_access
 from .enrollment import active_enrollment
@@ -171,6 +172,10 @@ def course_list(request: HttpRequest) -> HttpResponse:
         breadcrumb_items = []
         breadcrumb_current = "همه دوره‌ها"
 
+    # صفحه دسته‌بندی، صفحه واقعی سایت است و ایندکس می‌شود؛ ترکیب‌های
+    # فیلتر و مرتب‌سازی فقط ابزار کاربرند و noindex می‌گیرند.
+    seo = listing_seo(request, reverse("courses:list"))
+
     context = {
         "page_obj": page,
         "courses": page.object_list,
@@ -180,6 +185,8 @@ def course_list(request: HttpRequest) -> HttpResponse:
         "breadcrumb_items": breadcrumb_items,
         "breadcrumb_current": breadcrumb_current,
         "nav_active": "courses",
+        "seo_canonical": seo["canonical"],
+        "page_noindex": seo["noindex"],
         **_filter_context(request),
     }
     return render(request, "courses/course_list.html", context)
@@ -317,6 +324,10 @@ def search(request: HttpRequest) -> HttpResponse:
             "courses": page.object_list,
             "total_count": paginator.count,
             "querystring": params.urlencode(),
+            # نتیجه جست‌وجو صفحه‌ی سایت نیست؛ محتوایش از صفحه‌های دیگر
+            # می‌آید و ایندکس‌شدنش فقط نسخه تکراری می‌سازد.
+            "page_noindex": True,
+            "seo_canonical": request.build_absolute_uri(reverse("core:search")),
         },
     )
 

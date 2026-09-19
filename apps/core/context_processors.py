@@ -19,6 +19,8 @@ def site_context(request: HttpRequest) -> dict:
         "site": SiteSetting.load(),
         "admin_url": settings.ADMIN_URL,
         "blog_enabled": settings.BLOG_ENABLED,
+        # روی سرور آزمایشی False است و قالب پایه، کل سایت را noindex می‌کند.
+        "seo_allow_indexing": settings.SEO_ALLOW_INDEXING,
         # تعداد اقلام سبد برای نشان کنار آیکون سبد در هدر.
         # فقط از Session خوانده می‌شود و به دیتابیس نمی‌رود، تا این
         # Context Processor روی هر صفحه سایت کوئری اضافه نزند.

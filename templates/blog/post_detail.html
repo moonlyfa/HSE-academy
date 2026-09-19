@@ -8,7 +8,7 @@
 {% block og_title %}{{ post.title }}{% endblock %}
 {% block og_description %}{{ post.summary|truncatechars:160 }}{% endblock %}
 {% block og_image %}{% if post.cover %}<meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{{ post.cover.url }}">{% endif %}{% endblock %}
-{% block extra_head %}{% if is_preview %}<meta name="robots" content="noindex">{% endif %}{% endblock %}
+{% block extra_head %}{% if is_preview %}<meta name="robots" content="noindex">{% else %}{% article_jsonld post %}{% endif %}{% endblock %}
 
 {% block breadcrumb %}
     {% include "partials/breadcrumb.html" with items=breadcrumb_items current=breadcrumb_current %}

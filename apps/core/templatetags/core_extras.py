@@ -332,3 +332,186 @@ def course_jsonld(context, course) -> str:
     data["hasCourseInstance"] = [instance]
 
     return _json_ld(data)
+
+
+@register.simple_tag(takes_context=True)
+def organization_jsonld(context) -> str:
+    """
+    معرفی خود آکادمی به موتور جست‌وجو.
+
+    این همان چیزی است که «کارت دانش» (Knowledge Panel) کنار نتایج از روی
+    آن ساخته می‌شود: نام، لوگو، راه تماس و صفحه‌های رسمی. فقط یک‌بار و در
+    صفحه اصلی می‌آید؛ تکرارش در همه صفحه‌ها چیزی اضافه نمی‌کند.
+    """
+    request = context.get("request")
+    site = context.get("site")
+    if request is None or site is None:
+        return ""
+
+    data = {
+        "@context": "https://schema.org",
+        "@type": "EducationalOrganization",
+        "name": site.site_name,
+        "url": request.build_absolute_uri("/"),
+        "description": site.meta_description or site.site_tagline,
+        "inLanguage": "fa-IR",
+    }
+
+    if site.logo:
+        data["logo"] = request.build_absolute_uri(site.logo.url)
+
+    if site.phone or site.email:
+        contact = {"@type": "ContactPoint", "contactType": "customer support"}
+        if site.phone:
+            contact["telephone"] = site.phone
+        if site.email:
+            contact["email"] = site.email
+        data["contactPoint"] = [contact]
+
+    if site.address:
+        data["address"] = {"@type": "PostalAddress", "streetAddress": site.address}
+
+    # فقط شبکه‌هایی که ادمین واقعاً پر کرده است.
+    social = [
+        url
+        for url in (
+            site.instagram_url,
+            site.telegram_url,
+            site.linkedin_url,
+            site.whatsapp_url,
+        )
+        if url
+    ]
+    if social:
+        data["sameAs"] = social
+
+    return _json_ld(data)
+
+
+@register.simple_tag(takes_context=True)
+def website_jsonld(context) -> str:
+    """
+    معرفی خود سایت، به‌همراه راه جست‌وجو در آن.
+
+    `SearchAction` باعث می‌شود گوگل زیر نتیجه سایت، یک کادر جست‌وجوی
+    مخصوص همین سایت نشان بدهد.
+    """
+    request = context.get("request")
+    site = context.get("site")
+    if request is None or site is None:
+        return ""
+
+    home = request.build_absolute_uri("/")
+    search = request.build_absolute_uri(reverse("core:search"))
+
+    return _json_ld(
+        {
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            "name": site.site_name,
+            "url": home,
+            "inLanguage": "fa-IR",
+            "potentialAction": {
+                "@type": "SearchAction",
+                "target": {
+                    "@type": "EntryPoint",
+                    "urlTemplate": f"{search}?q={{search_term_string}}",
+                },
+                "query-input": "required name=search_term_string",
+            },
+        }
+    )
+
+
+@register.simple_tag(takes_context=True)
+def article_jsonld(context, post) -> str:
+    """
+    معرفی ماشین‌خوان یک مقاله یا خبر.
+
+    نوع خبر (`NewsArticle`) از نوع مقاله جداست چون گوگل خبرها را در
+    بخش جداگانه‌ای نشان می‌دهد.
+    """
+    request = context.get("request")
+    site = context.get("site")
+    if request is None:
+        return ""
+
+    site_name = getattr(site, "site_name", settings.SITE_NAME)
+
+    data = {
+        "@context": "https://schema.org",
+        "@type": "NewsArticle" if post.post_type == "news" else "Article",
+        "headline": post.title[:110],  # حد استاندارد گوگل برای عنوان
+        "description": post.meta_description or post.summary,
+        "inLanguage": "fa-IR",
+        "datePublished": post.published_at.isoformat(),
+        "dateModified": post.updated_at.isoformat(),
+        "mainEntityOfPage": request.build_absolute_uri(post.get_absolute_url()),
+        "author": {"@type": "Person", "name": post.author_name},
+        "publisher": {"@type": "Organization", "name": site_name},
+    }
+
+    if post.cover:
+        data["image"] = request.build_absolute_uri(post.cover.url)
+
+    return _json_ld(data)
+
+
+@register.simple_tag
+def faq_jsonld(faqs) -> str:
+    """
+    سؤالات متداول به شکل ماشین‌خوان.
+
+    نتیجه‌اش این است که سؤال و جواب‌ها می‌توانند مستقیماً زیر نتیجه سایت
+    در گوگل باز شوند. فقط سؤال‌هایی که در خود صفحه هم دیده می‌شوند
+    اینجا می‌آیند؛ همان قاعده همیشگی: داده ساختاریافته نباید چیزی بگوید
+    که روی صفحه نیست.
+    """
+    questions = [
+        {
+            "@type": "Question",
+            "name": faq.question,
+            "acceptedAnswer": {"@type": "Answer", "text": faq.answer},
+        }
+        for faq in faqs
+    ]
+
+    if not questions:
+        return ""
+
+    return _json_ld(
+        {
+            "@context": "https://schema.org",
+            "@type": "FAQPage",
+            "mainEntity": questions,
+        }
+    )
+
+
+@register.simple_tag(takes_context=True)
+def person_jsonld(context, instructor) -> str:
+    """معرفی ماشین‌خوان یک مدرس."""
+    request = context.get("request")
+    site = context.get("site")
+    if request is None:
+        return ""
+
+    data = {
+        "@context": "https://schema.org",
+        "@type": "Person",
+        "name": instructor.display_name,
+        "url": request.build_absolute_uri(instructor.get_absolute_url()),
+        "worksFor": {
+            "@type": "EducationalOrganization",
+            "name": getattr(site, "site_name", settings.SITE_NAME),
+        },
+    }
+
+    if instructor.specialty:
+        data["jobTitle"] = instructor.specialty
+    if instructor.bio:
+        data["description"] = instructor.bio
+    if instructor.avatar:
+        data["image"] = request.build_absolute_uri(instructor.avatar.url)
+
+    return _json_ld(data)

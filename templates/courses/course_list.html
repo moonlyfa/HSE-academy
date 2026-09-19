@@ -6,6 +6,8 @@
     {% else %}همه دوره‌ها — {{ site.site_name }}{% endif %}
 {% endblock %}
 
+{% block canonical %}{{ seo_canonical|default:request.build_absolute_uri }}{% endblock %}
+
 {% block meta_description %}
     {% if active_category %}{{ active_category.meta_description|default:active_category.description }}
     {% else %}فهرست کامل دوره‌های تخصصی ایمنی، بهداشت و محیط زیست با امکان فیلتر بر اساس دسته‌بندی، شیوه برگزاری و سطح.{% endif %}

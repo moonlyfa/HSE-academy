@@ -18,6 +18,8 @@ from django.db.models import Count, Q
 from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, render
 from django.urls import reverse
+
+from apps.core.seo import listing_seo
 from django.utils import timezone
 
 from .models import BlogCategory, BlogPost, PostStatus, PostType
@@ -86,6 +88,8 @@ def post_list(request: HttpRequest) -> HttpResponse:
             slug=category_slug, is_active=True
         ).first()
 
+    seo = listing_seo(request, reverse("blog:list"))
+
     return render(
         request,
         "blog/post_list.html",
@@ -105,6 +109,8 @@ def post_list(request: HttpRequest) -> HttpResponse:
                 else []
             ),
             "nav_active": "blog",
+            "seo_canonical": seo["canonical"],
+            "page_noindex": seo["noindex"],
             **_sidebar_context(),
         },
     )
