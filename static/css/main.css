@@ -2757,3 +2757,60 @@ a.curriculum__lesson-link:hover { color: var(--color-primary); }
     .attempt-row__action { margin-inline-start: 0; width: 100%; }
     .attempt-row__action .btn { width: 100%; }
 }
+
+/* =========================================================================
+   فاز ۱۷ — گواهی
+   ========================================================================= */
+.certificate-card {
+    padding: var(--space-xl);
+    text-align: center;
+    background: var(--color-surface);
+    border: 2px solid var(--color-primary);
+    border-radius: var(--radius-lg);
+}
+
+.certificate-card.is-invalid { border-color: var(--color-danger); }
+
+.certificate-card__holder {
+    margin: 0 0 var(--space-md);
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--color-secondary);
+}
+
+.certificate-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    flex-wrap: wrap;
+    padding: var(--space-md);
+    margin-bottom: var(--space-sm);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+}
+
+.certificate-row--ready { border-style: dashed; border-color: var(--color-primary); }
+.certificate-row--invalid { opacity: 0.8; }
+.certificate-row__main { flex: 1 1 14rem; }
+.certificate-row__action { margin-inline-start: auto; }
+
+.certificate-status {
+    display: inline-block;
+    padding: 0.15rem 0.6rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    border-radius: var(--radius-sm);
+    color: var(--color-success);
+    background: rgba(30, 132, 73, 0.1);
+}
+
+.certificate-status--revoked {
+    color: var(--color-danger);
+    background: rgba(192, 57, 43, 0.1);
+}
+
+@media (max-width: 575.98px) {
+    .certificate-row__action { margin-inline-start: 0; width: 100%; }
+    .certificate-row__action .btn { width: 100%; }
+}

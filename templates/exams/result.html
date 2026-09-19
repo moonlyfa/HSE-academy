@@ -64,6 +64,34 @@
                     </div>
                 </div>
 
+                {# --- گواهی: قدم بعدی دانشجوی قبول‌شده --- #}
+                {% if certificate_card %}
+                    <div class="content-block">
+                        <h2 class="h5">گواهی پایان دوره</h2>
+
+                        {% if certificate_card.certificate %}
+                            <a class="btn btn-outline-brand" href="{{ certificate_card.certificate.get_absolute_url }}">
+                                {% icon "certificate" size=18 %}<span>مشاهده گواهی</span>
+                            </a>
+                        {% elif certificate_card.eligibility.allowed %}
+                            <p>شرایط دریافت گواهی این دوره را دارید.</p>
+                            <form method="post" action="{% url 'certificates:issue' course.slug %}">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-primary">
+                                    {% icon "certificate" size=18 %}<span>دریافت گواهی</span>
+                                </button>
+                            </form>
+                        {% else %}
+                            <p class="mb-2">{{ certificate_card.eligibility.message }}</p>
+                            {% if certificate_card.eligibility.action_url %}
+                                <a class="btn btn-outline-brand btn-sm" href="{{ certificate_card.eligibility.action_url }}">
+                                    {{ certificate_card.eligibility.action_label }}
+                                </a>
+                            {% endif %}
+                        {% endif %}
+                    </div>
+                {% endif %}
+
                 {# --- مرور پاسخ‌ها --- #}
                 {% if review %}
                     <div class="content-block">

@@ -29,9 +29,10 @@
            href="{% url 'exams:my' %}">
             {% icon "check" size=18 %}<span>آزمون‌ها</span>
         </a>
-        <span class="dash-nav__item is-disabled" aria-disabled="true">
-            {% icon "certificate" size=18 %}<span>گواهی‌های من</span><small>فاز ۱۷</small>
-        </span>
+        <a class="dash-nav__item {% if dash_active == 'certificates' %}is-active{% endif %}"
+           href="{% url 'certificates:my' %}">
+            {% icon "certificate" size=18 %}<span>گواهی‌های من</span>
+        </a>
         <a class="dash-nav__item {% if dash_active == 'orders' %}is-active{% endif %}"
            href="{% url 'orders:list' %}">
             {% icon "receipt" size=18 %}<span>سفارش‌ها و پرداخت‌ها</span>

@@ -60,6 +60,7 @@
                     {% if curriculum or course.syllabus_items %}<a href="#syllabus">سرفصل‌ها</a>{% endif %}
                     {% if session_rows %}<a href="#online-sessions">کلاس‌های آنلاین</a>{% endif %}
                     {% if exam_card %}<a href="#exam">آزمون</a>{% endif %}
+                    {% if certificate_card %}<a href="#certificate">گواهی</a>{% endif %}
                     {% if course.target_audience %}<a href="#audience">مخاطبان</a>{% endif %}
                     {% if course.prerequisites %}<a href="#prerequisites">پیش‌نیازها</a>{% endif %}
                     {% if course.instructor %}<a href="#instructor">مدرس</a>{% endif %}
@@ -157,6 +158,38 @@
                         <a class="btn btn-outline-brand" href="{{ exam_card.exam.get_absolute_url }}">
                             {% icon "check" size=18 %}<span>صفحه آزمون</span>
                         </a>
+                    </div>
+                {% endif %}
+
+                {% if certificate_card %}
+                    <div class="content-block" id="certificate">
+                        <h2 class="h4">گواهی پایان دوره</h2>
+
+                        {% if certificate_card.certificate %}
+                            <p>
+                                گواهی شما با کد
+                                <span class="ltr">{{ certificate_card.certificate.certificate_code }}</span>
+                                صادر شده است.
+                            </p>
+                            <a class="btn btn-outline-brand" href="{{ certificate_card.certificate.get_absolute_url }}">
+                                {% icon "certificate" size=18 %}<span>مشاهده گواهی</span>
+                            </a>
+                        {% elif certificate_card.eligibility.allowed %}
+                            <p>شرایط دریافت گواهی این دوره را دارید.</p>
+                            <form method="post" action="{% url 'certificates:issue' course.slug %}">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-primary">
+                                    {% icon "certificate" size=18 %}<span>دریافت گواهی</span>
+                                </button>
+                            </form>
+                        {% else %}
+                            <p class="mb-2">{{ certificate_card.eligibility.message }}</p>
+                            {% if certificate_card.eligibility.action_url %}
+                                <a class="btn btn-outline-brand btn-sm" href="{{ certificate_card.eligibility.action_url }}">
+                                    {{ certificate_card.eligibility.action_label }}
+                                </a>
+                            {% endif %}
+                        {% endif %}
                     </div>
                 {% endif %}
 

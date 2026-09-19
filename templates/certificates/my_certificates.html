@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% load core_extras %}
+
+{% block title %}گواهی‌های من — {{ site.site_name }}{% endblock %}
+{% block extra_head %}<meta name="robots" content="noindex">{% endblock %}
+
+{% block breadcrumb %}
+    {% include "partials/breadcrumb.html" with items=None current="گواهی‌های من" %}
+{% endblock %}
+
+{% block content %}
+<section class="section pt-4">
+    <div class="container">
+        <div class="row g-4">
+            <div class="col-lg-3">
+                {% include "accounts/partials/sidebar.html" with dash_active="certificates" %}
+            </div>
+
+            <div class="col-lg-9">
+                <div class="section-head">
+                    <h1 class="h3">گواهی‌های من</h1>
+                    <p class="m-0">
+                        گواهی‌های صادرشده شما و دوره‌هایی که گواهی‌شان آماده دریافت است.
+                    </p>
+                </div>
+
+                {# --- آماده دریافت --- #}
+                {% if ready_courses %}
+                    <div class="content-block">
+                        <h2 class="h5">آماده دریافت</h2>
+                        {% for course in ready_courses %}
+                            <div class="certificate-row certificate-row--ready">
+                                <div class="certificate-row__main">
+                                    <strong class="d-block">{{ course.title }}</strong>
+                                    <span class="small text-muted">
+                                        شرایط دریافت گواهی این دوره را دارید.
+                                    </span>
+                                </div>
+                                <form method="post" action="{% url 'certificates:issue' course.slug %}">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-primary btn-sm">
+                                        {% icon "certificate" size=16 %}<span>دریافت گواهی</span>
+                                    </button>
+                                </form>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+
+                {% if certificates %}
+                    {% for certificate in certificates %}
+                        {% include "certificates/partials/certificate_row.html" with certificate=certificate %}
+                    {% endfor %}
+                {% elif not ready_courses %}
+                    <div class="empty-state">
+                        {% icon "certificate" size=36 %}
+                        <p class="mt-3 mb-0">هنوز گواهی‌ای برای شما صادر نشده است.</p>
+                        <p class="small text-muted mb-0">
+                            گواهی پس از تکمیل دوره و قبولی در آزمون پایان دوره صادر می‌شود.
+                        </p>
+                        <a class="btn btn-outline-primary btn-sm mt-3" href="{% url 'accounts:my_courses' %}">
+                            دوره‌های من
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

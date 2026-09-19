@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% load core_extras %}
+
+{% block title %}گواهی {{ certificate.course_title }}{% endblock %}
+{% block extra_head %}<meta name="robots" content="noindex">{% endblock %}
+
+{% block breadcrumb %}
+    {% include "partials/breadcrumb.html" with items=None current="گواهی" %}
+{% endblock %}
+
+{% block content %}
+<section class="section pt-4">
+    <div class="container">
+        <div class="row g-4 justify-content-center">
+            <div class="col-lg-8">
+
+                <div class="certificate-card {% if not certificate.is_valid %}is-invalid{% endif %}">
+                    <span class="chip mb-3">{% icon "certificate" size=16 %}<span>گواهی پایان دوره</span></span>
+
+                    <h1 class="h3 mb-1">{{ certificate.course_title }}</h1>
+                    <p class="certificate-card__holder">{{ certificate.holder_name }}</p>
+
+                    <span class="certificate-status certificate-status--{{ certificate.status }}">
+                        {{ certificate.status_label }}
+                    </span>
+
+                    {% if certificate.revoke_reason %}
+                        <p class="small text-danger mt-2 mb-0">{{ certificate.revoke_reason }}</p>
+                    {% endif %}
+                </div>
+
+                <div class="content-block">
+                    <ul class="summary-list">
+                        <li>
+                            <span>کد گواهی</span>
+                            <strong class="ltr">{{ certificate.certificate_code }}</strong>
+                        </li>
+                        <li>
+                            <span>تاریخ صدور</span>
+                            <strong>{{ certificate.issued_at|jalali }}</strong>
+                        </li>
+                        {% if certificate.course_hours %}
+                            <li>
+                                <span>مدت دوره</span>
+                                <strong>{{ certificate.course_hours|fa_digits }} ساعت</strong>
+                            </li>
+                        {% endif %}
+                        {% if certificate.score is not None %}
+                            <li>
+                                <span>نمره آزمون</span>
+                                <strong>{{ certificate.score|fa_digits }} از ۱۰۰</strong>
+                            </li>
+                        {% endif %}
+                        {% if certificate.instructor_name %}
+                            <li>
+                                <span>مدرس دوره</span>
+                                <strong>{{ certificate.instructor_name }}</strong>
+                            </li>
+                        {% endif %}
+                        {% if certificate.valid_until %}
+                            <li>
+                                <span>اعتبار تا</span>
+                                <strong>{{ certificate.valid_until|jalali }}</strong>
+                            </li>
+                        {% endif %}
+                    </ul>
+
+                    <div class="d-flex gap-2 flex-wrap">
+                        <a class="btn btn-primary" href="{{ certificate.get_pdf_url }}">
+                            {% icon "download" size=18 %}<span>دانلود گواهی (PDF)</span>
+                        </a>
+                        <a class="btn btn-outline-brand" href="{{ certificate.course.get_absolute_url }}">
+                            صفحه دوره
+                        </a>
+                    </div>
+                </div>
+
+                <div class="content-block">
+                    <h2 class="h6">استعلام اصالت</h2>
+                    <p class="small mb-2">
+                        کارفرما می‌تواند با اسکن QR روی گواهی یا وارد کردن کد
+                        <span class="ltr">{{ certificate.certificate_code }}</span>
+                        در صفحه استعلام، اصالت این گواهی را بررسی کند.
+                    </p>
+                    <p class="small ltr text-muted m-0">{{ verification_url }}</p>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

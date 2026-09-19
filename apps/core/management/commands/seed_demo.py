@@ -20,6 +20,7 @@ from django.utils import timezone
 
 from apps.accounts.models import InstructorProfile
 from apps.core.models import FAQ, Feature, HeroSlide, Partner, SiteSetting, Testimonial
+from apps.certificates.models import Certificate
 from apps.exams.models import Exam, ExamAttempt, Question, QuestionOption
 from apps.orders.models import Coupon, DiscountType, Order
 from apps.courses.models import (
@@ -308,7 +309,7 @@ class Command(BaseCommand):
         # در سایت واقعی هیچ‌وقت نباید دوره‌ای که فاکتور دارد حذف شود. اینجا
         # چون دستور فقط در محیط توسعه اجرا می‌شود، سفارش‌های آزمایشی هم
         # همراه بقیه داده نمونه پاک می‌شوند.
-        for model in (ExamAttempt, Order, Coupon, Course, CourseCategory, InstructorProfile,
+        for model in (Certificate, ExamAttempt, Order, Coupon, Course, CourseCategory, InstructorProfile,
                       Feature, HeroSlide, FAQ, Testimonial, Partner):
             deleted, _ = model.objects.all().delete()
             self.stdout.write(f"  پاک شد: {model._meta.verbose_name_plural} ({deleted})")

@@ -226,6 +226,10 @@ def attempt_result(request: HttpRequest, pk: int) -> HttpResponse:
     exam = attempt.exam
     review = _sheet_rows(attempt, exam) if exam.show_correct_answers else []
 
+    # apps.certificates به apps.exams وابسته است؛ برای اینکه وابستگی
+    # دوطرفه نشود، همین‌جا وارد می‌شود نه در بالای فایل.
+    from apps.certificates.issue import certificate_card
+
     return render(
         request,
         "exams/result.html",
@@ -236,6 +240,9 @@ def attempt_result(request: HttpRequest, pk: int) -> HttpResponse:
             "review": review,
             "attempts_left": attempts_left(request.user, exam),
             "can_start": check_can_start(request.user, exam),
+            # قبولی در آزمون معمولاً آخرین قدم پیش از گواهی است؛ دانشجو
+            # نباید برای پیدا کردن آن به صفحه دوره برگردد.
+            "certificate_card": certificate_card(request.user, exam.course),
         },
     )
 

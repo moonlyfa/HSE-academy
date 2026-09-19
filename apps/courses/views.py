@@ -234,6 +234,7 @@ def course_detail(request: HttpRequest, slug: str) -> HttpResponse:
 
     # apps.orders و apps.exams به apps.courses وابسته‌اند؛ برای اینکه
     # وابستگی دوطرفه نشود، این دو همین‌جا وارد می‌شوند نه در بالای فایل.
+    from apps.certificates.issue import certificate_card
     from apps.exams.summary import exam_card
     from apps.orders.services import purchased_course_ids
 
@@ -252,6 +253,8 @@ def course_detail(request: HttpRequest, slug: str) -> HttpResponse:
         "enrollment": active_enrollment(request.user, course),
         # کارت آزمون پایان دوره. None یعنی این دوره آزمون فعالی ندارد.
         "exam_card": exam_card(request.user, course),
+        # کارت گواهی — فقط برای دانشجوی ثبت‌نام‌شده معنا دارد.
+        "certificate_card": certificate_card(request.user, course),
         "already_purchased": course.pk in purchased_course_ids(request.user),
         "related_courses": related,
         "share": _share_links(request, course),

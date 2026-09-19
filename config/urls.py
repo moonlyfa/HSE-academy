@@ -24,6 +24,7 @@ urlpatterns = [
     path("accounts/", include("apps.accounts.urls")),
     path("courses/", include("apps.courses.urls")),
     path("exam/", include("apps.exams.urls")),
+    path("certificates/", include("apps.certificates.urls")),
     path("", include("apps.orders.urls")),
     # فایل‌های محافظت‌شده دوره‌ها: فقط برای مدیران، و صرفاً برای اینکه
     # لینک فایل در پنل مدیریت کار کند. دانشجو از آدرس خودِ درس می‌گیرد.
