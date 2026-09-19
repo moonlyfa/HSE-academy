@@ -4,6 +4,8 @@
 {% block title %}استعلام اصالت گواهی — {{ site.site_name }}{% endblock %}
 {% block meta_description %}اصالت گواهی‌های صادرشده {{ site.site_name }} را با وارد کردن کد گواهی بررسی کنید.{% endblock %}
 
+{% block extra_head %}{% if searched %}<meta name="robots" content="noindex">{% endif %}{% endblock %}
+
 {% block breadcrumb %}
     {% include "partials/breadcrumb.html" with current="استعلام گواهی" %}
 {% endblock %}
@@ -48,16 +50,92 @@
                     </p>
                 </div>
 
-                {% if searched %}
-                    {# سامانه گواهی در فاز ۱۷ و ۱۸ ساخته می‌شود #}
-                    <div class="alert alert-info mt-4" role="alert">
-                        <strong>سامانه استعلام هنوز فعال نشده است.</strong>
-                        <p class="mb-0 mt-2">
-                            صدور گواهی و استعلام آنلاین در مرحله بعدی توسعه سایت راه‌اندازی می‌شود.
-                            تا آن زمان برای بررسی اصالت گواهی با شماره
-                            <span class="ltr">{{ site.phone }}</span> تماس بگیرید.
-                        </p>
-                    </div>
+                {# --- نتیجه استعلام --- #}
+                {% if result %}
+                    {% if result.status == "throttled" %}
+                        <div class="alert alert-warning mt-4" role="alert">
+                            <strong>تعداد استعلام‌های شما زیاد بوده است.</strong>
+                            <p class="mb-0 mt-2">
+                                لطفاً کمی بعد دوباره تلاش کنید. اگر برای بررسی گروهی گواهی‌ها
+                                نیاز به دسترسی دارید، با شماره
+                                <span class="ltr">{{ site.phone }}</span> تماس بگیرید.
+                            </p>
+                        </div>
+
+                    {% elif result.status == "not_found" %}
+                        <div class="alert alert-danger mt-4" role="alert">
+                            <strong>گواهی‌ای با این کد پیدا نشد.</strong>
+                            <p class="mb-0 mt-2">
+                                کد را دوباره از روی گواهی بررسی کنید. اگر مطمئنید کد درست است،
+                                با شماره <span class="ltr">{{ site.phone }}</span> تماس بگیرید.
+                            </p>
+                        </div>
+
+                    {% else %}
+                        <div class="verify-result verify-result--{{ result.status }} mt-4">
+                            <span class="verify-result__badge">
+                                {% if result.status == "valid" %}
+                                    {% icon "check" size=20 %}<span>این گواهی معتبر است</span>
+                                {% elif result.status == "revoked" %}
+                                    {% icon "lock" size=20 %}<span>این گواهی باطل شده است</span>
+                                {% else %}
+                                    {% icon "clock" size=20 %}<span>اعتبار این گواهی به پایان رسیده است</span>
+                                {% endif %}
+                            </span>
+
+                            <ul class="summary-list text-start">
+                                <li>
+                                    <span>دارنده گواهی</span>
+                                    <strong>{{ result.display_name }}</strong>
+                                </li>
+                                <li>
+                                    <span>دوره</span>
+                                    <strong>{{ result.certificate.course_title }}</strong>
+                                </li>
+                                {% if result.certificate.course_hours %}
+                                    <li>
+                                        <span>مدت دوره</span>
+                                        <strong>{{ result.certificate.course_hours|fa_digits }} ساعت</strong>
+                                    </li>
+                                {% endif %}
+                                <li>
+                                    <span>تاریخ صدور</span>
+                                    <strong>{{ result.certificate.issued_at|jalali }}</strong>
+                                </li>
+                                {% if result.certificate.valid_until %}
+                                    <li>
+                                        <span>اعتبار تا</span>
+                                        <strong>{{ result.certificate.valid_until|jalali }}</strong>
+                                    </li>
+                                {% endif %}
+                                {% if result.certificate.score is not None %}
+                                    <li>
+                                        <span>نمره آزمون</span>
+                                        <strong>{{ result.certificate.score|fa_digits }} از ۱۰۰</strong>
+                                    </li>
+                                {% endif %}
+                                <li>
+                                    <span>کد گواهی</span>
+                                    <strong class="ltr">{{ result.certificate.certificate_code }}</strong>
+                                </li>
+                            </ul>
+
+                            {% if result.certificate.revoke_reason %}
+                                <p class="verify-result__note text-danger">
+                                    علت ابطال: {{ result.certificate.revoke_reason }}
+                                </p>
+                            {% endif %}
+
+                            {% if not result.full_name_shown %}
+                                {# نام کوتاه شده است تا کسی نتواند با شمردن کدها #}
+                                {# فهرست دانشجوها را جمع کند.                     #}
+                                <p class="verify-result__note">
+                                    نام دارنده به‌صورت کوتاه‌شده نمایش داده می‌شود.
+                                    با اسکن QR روی خود گواهی، نام کامل را می‌بینید.
+                                </p>
+                            {% endif %}
+                        </div>
+                    {% endif %}
                 {% endif %}
 
                 <div class="row g-3 mt-4">

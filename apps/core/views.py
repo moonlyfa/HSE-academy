@@ -1,5 +1,7 @@
 """Viewهای صفحات عمومی سایت."""
 
+from types import SimpleNamespace
+
 from django.contrib import messages
 from django.db.models import Count, Q
 from django.http import HttpRequest, HttpResponse, JsonResponse
@@ -142,13 +144,39 @@ def terms(request: HttpRequest) -> HttpResponse:
 
 def certificate_verify(request: HttpRequest) -> HttpResponse:
     """
-    صفحه استعلام گواهی.
+    صفحه عمومی استعلام گواهی.
 
-    در فاز ۱۸ به مدل Certificate وصل می‌شود. فعلاً فرم را نشان می‌دهد و
-    اگر کدی وارد شود، پیام «در دست ساخت» می‌دهد — نه نتیجه ساختگی.
+    دو راه ورودی دارد و هر دو به یک جا می‌رسند:
+
+        ?code=HSE-1405-00001  ← کارفرما کد روی کاغذ را تایپ می‌کند
+        ?token=…              ← کسی QR روی گواهی را اسکن کرده است
+
+    منطق استعلام در اپ گواهی‌هاست نه اینجا؛ این View فقط ورودی را
+    برمی‌دارد و نتیجه را به قالب می‌دهد. وارد کردن داخل تابع است تا
+    apps.core — که بقیه اپ‌ها به آن وابسته‌اند — در بالای فایل به اپ
+    گواهی‌ها وابسته نشود.
     """
+    from apps.certificates.verification import is_throttled, register_lookup, verify
+
     code = request.GET.get("code", "").strip()
-    context = {"code": code, "searched": bool(code), "nav_active": "verify"}
+    token = request.GET.get("token", "").strip()
+    searched = bool(code or token)
+
+    if not searched:
+        result = None
+    elif is_throttled(request):
+        # سقف استعلام پر شده است. پیام عمداً نمی‌گوید کد درست بود یا نه.
+        result = SimpleNamespace(status="throttled", certificate=None, found=False)
+    else:
+        register_lookup(request)
+        result = verify(code=code, token=token)
+
+    context = {
+        "code": code,
+        "searched": searched,
+        "result": result,
+        "nav_active": "verify",
+    }
     return render(request, "core/certificate_verify.html", context)
 
 

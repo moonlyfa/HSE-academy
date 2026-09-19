@@ -431,3 +431,142 @@ class CertificateViewTests(CertificateTestMixin, TestCase):
         from django.contrib.auth.models import AnonymousUser
 
         self.assertIsNone(certificate_card(AnonymousUser(), self.course))
+
+
+class VerificationHelperTests(TestCase):
+    """کد را آن‌طور که آدم‌ها می‌نویسند بخوان، نه آن‌طور که ذخیره شده."""
+
+    def test_persian_digits_are_understood(self):
+        from apps.certificates.verification import normalize_code
+
+        self.assertEqual(normalize_code("HSE-۱۴۰۵-۰۰۰۰۱"), "HSE-1405-00001")
+
+    def test_case_spaces_and_dashes_are_normalized(self):
+        from apps.certificates.verification import normalize_code
+
+        self.assertEqual(normalize_code(" hse – 1405 – 00001 "), "HSE-1405-00001")
+        self.assertEqual(normalize_code("hse_1405_00001"), "HSE-1405-00001")
+        self.assertEqual(normalize_code(""), "")
+
+    def test_name_masking_keeps_the_first_name(self):
+        from apps.certificates.verification import mask_name
+
+        self.assertEqual(mask_name("سارا محمدی"), "سارا م.")
+        self.assertEqual(mask_name("محمد رضا حسینی"), "محمد رضا ح.")
+        self.assertEqual(mask_name("سارا"), "س…")
+        self.assertEqual(mask_name(""), "")
+
+
+class PublicVerificationTests(CertificateTestMixin, TestCase):
+    """
+    صفحه عمومی استعلام.
+
+    این تنها جای سایت است که بدون حساب کاربری به داده یک دانشجو نگاه
+    می‌کند؛ تست‌ها هم دنبال همین‌اند: کارفرما جواب درست بگیرد، و کسی که
+    کدها را می‌شمارد به نام و اطلاعات شخصی نرسد.
+    """
+
+    def setUp(self):
+        from django.core.cache import cache
+
+        cache.clear()
+        self.certificate = issue_certificate(self.ready_student(), self.course)
+        self.url = reverse("core:certificate_verify")
+
+    def test_page_is_public_and_shows_the_form(self):
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNone(response.context["result"])
+
+    def test_valid_code_is_confirmed(self):
+        response = self.client.get(self.url, {"code": self.certificate.certificate_code})
+
+        self.assertContains(response, "این گواهی معتبر است")
+        self.assertContains(response, self.certificate.course_title)
+
+    def test_code_typed_with_persian_digits_still_matches(self):
+        from apps.core.jalali import to_persian_digits
+
+        response = self.client.get(
+            self.url, {"code": to_persian_digits(self.certificate.certificate_code)}
+        )
+        self.assertContains(response, "این گواهی معتبر است")
+
+    def test_unknown_code_says_not_found(self):
+        response = self.client.get(self.url, {"code": "HSE-1405-99999"})
+
+        self.assertContains(response, "پیدا نشد")
+        self.assertIsNone(response.context["result"].certificate)
+
+    def test_code_lookup_masks_the_holder_name(self):
+        """کسی که کدها را می‌شمارد نباید به فهرست نام دانشجوها برسد."""
+        response = self.client.get(self.url, {"code": self.certificate.certificate_code})
+
+        self.assertContains(response, "سارا م.")
+        self.assertNotContains(response, "سارا محمدی")
+
+    def test_token_from_the_qr_shows_the_full_name(self):
+        """کسی که QR را اسکن کرده، خودِ گواهی را در دست دارد."""
+        response = self.client.get(
+            self.url, {"token": self.certificate.verification_token}
+        )
+
+        self.assertContains(response, "سارا محمدی")
+        self.assertTrue(response.context["result"].full_name_shown)
+
+    def test_wrong_token_is_not_found(self):
+        response = self.client.get(self.url, {"token": "not-a-real-token"})
+        self.assertContains(response, "پیدا نشد")
+
+    def test_revoked_certificate_says_so_with_its_reason(self):
+        """«پیدا نشد» و «باطل شده» دو حرف کاملاً متفاوت به کارفرما می‌زنند."""
+        revoke_certificate(self.certificate, "دوره دوباره بررسی شد")
+
+        response = self.client.get(self.url, {"code": self.certificate.certificate_code})
+
+        self.assertContains(response, "باطل شده")
+        self.assertContains(response, "دوره دوباره بررسی شد")
+
+    def test_expired_certificate_is_reported_as_expired(self):
+        self.certificate.valid_until = timezone.localdate() - timedelta(days=1)
+        self.certificate.save(update_fields=["valid_until"])
+
+        response = self.client.get(self.url, {"code": self.certificate.certificate_code})
+
+        self.assertContains(response, "به پایان رسیده")
+
+    def test_no_personal_contact_data_leaks(self):
+        response = self.client.get(
+            self.url, {"token": self.certificate.verification_token}
+        )
+
+        self.assertNotContains(response, self.student.mobile)
+
+    def test_results_are_not_indexed_by_search_engines(self):
+        response = self.client.get(self.url, {"code": self.certificate.certificate_code})
+        self.assertContains(response, 'name="robots" content="noindex"')
+
+    def test_lookups_are_rate_limited(self):
+        """بدون سقف، کدها را می‌شود یکی‌یکی امتحان کرد."""
+        with self.settings(CERTIFICATE_LOOKUP_MAX_PER_HOUR=3):
+            for _ in range(3):
+                self.client.get(self.url, {"code": "HSE-1405-99999"})
+
+            response = self.client.get(
+                self.url, {"code": self.certificate.certificate_code}
+            )
+
+        self.assertContains(response, "تعداد استعلام‌های شما زیاد بوده است")
+        self.assertNotContains(response, "این گواهی معتبر است")
+
+    def test_browsing_the_page_does_not_count_against_the_limit(self):
+        with self.settings(CERTIFICATE_LOOKUP_MAX_PER_HOUR=2):
+            for _ in range(5):
+                self.client.get(self.url)
+
+            response = self.client.get(
+                self.url, {"code": self.certificate.certificate_code}
+            )
+
+        self.assertContains(response, "این گواهی معتبر است")

@@ -2814,3 +2814,36 @@ a.curriculum__lesson-link:hover { color: var(--color-primary); }
     .certificate-row__action { margin-inline-start: 0; width: 100%; }
     .certificate-row__action .btn { width: 100%; }
 }
+
+/* =========================================================================
+   فاز ۱۸ — نتیجه استعلام گواهی
+   ========================================================================= */
+.verify-result {
+    padding: var(--space-lg);
+    text-align: center;
+    background: var(--color-surface);
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-lg);
+}
+
+.verify-result--valid { border-color: var(--color-success); }
+.verify-result--revoked { border-color: var(--color-danger); }
+.verify-result--expired { border-color: var(--color-warning); }
+
+.verify-result__badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-bottom: var(--space-md);
+    font-weight: 700;
+}
+
+.verify-result--valid .verify-result__badge { color: var(--color-success); }
+.verify-result--revoked .verify-result__badge { color: var(--color-danger); }
+.verify-result--expired .verify-result__badge { color: var(--color-warning); }
+
+.verify-result__note {
+    margin: var(--space-md) 0 0;
+    font-size: 0.85rem;
+    color: var(--color-text-light);
+}
