@@ -1,0 +1,28 @@
+{% load core_extras %}
+<article class="post-card">
+    <a class="post-card__cover" href="{{ post.get_absolute_url }}">
+        {% if post.cover %}
+            <img src="{{ post.cover.url }}" alt="{{ post.title }}" loading="lazy">
+        {% else %}
+            <span class="post-card__placeholder">{% icon "book" size=28 %}</span>
+        {% endif %}
+        <span class="post-card__type">{{ post.get_post_type_display }}</span>
+    </a>
+
+    <div class="post-card__body">
+        <span class="post-card__meta">
+            {{ post.category.name }} · {{ post.published_at|jalali }}
+        </span>
+
+        <h3 class="post-card__title">
+            <a href="{{ post.get_absolute_url }}">{{ post.title }}</a>
+        </h3>
+
+        <p class="post-card__summary">{{ post.summary|truncatechars:120 }}</p>
+
+        <span class="post-card__foot">
+            {% icon "clock" size=14 %}
+            <span>{{ post.reading_minutes|fa_digits }} دقیقه مطالعه</span>
+        </span>
+    </div>
+</article>

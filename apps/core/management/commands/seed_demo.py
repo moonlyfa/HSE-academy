@@ -16,11 +16,14 @@ from django.conf import settings
 from django.core.files.base import ContentFile
 from django.core.management.base import BaseCommand, CommandError
 from django.db.models import Q
+from django.contrib.auth import get_user_model
 from django.utils import timezone
+from django.utils.text import slugify
 
 from apps.accounts.models import InstructorProfile
-from apps.core.models import FAQ, Feature, HeroSlide, Partner, SiteSetting, Testimonial
+from apps.blog.models import BlogCategory, BlogPost, PostStatus, PostType
 from apps.certificates.models import Certificate
+from apps.core.models import FAQ, Feature, HeroSlide, Partner, SiteSetting, Testimonial
 from apps.exams.models import Exam, ExamAttempt, Question, QuestionOption
 from apps.orders.models import Coupon, DiscountType, Order
 from apps.courses.models import (
@@ -33,6 +36,8 @@ from apps.courses.models import (
     OnlineSession,
     Section,
 )
+
+User = get_user_model()
 
 FEATURES = [
     ("certificate", "گواهی قابل استعلام", "هر گواهی کد یکتا و صفحه استعلام عمومی دارد؛ کارفرما می‌تواند اصالت آن را بررسی کند."),
@@ -199,6 +204,69 @@ EXAM_QUESTIONS = [
     ),
 ]
 
+BLOG_CATEGORIES = [
+    ("آموزش و دانش فنی", "hse-knowledge", "مطالب آموزشی و مرور الزامات فنی حوزه HSE."),
+    ("اخبار آکادمی", "academy-news", "خبرهای دوره‌ها، گواهی‌ها و رویدادهای آکادمی."),
+    ("قوانین و استانداردها", "laws-standards", "تغییرات مقررات، آیین‌نامه‌ها و استانداردهای مرتبط."),
+]
+
+BLOG_POSTS = [
+    (
+        "پنج اشتباه رایج در ارزیابی ریسک محیط کار",
+        "hse-knowledge",
+        PostType.ARTICLE,
+        PostStatus.PUBLISHED,
+        0,
+        True,
+        "ارزیابی ریسک وقتی به یک فرم پرشده تبدیل شود، دیگر ریسکی را کنترل نمی‌کند. پنج خطایی که بیشترین تکرار را در ممیزی‌ها دارند.",
+    ),
+    (
+        "فضای بسته؛ چرا بیشتر قربانیان، نجات‌دهنده‌ها هستند",
+        "hse-knowledge",
+        PostType.ARTICLE,
+        PostStatus.PUBLISHED,
+        3,
+        True,
+        "آمار حوادث فضای بسته یک الگوی تکراری دارد: نفر دوم و سوم برای نجات نفر اول وارد می‌شوند و همان‌جا می‌مانند.",
+    ),
+    (
+        "دوره جدید «ایمنی کار در ارتفاع» از مهرماه",
+        "academy-news",
+        PostType.NEWS,
+        PostStatus.PUBLISHED,
+        7,
+        False,
+        "ثبت‌نام دوره تخصصی کار در ارتفاع با ظرفیت محدود آغاز شد؛ سرفصل‌ها بر اساس آخرین آیین‌نامه حفاظت فنی بازنویسی شده‌اند.",
+    ),
+    (
+        "تغییرات آیین‌نامه حفاظت فنی در سال جدید",
+        "laws-standards",
+        PostType.ARTICLE,
+        PostStatus.PUBLISHED,
+        14,
+        False,
+        "مرور بندهایی که امسال تغییر کرده‌اند و تکلیف کارفرما در هرکدام چیست.",
+    ),
+    (
+        "راهنمای انتخاب تجهیزات حفاظت فردی مناسب",
+        "hse-knowledge",
+        PostType.ARTICLE,
+        PostStatus.DRAFT,
+        0,
+        False,
+        "این مطلب هنوز پیش‌نویس است و در سایت دیده نمی‌شود — برای امتحان کردن حالت پیش‌نویس ساخته شده.",
+    ),
+    (
+        "گزارش سالانه حوادث صنعتی کشور",
+        "academy-news",
+        PostType.NEWS,
+        PostStatus.PUBLISHED,
+        -7,
+        False,
+        "این مطلب برای هفته آینده زمان‌بندی شده است و تا رسیدن تاریخش در سایت دیده نمی‌شود.",
+    ),
+]
+
 FAQS = [
     ("گواهی پایان دوره چگونه صادر می‌شود؟",
      "پس از تکمیل دوره و قبولی در آزمون پایانی، گواهی به‌صورت خودکار صادر می‌شود و از طریق داشبورد کاربری قابل دانلود است."),
@@ -291,6 +359,7 @@ class Command(BaseCommand):
         self._seed_courses(instructors)
         self._seed_online_sessions()
         self._seed_exams()
+        self._seed_blog()
         self._seed_faqs()
         self._seed_testimonials()
         self._seed_partners()
@@ -309,7 +378,7 @@ class Command(BaseCommand):
         # در سایت واقعی هیچ‌وقت نباید دوره‌ای که فاکتور دارد حذف شود. اینجا
         # چون دستور فقط در محیط توسعه اجرا می‌شود، سفارش‌های آزمایشی هم
         # همراه بقیه داده نمونه پاک می‌شوند.
-        for model in (Certificate, ExamAttempt, Order, Coupon, Course, CourseCategory, InstructorProfile,
+        for model in (Certificate, ExamAttempt, BlogPost, BlogCategory, Order, Coupon, Course, CourseCategory, InstructorProfile,
                       Feature, HeroSlide, FAQ, Testimonial, Partner):
             deleted, _ = model.objects.all().delete()
             self.stdout.write(f"  پاک شد: {model._meta.verbose_name_plural} ({deleted})")
@@ -614,6 +683,58 @@ class Command(BaseCommand):
         self.stdout.write(
             self.style.SUCCESS(
                 f"✓ {made} آزمون ({len(EXAM_QUESTIONS)} سؤال برای هرکدام)"
+            )
+        )
+
+    def _seed_blog(self):
+        """
+        چند مقاله و خبر نمونه.
+
+        بخش مقالات در نسخه اول خاموش است (BLOG_ENABLED=False) و این
+        مطالب در سایت دیده نمی‌شوند؛ ساختنشان برای این است که وقتی این
+        بخش را روشن می‌کنید، بتوانید بلافاصله ببینید چه شکلی می‌شود.
+
+        یکی از مطالب عمداً پیش‌نویس است و یکی برای هفته آینده زمان‌بندی
+        شده، تا هر سه حالت انتشار قابل امتحان باشد.
+        """
+        categories = {}
+        for order, (name, slug, description) in enumerate(BLOG_CATEGORIES):
+            category, _ = BlogCategory.objects.update_or_create(
+                slug=slug,
+                defaults={"name": name, "description": description, "order": order},
+            )
+            categories[slug] = category
+
+        author = User.objects.filter(is_staff=True).order_by("id").first()
+        now = timezone.now()
+
+        for title, category_slug, post_type, status, days_ago, featured, summary in BLOG_POSTS:
+            BlogPost.objects.update_or_create(
+                title=title,
+                defaults={
+                    "slug": slugify(title, allow_unicode=True),
+                    "category": categories[category_slug],
+                    "author": author,
+                    "post_type": post_type,
+                    "status": status,
+                    "published_at": now - timedelta(days=days_ago),
+                    "is_featured": featured,
+                    "summary": summary,
+                    "content": (
+                        f"{summary}\n\n"
+                        "متن نمونه این مطلب. در نسخه واقعی، محتوای کامل توسط تیم "
+                        "محتوا نوشته می‌شود. این پاراگراف فقط برای دیدن ظاهر صفحه و "
+                        "تخمین زمان مطالعه اینجاست.\n\n"
+                        "بخش مقالات تا آماده شدن محتوای کافی خاموش می‌ماند؛ روشن "
+                        "کردنش یک خط در فایل .env است."
+                    ),
+                },
+            )
+
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"✓ {len(BLOG_CATEGORIES)} دسته‌بندی و {len(BLOG_POSTS)} مطلب "
+                "(بخش مقالات فعلاً خاموش است)"
             )
         )
 

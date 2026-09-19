@@ -34,6 +34,9 @@
                     <li><a href="{% url 'core:calendar' %}">تقویم آموزشی</a></li>
                     <li><a href="{% url 'core:instructors' %}">مدرسان</a></li>
                     <li><a href="{% url 'core:certificate_verify' %}">استعلام گواهی</a></li>
+                    {% if blog_enabled %}
+                        <li><a href="{% url 'blog:list' %}">مقالات و اخبار</a></li>
+                    {% endif %}
                     <li><a href="{% url 'core:about' %}">درباره ما</a></li>
                     <li><a href="{% url 'core:faq' %}">سؤالات متداول</a></li>
                 </ul>

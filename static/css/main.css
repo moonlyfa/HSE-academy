@@ -2847,3 +2847,114 @@ a.curriculum__lesson-link:hover { color: var(--color-primary); }
     font-size: 0.85rem;
     color: var(--color-text-light);
 }
+
+/* =========================================================================
+   فاز ۱۹ — مقاله و خبر
+   ========================================================================= */
+.post-card {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    transition: border-color 0.2s ease, transform 0.2s ease;
+}
+
+.post-card:hover { border-color: var(--color-primary); transform: translateY(-2px); }
+
+.post-card__cover {
+    position: relative;
+    display: block;
+    aspect-ratio: 16 / 9;
+    background: var(--color-surface-alt);
+}
+
+.post-card__cover img { width: 100%; height: 100%; object-fit: cover; }
+
+.post-card__placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--color-text-light);
+}
+
+.post-card__type {
+    position: absolute;
+    inset-inline-start: var(--space-sm);
+    inset-block-start: var(--space-sm);
+    padding: 0.1rem 0.5rem;
+    font-size: 0.75rem;
+    color: #fff;
+    background: var(--color-secondary);
+    border-radius: var(--radius-sm);
+}
+
+.post-card__body {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    gap: var(--space-xs);
+    padding: var(--space-md);
+}
+
+.post-card__meta { font-size: 0.8rem; color: var(--color-text-light); }
+.post-card__title { margin: 0; font-size: 1.05rem; line-height: 1.6; }
+.post-card__title a { color: var(--color-text); }
+.post-card__title a:hover { color: var(--color-primary); }
+.post-card__summary { margin: 0; font-size: 0.9rem; color: var(--color-text-light); }
+
+.post-card__foot {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    margin-top: auto;
+    padding-top: var(--space-sm);
+    font-size: 0.8rem;
+    color: var(--color-text-light);
+}
+
+/* --- صفحه مطلب --- */
+.post-detail__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-md);
+    margin: var(--space-md) 0;
+    font-size: 0.85rem;
+    color: var(--color-text-light);
+}
+
+.post-detail__meta span { display: inline-flex; align-items: center; gap: 0.3rem; }
+
+.post-detail__cover {
+    width: 100%;
+    margin-bottom: var(--space-lg);
+    border-radius: var(--radius-lg);
+}
+
+.post-detail__content { line-height: 2.1; }
+
+/* --- ستون کناری --- */
+.blog-category-list,
+.blog-featured-list { list-style: none; margin: 0; padding: 0; }
+
+.blog-category-list a {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-sm);
+    padding: var(--space-xs) 0;
+    color: var(--color-text);
+}
+
+.blog-category-list a:hover,
+.blog-category-list a.is-active { color: var(--color-primary); font-weight: 600; }
+.blog-category-list small { color: var(--color-text-light); }
+
+.blog-featured-list li { padding: var(--space-xs) 0; border-bottom: 1px solid var(--color-border); }
+.blog-featured-list li:last-child { border-bottom: 0; }
+.blog-featured-list a { display: block; color: var(--color-text); font-size: 0.9rem; }
+.blog-featured-list a:hover { color: var(--color-primary); }
+.blog-featured-list small { color: var(--color-text-light); font-size: 0.75rem; }
