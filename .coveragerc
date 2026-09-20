@@ -1,0 +1,25 @@
+# =============================================================================
+#  تنظیمات اندازه‌گیری پوشش تست
+#  اجرا:  coverage run manage.py test && coverage report
+# =============================================================================
+
+[run]
+source = apps, config
+branch = True
+omit =
+    */migrations/*
+    */tests*.py
+    */__init__.py
+    config/asgi.py
+    config/wsgi.py
+    # داده نمونه محیط توسعه؛ خودش ابزار تست دستی است نه کد محصول.
+    apps/core/management/commands/seed_demo.py
+
+[report]
+show_missing = True
+skip_covered = False
+precision = 0
+exclude_lines =
+    pragma: no cover
+    if TYPE_CHECKING:
+    raise NotImplementedError

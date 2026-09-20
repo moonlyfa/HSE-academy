@@ -7,6 +7,8 @@
 - کوکی‌ها فقط روی HTTPS ارسال می‌شوند.
 """
 
+from django.core.exceptions import ImproperlyConfigured
+
 from .base import *  # noqa: F401,F403
 from .base import env
 
@@ -59,6 +61,38 @@ DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="no-reply@example.com")
 USE_MOCK_SMS = env.bool("USE_MOCK_SMS", default=False)
 USE_MOCK_IDENTITY = env.bool("USE_MOCK_IDENTITY", default=False)
 USE_MOCK_PAYMENT = env.bool("USE_MOCK_PAYMENT", default=False)
+
+# --- محافظ راه‌اندازی ---
+#
+# پیش‌فرض‌های بالا درست‌اند، اما فایل `.env` بر آن‌ها اولویت دارد. و
+# محتمل‌ترین اشتباه استقرار همین است: کسی فایل `.env` محیط توسعه را روی
+# سرور کپی می‌کند و `USE_MOCK_PAYMENT=True` با خودش می‌آورد.
+#
+# نتیجه‌اش سکوت نیست، فاجعه است: درگاه آزمایشی روی سایت واقعی باز
+# می‌ماند و هر بازدیدکننده‌ای می‌تواند با یک کلیک «پرداخت موفق»، دوره
+# چند میلیونی را رایگان بردارد. هیچ خطایی هم در لاگ نمی‌آید، چون از
+# نظر کد همه‌چیز طبق تنظیمات کار کرده است.
+#
+# پس سایت با این تنظیم اصلاً بالا نمی‌آید. خطای واضح در لحظه راه‌اندازی،
+# صدها برابر بهتر از فروش رایگان دوره‌هاست.
+if USE_MOCK_PAYMENT:
+    raise ImproperlyConfigured(
+        "USE_MOCK_PAYMENT در Production روشن است. درگاه آزمایشی روی سایت واقعی "
+        "یعنی هرکسی می‌تواند بدون پرداخت، دوره بخرد. مقدار آن را در فایل .env "
+        "سرور روی False بگذارید."
+    )
+
+# پیامک و استعلام هویت فرق دارند: ممکن است هنوز پنل پیامک یا سرویس
+# استعلام خریداری نشده باشد و سایت عمداً با نسخه آزمایشی بالا بیاید.
+# اما این باید یک **تصمیم صریح** باشد، نه چیزی که از فایل .env توسعه
+# سر خورده باشد.
+if (USE_MOCK_SMS or USE_MOCK_IDENTITY) and not env.bool(
+    "ALLOW_MOCK_SERVICES", default=False
+):
+    raise ImproperlyConfigured(
+        "سرویس پیامک یا استعلام هویت در حالت آزمایشی است. اگر عمدی است، "
+        "ALLOW_MOCK_SERVICES=True را هم در فایل .env سرور بگذارید."
+    )
 
 # ---------------------------------------------------------------------------
 # Cache
