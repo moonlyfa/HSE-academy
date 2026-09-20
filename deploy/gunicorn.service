@@ -1,0 +1,51 @@
+# =============================================================================
+#  سرویس systemd برای Gunicorn
+#  ---------------------------------------------------------------------------
+#  نصب:
+#     sudo cp deploy/gunicorn.service /etc/systemd/system/hse.service
+#     sudo systemctl daemon-reload
+#     sudo systemctl enable --now hse
+#
+#  دیدن وضعیت و لاگ:
+#     sudo systemctl status hse
+#     sudo journalctl -u hse -f
+# =============================================================================
+
+[Unit]
+Description=HSE Academy (Gunicorn)
+Requires=hse.socket
+After=network.target postgresql.service
+
+[Service]
+Type=notify
+User=hse
+Group=www-data
+WorkingDirectory=/srv/hse
+
+# تنظیمات حساس از فایل .env خوانده می‌شوند، نه از همین فایل: این فایل
+# با دستور systemctl cat برای همه قابل خواندن است.
+EnvironmentFile=/srv/hse/.env
+Environment=DJANGO_SETTINGS_MODULE=config.settings.prod
+
+# پوشه سوکت با هر بار راه‌اندازی ساخته می‌شود (در /run که موقتی است).
+RuntimeDirectory=hse
+RuntimeDirectoryMode=0755
+
+ExecStart=/srv/hse/.venv/bin/gunicorn config.wsgi:application \
+          -c /srv/hse/deploy/gunicorn.conf.py
+ExecReload=/bin/kill -s HUP $MAINPID
+
+Restart=always
+RestartSec=5
+
+# --- محدودسازی دسترسی سرویس ---
+# اگر روزی کسی از راه یک آسیب‌پذیری به این پردازه برسد، جایی برای رفتن
+# نداشته باشد.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/srv/hse/media /srv/hse/protected_media /srv/hse/logs /run/hse
+
+[Install]
+WantedBy=multi-user.target

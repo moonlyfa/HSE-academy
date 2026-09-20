@@ -1,0 +1,17 @@
+# سوکت Gunicorn. با systemd ساخته می‌شود تا مالکیت و دسترسی‌اش درست باشد
+# (Nginx با کاربر www-data باید بتواند در آن بنویسد).
+#
+#     sudo cp deploy/gunicorn.socket /etc/systemd/system/hse.socket
+#     sudo systemctl enable --now hse.socket
+
+[Unit]
+Description=HSE Academy gunicorn socket
+
+[Socket]
+ListenStream=/run/hse/gunicorn.sock
+SocketUser=hse
+SocketGroup=www-data
+SocketMode=0660
+
+[Install]
+WantedBy=sockets.target
