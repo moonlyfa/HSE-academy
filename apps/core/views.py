@@ -1,14 +1,19 @@
 """Viewهای صفحات عمومی سایت."""
 
+from types import SimpleNamespace
+
+from django.conf import settings
 from django.contrib import messages
 from django.db.models import Count, Q
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
+from django.urls import reverse
 
 from apps.accounts.models import InstructorProfile
-from apps.courses.models import Course, CourseCategory
+from apps.courses.models import Course, CourseCategory, offered_courses_q
 
 from .forms import ContactForm
+from .throttling import CONTACT_LIMIT
 from .models import FAQ, Feature, HeroSlide, Partner, SiteSetting, Testimonial
 
 
@@ -31,14 +36,14 @@ def home(request: HttpRequest) -> HttpResponse:
 
     categories = (
         CourseCategory.objects.filter(is_active=True, show_on_homepage=True)
-        .annotate(num_courses=Count("courses", filter=Q(courses__is_published=True)))[
+        .annotate(num_courses=Count("courses", filter=offered_courses_q("courses__")))[
             : site.homepage_category_count
         ]
     )
 
     instructors = InstructorProfile.objects.filter(
         is_active=True, show_on_homepage=True
-    ).annotate(num_courses=Count("courses", filter=Q(courses__is_published=True)))[:4]
+    ).annotate(num_courses=Count("courses", filter=offered_courses_q("courses__")))[:4]
 
     context = {
         "slides": slides,
@@ -72,7 +77,7 @@ def about(request: HttpRequest) -> HttpResponse:
             # کارت مدرس همه‌جا تعداد دوره را نشان می‌دهد، پس همین‌جا
             # با یک کوئری شمرده می‌شود نه با یک کوئری به‌ازای هر مدرس.
             "instructors": InstructorProfile.objects.filter(is_active=True).annotate(
-                num_courses=Count("courses", filter=Q(courses__is_published=True))
+                num_courses=Count("courses", filter=offered_courses_q("courses__"))
             )[:4],
             "nav_active": "about",
         },
@@ -95,9 +100,19 @@ def contact(request: HttpRequest) -> HttpResponse:
         requested_course = Course.objects.published().filter(slug=course_slug).first()
 
     if request.method == "POST":
+        # فرم عمومی و بدون ورود است؛ بدون سقف، با یک اسکریپت ساده هزاران
+        # پیام ثبت می‌شود و صندوق پیام‌های پشتیبانی بی‌استفاده می‌ماند.
+        if CONTACT_LIMIT.is_exceeded(request):
+            messages.error(
+                request,
+                "تعداد پیام‌های ارسالی شما زیاد بوده است. لطفاً کمی بعد دوباره تلاش کنید.",
+            )
+            return redirect("core:contact")
+
         form = ContactForm(request.POST)
         if form.is_valid():
             form.save()
+            CONTACT_LIMIT.record(request)
             messages.success(
                 request,
                 "پیام شما با موفقیت ثبت شد. همکاران ما در اولین فرصت پاسخ می‌دهند.",
@@ -142,14 +157,80 @@ def terms(request: HttpRequest) -> HttpResponse:
 
 def certificate_verify(request: HttpRequest) -> HttpResponse:
     """
-    صفحه استعلام گواهی.
+    صفحه عمومی استعلام گواهی.
 
-    در فاز ۱۸ به مدل Certificate وصل می‌شود. فعلاً فرم را نشان می‌دهد و
-    اگر کدی وارد شود، پیام «در دست ساخت» می‌دهد — نه نتیجه ساختگی.
+    دو راه ورودی دارد و هر دو به یک جا می‌رسند:
+
+        ?code=HSE-1405-00001  ← کارفرما کد روی کاغذ را تایپ می‌کند
+        ?token=…              ← کسی QR روی گواهی را اسکن کرده است
+
+    منطق استعلام در اپ گواهی‌هاست نه اینجا؛ این View فقط ورودی را
+    برمی‌دارد و نتیجه را به قالب می‌دهد. وارد کردن داخل تابع است تا
+    apps.core — که بقیه اپ‌ها به آن وابسته‌اند — در بالای فایل به اپ
+    گواهی‌ها وابسته نشود.
     """
+    from apps.certificates.verification import is_throttled, register_lookup, verify
+
     code = request.GET.get("code", "").strip()
-    context = {"code": code, "searched": bool(code), "nav_active": "verify"}
+    token = request.GET.get("token", "").strip()
+    searched = bool(code or token)
+
+    if not searched:
+        result = None
+    elif is_throttled(request):
+        # سقف استعلام پر شده است. پیام عمداً نمی‌گوید کد درست بود یا نه.
+        result = SimpleNamespace(status="throttled", certificate=None, found=False)
+    else:
+        register_lookup(request)
+        result = verify(code=code, token=token)
+
+    context = {
+        "code": code,
+        "searched": searched,
+        "result": result,
+        "nav_active": "verify",
+    }
     return render(request, "core/certificate_verify.html", context)
+
+
+def robots_txt(request: HttpRequest) -> HttpResponse:
+    """
+    فایل robots.txt — با View ساخته می‌شود، نه به‌صورت فایل ثابت.
+
+    دو دلیل: آدرس نقشه سایت باید کامل (با دامنه واقعی همین درخواست) نوشته
+    شود، و روی سرور آزمایشی باید بتوان کل سایت را با یک تنظیم از دید
+    موتورهای جست‌وجو بست.
+
+    مسیرهای بسته‌شده، صفحه‌های شخصی و خریدند: داشبورد، سبد خرید، پرداخت،
+    آزمون و گواهی. اینها نه برای موتور جست‌وجو فایده‌ای دارند و نه باید
+    در نتایج دیده شوند. (بستن در robots.txt جای کنترل دسترسی را نمی‌گیرد؛
+    آن کار در خود Viewها انجام می‌شود.)
+    """
+    sitemap_url = request.build_absolute_uri(reverse("sitemap"))
+
+    if not settings.SEO_ALLOW_INDEXING:
+        # سرور آزمایشی: هیچ صفحه‌ای نباید ایندکس شود.
+        body = "User-agent: *\nDisallow: /\n"
+        return HttpResponse(body, content_type="text/plain; charset=utf-8")
+
+    disallowed = [
+        "/accounts/",
+        "/cart/",
+        "/checkout/",
+        "/orders/",
+        "/payments/",
+        "/exam/",
+        "/certificates/",
+        "/search/",
+        "/protected-media/",
+        f"/{settings.ADMIN_URL}/",
+    ]
+
+    lines = ["User-agent: *"]
+    lines += [f"Disallow: {path}" for path in disallowed]
+    lines += ["", f"Sitemap: {sitemap_url}", ""]
+
+    return HttpResponse("\n".join(lines), content_type="text/plain; charset=utf-8")
 
 
 def health(request: HttpRequest) -> JsonResponse:

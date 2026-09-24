@@ -5,12 +5,14 @@ Viewهای عمومی دوره‌ها.
 بتوان همان فیلتر را در صفحات دیگر (مثل جست‌وجو) هم استفاده کرد.
 """
 
+import logging
 from urllib.parse import quote
 
 from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
+from django.db import transaction
 from django.db.models import Count, Prefetch, Q, QuerySet
 from django.http import Http404, HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -18,9 +20,12 @@ from django.urls import reverse
 from django.views.decorators.http import require_POST
 
 from apps.accounts.models import InstructorProfile
+from apps.core.seo import listing_seo
 
-from .access import check_lesson_access
+from .access import check_lesson_access, check_session_access
+from .capacity import full_message, has_seat, lock_and_find_full, seats_left
 from .enrollment import active_enrollment
+from .live import sessions_with_access, user_sessions
 from .models import (
     Course,
     CourseCategory,
@@ -28,6 +33,10 @@ from .models import (
     CourseType,
     Lesson,
     LessonAttachment,
+    OnlineSession,
+    offered_course_types,
+    offered_courses_q,
+    online_courses_enabled,
 )
 from .progress import (
     LessonProgress,
@@ -36,8 +45,11 @@ from .progress import (
     save_position,
     set_completed,
 )
+from .services import get_skyroom_service
 from .serving import serve_protected_file
 from .storages import protected_storage
+
+logger = logging.getLogger("hse.skyroom")
 
 # گزینه‌های مرتب‌سازی: کلیدِ داخل آدرس → (برچسب فارسی، فیلد مرتب‌سازی)
 SORT_OPTIONS = {
@@ -101,8 +113,14 @@ def _filter_context(request: HttpRequest) -> dict:
     return {
         "categories": CourseCategory.objects.filter(
             is_active=True, parent__isnull=True
-        ).annotate(num_courses=Count("courses", filter=Q(courses__is_published=True))),
-        "course_types": CourseType.choices,
+        ).annotate(num_courses=Count("courses", filter=offered_courses_q("courses__"))),
+        # فقط شیوه‌هایی که در سایت عرضه می‌شوند؛ اگر یکی بیشتر نباشد، قالب
+        # کل این گروه فیلتر را نشان نمی‌دهد.
+        "course_types": [
+            (value, label)
+            for value, label in CourseType.choices
+            if value in offered_course_types()
+        ],
         "levels": CourseLevel.choices,
         "sort_options": [(key, label) for key, (label, _) in SORT_OPTIONS.items()],
         # مقادیر انتخاب‌شده فعلی، تا در قالب تیک بخورند
@@ -148,7 +166,7 @@ def course_list(request: HttpRequest) -> HttpResponse:
                     "children",
                     queryset=CourseCategory.objects.filter(is_active=True).annotate(
                         num_courses=Count(
-                            "courses", filter=Q(courses__is_published=True)
+                            "courses", filter=offered_courses_q("courses__")
                         )
                     ),
                 )
@@ -165,6 +183,10 @@ def course_list(request: HttpRequest) -> HttpResponse:
         breadcrumb_items = []
         breadcrumb_current = "همه دوره‌ها"
 
+    # صفحه دسته‌بندی، صفحه واقعی سایت است و ایندکس می‌شود؛ ترکیب‌های
+    # فیلتر و مرتب‌سازی فقط ابزار کاربرند و noindex می‌گیرند.
+    seo = listing_seo(request, reverse("courses:list"))
+
     context = {
         "page_obj": page,
         "courses": page.object_list,
@@ -174,6 +196,8 @@ def course_list(request: HttpRequest) -> HttpResponse:
         "breadcrumb_items": breadcrumb_items,
         "breadcrumb_current": breadcrumb_current,
         "nav_active": "courses",
+        "seo_canonical": seo["canonical"],
+        "page_noindex": seo["noindex"],
         **_filter_context(request),
     }
     return render(request, "courses/course_list.html", context)
@@ -226,23 +250,43 @@ def course_detail(request: HttpRequest, slug: str) -> HttpResponse:
         {"label": course.category.name, "url": course.category.get_absolute_url()}
     )
 
-    # apps.orders به apps.courses وابسته است؛ برای اینکه وابستگی دوطرفه
-    # نشود، این تابع همین‌جا وارد می‌شود نه در بالای فایل.
+    # apps.orders و apps.exams به apps.courses وابسته‌اند؛ برای اینکه
+    # وابستگی دوطرفه نشود، این دو همین‌جا وارد می‌شوند نه در بالای فایل.
+    from apps.certificates.issue import certificate_card
+    from apps.exams.summary import exam_card
     from apps.orders.services import purchased_course_ids
+
+    # دوره حضوری (و هر دوره‌ای وقتی بخش آنلاین خاموش است) درس و کلاس
+    # آنلاینی ندارد که نشان داده شود؛ صفحه فقط سرفصل متنی را می‌آورد.
+    online = course.has_online_content
 
     context = {
         "course": course,
         # ساختار دوره به‌همراه وضعیت قفل هر درس برای همین بازدیدکننده
-        "curriculum": _curriculum_for(course, request.user),
+        "curriculum": _curriculum_for(course, request.user) if online else [],
         "progress": course_progress(request.user, course),
         "in_cart": course.pk in request.session.get("cart", []),
+        # جلسه‌های آنلاینِ تمام‌نشده. عنوان و ساعت را همه می‌بینند (برای
+        # فروش دوره لازم است)، اما لینک ورود فقط از راه View بررسی‌کننده
+        # دسترسی تحویل داده می‌شود.
+        "session_rows": (
+            sessions_with_access(request.user, course.online_sessions.upcoming()[:5])
+            if online
+            else []
+        ),
         "enrollment": active_enrollment(request.user, course),
+        # کارت آزمون پایان دوره. None یعنی این دوره آزمون فعالی ندارد.
+        "exam_card": exam_card(request.user, course),
+        # کارت گواهی — فقط برای دانشجوی ثبت‌نام‌شده معنا دارد.
+        "certificate_card": certificate_card(request.user, course),
         "already_purchased": course.pk in purchased_course_ids(request.user),
+        # ظرفیت: None یعنی نامحدود. «پر» برای کسی که خودش صندلی دارد معنا
+        # ندارد، پس has_seat با کاربر فعلی پرسیده می‌شود.
+        "seats_left": seats_left(course),
+        "is_full": not has_seat(course, request.user),
         "related_courses": related,
         "share": _share_links(request, course),
         "breadcrumb_items": breadcrumb_items,
-        # تا فاز سبد خرید، درخواست ثبت‌نام از راه فرم تماس ثبت می‌شود.
-        "enroll_url": f"{reverse('core:contact')}?course={course.slug}",
         "nav_active": "courses",
     }
     return render(request, "courses/course_detail.html", context)
@@ -299,6 +343,10 @@ def search(request: HttpRequest) -> HttpResponse:
             "courses": page.object_list,
             "total_count": paginator.count,
             "querystring": params.urlencode(),
+            # نتیجه جست‌وجو صفحه‌ی سایت نیست؛ محتوایش از صفحه‌های دیگر
+            # می‌آید و ایندکس‌شدنش فقط نسخه تکراری می‌سازد.
+            "page_noindex": True,
+            "seo_canonical": request.build_absolute_uri(reverse("core:search")),
         },
     )
 
@@ -311,7 +359,7 @@ def search(request: HttpRequest) -> HttpResponse:
 def instructor_list(request: HttpRequest) -> HttpResponse:
     """فهرست مدرسان فعال آکادمی."""
     instructors = InstructorProfile.objects.filter(is_active=True).annotate(
-        num_courses=Count("courses", filter=Q(courses__is_published=True))
+        num_courses=Count("courses", filter=offered_courses_q("courses__"))
     )
 
     return render(
@@ -377,8 +425,14 @@ def _lesson_or_404(slug: str, pk: int) -> Lesson:
     if lesson.section.course.slug != slug:
         raise Http404("این درس متعلق به این دوره نیست.")
 
-    if not lesson.section.course.is_published:
+    # درس، ویدیو و جزوه محتوای آنلاین‌اند. وقتی این بخش خاموش است (یا
+    # دوره حضوری است)، آدرس درس هم مثل صفحه‌ای که وجود ندارد رفتار می‌کند؛
+    # حتی برای کسی که آدرس را از قبل دارد.
+    if not lesson.section.course.is_offered:
         raise Http404("دوره منتشر نشده است.")
+
+    if not lesson.section.course.has_online_content:
+        raise Http404("این دوره محتوای آنلاین ندارد.")
 
     return lesson
 
@@ -476,6 +530,12 @@ def lesson_detail(request: HttpRequest, slug: str, pk: int) -> HttpResponse:
                 siblings[index + 1]
                 if index is not None and index + 1 < len(siblings)
                 else None
+            ),
+            # جلسه‌های آنلاینی که مدیر به همین درس وصل کرده است. قول این
+            # بخش در فاز ۹ داده شده بود: «لینک ورود پیش از شروع جلسه در
+            # همین صفحه قرار می‌گیرد».
+            "session_rows": sessions_with_access(
+                request.user, lesson.online_sessions.all()
             ),
             "lesson_position": (index + 1) if index is not None else None,
             "lesson_total": len(siblings),
@@ -620,7 +680,13 @@ def enroll_free(request: HttpRequest, slug: str) -> HttpResponse:
         messages.error(request, "مهلت ثبت‌نام این دوره به پایان رسیده است.")
         return redirect(course.get_absolute_url())
 
-    enroll(request.user, course, source=EnrollmentSource.FREE)
+    # بررسی ظرفیت و ساخت ثبت‌نام زیر یک قفل؛ وگرنه دو کلیک هم‌زمان روی
+    # آخرین صندلی هر دو موفق می‌شدند.
+    with transaction.atomic():
+        if lock_and_find_full([course.pk], request.user):
+            messages.error(request, full_message([course]))
+            return redirect(course.get_absolute_url())
+        enroll(request.user, course, source=EnrollmentSource.FREE)
     messages.success(request, f"ثبت‌نام شما در «{course.title}» انجام شد.")
 
     progress = course_progress(request.user, course)
@@ -628,3 +694,99 @@ def enroll_free(request: HttpRequest, slug: str) -> HttpResponse:
         return redirect(progress.resume_lesson.get_absolute_url())
 
     return redirect(course.get_absolute_url())
+
+
+# ---------------------------------------------------------------------------
+# کلاس‌های آنلاین
+# ---------------------------------------------------------------------------
+
+
+def _session_or_404(slug: str, pk: int) -> OnlineSession:
+    """
+    جلسه را همراه دوره‌اش پیدا می‌کند.
+
+    مثل آدرس درس، آدرس جلسه هم اسلاگ دوره را دارد و بررسی می‌کنیم که
+    جلسه واقعاً به همان دوره تعلق داشته باشد؛ وگرنه شناسه جلسه‌ای از یک
+    دوره گران، زیر آدرس یک دوره رایگان قابل صدا زدن می‌شد.
+    """
+    session = get_object_or_404(
+        OnlineSession.objects.select_related("course", "course__instructor"), pk=pk
+    )
+
+    if session.course.slug != slug:
+        raise Http404("این جلسه متعلق به این دوره نیست.")
+
+    if not session.course.is_offered:
+        raise Http404("دوره منتشر نشده است.")
+
+    if not session.course.has_online_content:
+        raise Http404("کلاس آنلاین برای این دوره فعال نیست.")
+
+    return session
+
+
+@login_required
+def session_join(request: HttpRequest, slug: str, pk: int) -> HttpResponse:
+    """
+    ورود به کلاس آنلاین.
+
+    این View تنها راه رسیدن به آدرس کلاس است. هیچ‌جای سایت لینک واقعی
+    را در HTML نمی‌گذارد؛ پس کسی نمی‌تواند با دیدن سورس صفحه یا
+    فوروارد کردن یک لینک عمومی، وارد کلاسی شود که در آن ثبت‌نام ندارد.
+
+    اگر شرایط ورود فراهم نباشد، کاربر با پیام روشن به صفحه دوره
+    برمی‌گردد — نه یک خطای فنی.
+    """
+    session = _session_or_404(slug, pk)
+    access = check_session_access(request.user, session)
+
+    if not access.allowed:
+        messages.error(request, access.message or "ورود به این کلاس امکان‌پذیر نیست.")
+        return redirect(session.course.get_absolute_url())
+
+    link = get_skyroom_service().join_link(session, request.user)
+
+    if not link.success:
+        logger.warning(
+            "ورود به کلاس ناموفق. جلسه=%s کاربر=%s علت=%s",
+            session.pk,
+            request.user.masked_mobile,
+            link.message,
+        )
+        messages.error(request, link.message or "ورود به این کلاس امکان‌پذیر نیست.")
+        return redirect(session.course.get_absolute_url())
+
+    logger.info(
+        "ورود به کلاس. جلسه=%s دوره=%s کاربر=%s سرویس=%s",
+        session.pk,
+        session.course.slug,
+        request.user.masked_mobile,
+        link.provider,
+    )
+
+    # خود آدرس کلاس در پاسخ نمی‌نشیند؛ مرورگر با یک Redirect به آن
+    # می‌رود و صفحه‌ای که لینک را نشان بدهد اصلاً ساخته نمی‌شود.
+    return redirect(link.url)
+
+
+@login_required
+def my_sessions(request: HttpRequest) -> HttpResponse:
+    """
+    کلاس‌های آنلاین کاربر — پیش‌رو و برگزارشده.
+
+    فقط جلسه‌های دوره‌هایی که کاربر در آن‌ها ثبت‌نام فعال دارد؛ همان
+    فهرستی که دانشجو برای پاسخ به «کلاس بعدی من کِی است؟» باز می‌کند.
+    """
+    if not online_courses_enabled():
+        raise Http404("کلاس آنلاین فعال نیست.")
+
+    sessions = user_sessions(request.user)
+
+    return render(
+        request,
+        "courses/my_sessions.html",
+        {
+            "upcoming_rows": sessions_with_access(request.user, sessions.upcoming()),
+            "past_rows": sessions_with_access(request.user, sessions.past()[:20]),
+        },
+    )

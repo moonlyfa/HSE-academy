@@ -10,7 +10,11 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path, re_path, register_converter
 
+from django.contrib.sitemaps.views import sitemap
+
+from apps.core import views as core_views
 from apps.core.converters import UnicodeSlugConverter
+from apps.core.sitemaps import SITEMAPS
 from apps.courses import views as course_views
 
 # مبدل «uslug» اجازه می‌دهد آدرس دوره‌ها و مدرسان فارسی هم باشد.
@@ -23,6 +27,10 @@ urlpatterns = [
     path(f"{settings.ADMIN_URL}/", admin.site.urls),
     path("accounts/", include("apps.accounts.urls")),
     path("courses/", include("apps.courses.urls")),
+    path("exam/", include("apps.exams.urls")),
+    path("certificates/", include("apps.certificates.urls")),
+    # صفحات این بخش تا روشن‌شدن BLOG_ENABLED در فایل .env، ۴۰۴ می‌دهند.
+    path("blog/", include("apps.blog.urls")),
     path("", include("apps.orders.urls")),
     # فایل‌های محافظت‌شده دوره‌ها: فقط برای مدیران، و صرفاً برای اینکه
     # لینک فایل در پنل مدیریت کار کند. دانشجو از آدرس خودِ درس می‌گیرد.
@@ -31,6 +39,16 @@ urlpatterns = [
         course_views.protected_media,
         name="protected_media",
     ),
+    # --- سئو ---
+    # نقشه سایت و robots.txt باید در ریشه دامنه باشند؛ موتورهای جست‌وجو
+    # جای دیگری دنبالشان نمی‌گردند.
+    path(
+        "sitemap.xml",
+        sitemap,
+        {"sitemaps": SITEMAPS},
+        name="sitemap",
+    ),
+    path("robots.txt", core_views.robots_txt, name="robots_txt"),
     path("", include("apps.core.urls")),
 ]
 

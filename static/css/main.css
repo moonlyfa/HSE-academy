@@ -2465,6 +2465,7 @@ a.curriculum__lesson-link:hover { color: var(--color-primary); }
 
 .result-card--success .result-card__icon { background: #e6f4ec; color: var(--color-success); }
 .result-card--failed .result-card__icon { background: #fbe9e7; color: var(--color-danger); }
+.result-card--pending .result-card__icon { background: #fdf3dc; color: var(--color-warning); }
 
 .result-card p { color: var(--color-text-muted); }
 .result-card .summary-list { text-align: start; margin-top: var(--space-lg); }
@@ -2502,3 +2503,459 @@ a.curriculum__lesson-link:hover { color: var(--color-primary); }
 }
 
 .course-row__expiry.is-soon { color: var(--color-warning); font-weight: 600; }
+
+/* =========================================================================
+   فاز ۱۵ — کلاس‌های آنلاین
+   ========================================================================= */
+.session-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.session-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    flex-wrap: wrap;
+    padding: var(--space-md);
+    margin-bottom: var(--space-sm);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+}
+
+/* جلسه‌ای که همین حالا برقرار است باید از بقیه جدا دیده شود. */
+.session-row--live {
+    border-color: var(--color-success);
+    background: rgba(30, 132, 73, 0.05);
+}
+
+.session-row--finished,
+.session-row--cancelled { opacity: 0.75; }
+
+.session-row__when {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-sm);
+    min-width: 15rem;
+}
+
+.session-row__when .icon { color: var(--color-secondary); margin-top: 2px; }
+
+.session-row__main { flex: 1 1 14rem; }
+
+.session-row__title { display: block; }
+
+.session-row__action {
+    text-align: center;
+    min-width: 10rem;
+    margin-inline-start: auto;
+}
+
+.session-state {
+    display: inline-block;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--color-text-light);
+}
+
+.session-state--live { color: var(--color-success); }
+.session-state--cancelled { color: var(--color-danger); }
+.session-state--upcoming { color: var(--color-secondary); }
+
+@media (max-width: 575.98px) {
+    .session-row__action { text-align: start; margin-inline-start: 0; }
+}
+
+/* =========================================================================
+   فاز ۱۶ — آزمون
+   ========================================================================= */
+.exam-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-md);
+    flex-wrap: wrap;
+    padding-bottom: var(--space-md);
+    border-bottom: 1px solid var(--color-border);
+}
+
+/* زمان‌سنج باید همیشه دیده شود، حتی وقتی صفحه پایین رفته است. */
+.exam-timer {
+    position: sticky;
+    top: var(--space-sm);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: var(--space-xs) var(--space-md);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--color-secondary);
+    background: var(--color-secondary-soft);
+    border-radius: var(--radius-md);
+}
+
+.exam-timer.is-urgent {
+    color: var(--color-danger);
+    background: rgba(192, 57, 43, 0.08);
+}
+
+.exam-question {
+    padding: var(--space-md);
+    margin-bottom: var(--space-md);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+}
+
+.exam-question.is-correct { border-color: var(--color-success); }
+.exam-question.is-wrong { border-color: var(--color-danger); }
+
+.exam-question__head {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-sm);
+}
+
+.exam-question__number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 2rem;
+    width: 2rem;
+    height: 2rem;
+    font-weight: 700;
+    color: var(--color-primary);
+    background: var(--color-surface-alt);
+    border-radius: 50%;
+}
+
+.exam-question__text { margin: 0.25rem 0 0; font-weight: 600; }
+
+.exam-options {
+    display: grid;
+    gap: var(--space-xs);
+    margin-top: var(--space-md);
+}
+
+.exam-option {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-sm) var(--space-md);
+    cursor: pointer;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+}
+
+.exam-option:hover { border-color: var(--color-primary); }
+.exam-option input { accent-color: var(--color-primary); }
+.exam-option:has(input:checked) {
+    border-color: var(--color-primary);
+    background: var(--color-surface-alt);
+}
+
+.exam-submit {
+    padding: var(--space-lg);
+    text-align: center;
+    background: var(--color-surface-alt);
+    border-radius: var(--radius-lg);
+}
+
+/* --- مرور پاسخ‌ها --- */
+.exam-review {
+    list-style: none;
+    margin: var(--space-md) 0 0;
+    padding: 0;
+    display: grid;
+    gap: var(--space-xs);
+}
+
+.exam-review li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-sm);
+    padding: var(--space-sm) var(--space-md);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+}
+
+.exam-review li.is-correct {
+    border-color: var(--color-success);
+    background: rgba(30, 132, 73, 0.06);
+}
+
+.exam-review li.is-chosen {
+    border-color: var(--color-danger);
+    background: rgba(192, 57, 43, 0.06);
+}
+
+.exam-review small { color: var(--color-text-light); }
+
+.exam-explanation {
+    margin: var(--space-md) 0 0;
+    padding: var(--space-sm) var(--space-md);
+    font-size: 0.9rem;
+    background: var(--color-surface-alt);
+    border-radius: var(--radius-md);
+}
+
+/* --- کارنامه --- */
+.result-card {
+    padding: var(--space-xl);
+    text-align: center;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface);
+}
+
+.result-card.is-passed { border-color: var(--color-success); }
+.result-card.is-failed { border-color: var(--color-danger); }
+
+.result-card__label { display: block; font-weight: 700; }
+.result-card.is-passed .result-card__label { color: var(--color-success); }
+.result-card.is-failed .result-card__label { color: var(--color-danger); }
+
+.result-card__score {
+    display: block;
+    font-size: 3rem;
+    font-weight: 800;
+    line-height: 1.2;
+}
+
+.result-card__meta { color: var(--color-text-light); font-size: 0.9rem; }
+
+/* --- فهرست کارنامه‌ها --- */
+.attempt-list { list-style: none; margin: 0; padding: 0; }
+
+.attempt-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    flex-wrap: wrap;
+    padding: var(--space-md);
+    margin-bottom: var(--space-sm);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+}
+
+.attempt-row--passed { border-inline-start: 4px solid var(--color-success); }
+.attempt-row--failed { border-inline-start: 4px solid var(--color-danger); }
+
+.attempt-row__main { flex: 1 1 14rem; }
+.attempt-row__score { text-align: center; min-width: 6rem; }
+.attempt-row__action { margin-inline-start: auto; }
+
+.attempt-score { display: block; font-size: 1.25rem; font-weight: 700; }
+.attempt-result { font-size: 0.85rem; color: var(--color-text-light); }
+.attempt-row--passed .attempt-result { color: var(--color-success); }
+.attempt-row--failed .attempt-result { color: var(--color-danger); }
+
+@media (max-width: 575.98px) {
+    .attempt-row__action { margin-inline-start: 0; width: 100%; }
+    .attempt-row__action .btn { width: 100%; }
+}
+
+/* =========================================================================
+   فاز ۱۷ — گواهی
+   ========================================================================= */
+.certificate-card {
+    padding: var(--space-xl);
+    text-align: center;
+    background: var(--color-surface);
+    border: 2px solid var(--color-primary);
+    border-radius: var(--radius-lg);
+}
+
+.certificate-card.is-invalid { border-color: var(--color-danger); }
+
+.certificate-card__holder {
+    margin: 0 0 var(--space-md);
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--color-secondary);
+}
+
+.certificate-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    flex-wrap: wrap;
+    padding: var(--space-md);
+    margin-bottom: var(--space-sm);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+}
+
+.certificate-row--ready { border-style: dashed; border-color: var(--color-primary); }
+.certificate-row--invalid { opacity: 0.8; }
+.certificate-row__main { flex: 1 1 14rem; }
+.certificate-row__action { margin-inline-start: auto; }
+
+.certificate-status {
+    display: inline-block;
+    padding: 0.15rem 0.6rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    border-radius: var(--radius-sm);
+    color: var(--color-success);
+    background: rgba(30, 132, 73, 0.1);
+}
+
+.certificate-status--revoked {
+    color: var(--color-danger);
+    background: rgba(192, 57, 43, 0.1);
+}
+
+@media (max-width: 575.98px) {
+    .certificate-row__action { margin-inline-start: 0; width: 100%; }
+    .certificate-row__action .btn { width: 100%; }
+}
+
+/* =========================================================================
+   فاز ۱۸ — نتیجه استعلام گواهی
+   ========================================================================= */
+.verify-result {
+    padding: var(--space-lg);
+    text-align: center;
+    background: var(--color-surface);
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-lg);
+}
+
+.verify-result--valid { border-color: var(--color-success); }
+.verify-result--revoked { border-color: var(--color-danger); }
+.verify-result--expired { border-color: var(--color-warning); }
+
+.verify-result__badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-bottom: var(--space-md);
+    font-weight: 700;
+}
+
+.verify-result--valid .verify-result__badge { color: var(--color-success); }
+.verify-result--revoked .verify-result__badge { color: var(--color-danger); }
+.verify-result--expired .verify-result__badge { color: var(--color-warning); }
+
+.verify-result__note {
+    margin: var(--space-md) 0 0;
+    font-size: 0.85rem;
+    color: var(--color-text-light);
+}
+
+/* =========================================================================
+   فاز ۱۹ — مقاله و خبر
+   ========================================================================= */
+.post-card {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    transition: border-color 0.2s ease, transform 0.2s ease;
+}
+
+.post-card:hover { border-color: var(--color-primary); transform: translateY(-2px); }
+
+.post-card__cover {
+    position: relative;
+    display: block;
+    aspect-ratio: 16 / 9;
+    background: var(--color-surface-alt);
+}
+
+.post-card__cover img { width: 100%; height: 100%; object-fit: cover; }
+
+.post-card__placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--color-text-light);
+}
+
+.post-card__type {
+    position: absolute;
+    inset-inline-start: var(--space-sm);
+    inset-block-start: var(--space-sm);
+    padding: 0.1rem 0.5rem;
+    font-size: 0.75rem;
+    color: #fff;
+    background: var(--color-secondary);
+    border-radius: var(--radius-sm);
+}
+
+.post-card__body {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    gap: var(--space-xs);
+    padding: var(--space-md);
+}
+
+.post-card__meta { font-size: 0.8rem; color: var(--color-text-light); }
+.post-card__title { margin: 0; font-size: 1.05rem; line-height: 1.6; }
+.post-card__title a { color: var(--color-text); }
+.post-card__title a:hover { color: var(--color-primary); }
+.post-card__summary { margin: 0; font-size: 0.9rem; color: var(--color-text-light); }
+
+.post-card__foot {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    margin-top: auto;
+    padding-top: var(--space-sm);
+    font-size: 0.8rem;
+    color: var(--color-text-light);
+}
+
+/* --- صفحه مطلب --- */
+.post-detail__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-md);
+    margin: var(--space-md) 0;
+    font-size: 0.85rem;
+    color: var(--color-text-light);
+}
+
+.post-detail__meta span { display: inline-flex; align-items: center; gap: 0.3rem; }
+
+.post-detail__cover {
+    width: 100%;
+    margin-bottom: var(--space-lg);
+    border-radius: var(--radius-lg);
+}
+
+.post-detail__content { line-height: 2.1; }
+
+/* --- ستون کناری --- */
+.blog-category-list,
+.blog-featured-list { list-style: none; margin: 0; padding: 0; }
+
+.blog-category-list a {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-sm);
+    padding: var(--space-xs) 0;
+    color: var(--color-text);
+}
+
+.blog-category-list a:hover,
+.blog-category-list a.is-active { color: var(--color-primary); font-weight: 600; }
+.blog-category-list small { color: var(--color-text-light); }
+
+.blog-featured-list li { padding: var(--space-xs) 0; border-bottom: 1px solid var(--color-border); }
+.blog-featured-list li:last-child { border-bottom: 0; }
+.blog-featured-list a { display: block; color: var(--color-text); font-size: 0.9rem; }
+.blog-featured-list a:hover { color: var(--color-primary); }
+.blog-featured-list small { color: var(--color-text-light); font-size: 0.75rem; }

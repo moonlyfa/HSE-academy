@@ -99,6 +99,9 @@
                             <span class="stat-card__label">دوره در جریان</span>
                         </div>
                     </div>
+                    {# «درس» و «دقیقه آموزش» از درس‌های آنلاین می‌آیند؛ دانشجوی دوره حضوری #}
+                    {# به‌جایش تعداد گواهی‌هایش را می‌بیند. #}
+                    {% if online_courses_enabled %}
                     <div class="col-md-3 col-6">
                         <div class="stat-card">
                             <span class="stat-card__value">{{ stats.completed_lessons|fa_digits }}</span>
@@ -111,6 +114,14 @@
                             <span class="stat-card__label">دقیقه آموزش</span>
                         </div>
                     </div>
+                    {% else %}
+                    <div class="col-md-3 col-6">
+                        <div class="stat-card">
+                            <span class="stat-card__value">{{ certificate_count|fa_digits }}</span>
+                            <span class="stat-card__label">گواهی صادرشده</span>
+                        </div>
+                    </div>
+                    {% endif %}
                     <div class="col-md-3 col-6">
                         <div class="stat-card">
                             <span class="stat-card__value">{{ stats.finished_courses|fa_digits }}</span>
@@ -118,6 +129,19 @@
                         </div>
                     </div>
                 </div>
+
+                {# --- نزدیک‌ترین کلاس‌های آنلاین --- #}
+                {% if session_rows %}
+                    <div class="section-head d-flex justify-content-between align-items-end flex-wrap gap-2 mt-4 mb-3">
+                        <h2 class="h6 m-0">کلاس‌های آنلاین پیش‌رو</h2>
+                        <a class="btn btn-outline-brand btn-sm" href="{% url 'courses:my_sessions' %}">
+                            <span>همه کلاس‌ها</span>
+                            {% icon "arrow-left" size=16 %}
+                        </a>
+                    </div>
+
+                    {% include "courses/partials/online_sessions.html" with rows=session_rows show_course=True %}
+                {% endif %}
 
                 {% if recent_courses %}
                     <div class="section-head d-flex justify-content-between align-items-end flex-wrap gap-2 mt-4 mb-3">

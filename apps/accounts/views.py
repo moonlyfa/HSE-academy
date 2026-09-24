@@ -21,6 +21,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 
+from apps.courses.live import upcoming_session_rows
 from apps.courses.progress import learner_courses, learner_stats
 
 from .forms import (
@@ -37,6 +38,8 @@ from .forms import (
 from .models import OtpPurpose
 from .services.identity import verify_identity
 from .services.otp import seconds_until_resend, send_otp, verify_otp
+from apps.core.throttling import PASSWORD_RESET_LIMIT, REGISTRATION_LIMIT
+
 from .throttling import (
     LOCKOUT_SECONDS,
     get_client_ip,
@@ -200,9 +203,19 @@ def register_view(request: HttpRequest) -> HttpResponse:
     form = RegisterMobileForm()
 
     if request.method == "POST":
+        # سرویس پیامک برای هر شماره سقف دارد، اما یک مهاجم می‌تواند با
+        # هزار شماره مختلف کار کند؛ این سقف روی خود IP است.
+        if REGISTRATION_LIMIT.is_exceeded(request):
+            messages.error(
+                request,
+                "تعداد تلاش‌های ثبت‌نام از این دستگاه زیاد بوده است. کمی بعد دوباره تلاش کنید.",
+            )
+            return render(request, "accounts/register_mobile.html", {"form": form})
+
         form = RegisterMobileForm(request.POST)
         if form.is_valid():
             mobile = form.cleaned_data["mobile"]
+            REGISTRATION_LIMIT.record(request)
 
             if _send_and_report(request, mobile, OtpPurpose.REGISTER):
                 _set_pending_mobile(request, mobile, OtpPurpose.REGISTER)
@@ -365,9 +378,17 @@ def password_reset_view(request: HttpRequest) -> HttpResponse:
     form = PasswordResetMobileForm()
 
     if request.method == "POST":
+        if PASSWORD_RESET_LIMIT.is_exceeded(request):
+            messages.error(
+                request,
+                "تعداد درخواست‌های بازیابی از این دستگاه زیاد بوده است. کمی بعد دوباره تلاش کنید.",
+            )
+            return render(request, "accounts/password_reset.html", {"form": form})
+
         form = PasswordResetMobileForm(request.POST)
         if form.is_valid():
             mobile = form.cleaned_data["mobile"]
+            PASSWORD_RESET_LIMIT.record(request)
 
             # اگر شماره در سایت نباشد، عمداً همان پیام موفقیت را نشان
             # می‌دهیم و کدی نمی‌فرستیم. این‌طور کسی نمی‌تواند با این فرم
@@ -585,14 +606,25 @@ def dashboard_view(request: HttpRequest) -> HttpResponse:
     # که همین حالا تمامش کرده است.
     current = courses[0] if courses else None
 
+    from apps.certificates.models import Certificate, CertificateStatus
+
     return render(
         request,
         "accounts/dashboard.html",
         {
             "stats": learner_stats(request.user),
+            # برای دوره حضوری «درس تکمیل‌شده» و «دقیقه آموزش» معنا ندارد؛
+            # داشبورد به‌جایش گواهی‌های صادرشده را می‌شمارد.
+            "certificate_count": Certificate.objects.filter(
+                user=request.user, status=CertificateStatus.ACTIVE
+            ).count(),
             "recent_courses": courses[:3],
             "current_progress": current,
             "resume_lesson": current.resume_lesson if current else None,
+            # نزدیک‌ترین کلاس‌های آنلاین. «کلاس بعدی من کِی است؟» سؤالی
+            # است که دانشجو هر روز می‌پرسد؛ جوابش باید در همان صفحه اول
+            # باشد، نه دو کلیک آن‌طرف‌تر.
+            "session_rows": upcoming_session_rows(request.user, limit=3),
         },
     )
 

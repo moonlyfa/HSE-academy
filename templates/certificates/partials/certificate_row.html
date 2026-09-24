@@ -1,0 +1,23 @@
+{% load core_extras %}
+<div class="certificate-row {% if not certificate.is_valid %}certificate-row--invalid{% endif %}">
+    <div class="certificate-row__main">
+        <strong class="d-block">{{ certificate.course_title }}</strong>
+        <span class="small ltr d-block">{{ certificate.certificate_code }}</span>
+        <span class="small text-muted">
+            صدور: {{ certificate.issued_at|jalali }}
+            {% if certificate.score is not None %}
+                · نمره: {{ certificate.score|fa_digits }}٪
+            {% endif %}
+        </span>
+    </div>
+
+    <span class="certificate-status certificate-status--{{ certificate.status }}">
+        {{ certificate.status_label }}
+    </span>
+
+    <div class="certificate-row__action">
+        <a class="btn btn-outline-brand btn-sm" href="{{ certificate.get_absolute_url }}">
+            مشاهده
+        </a>
+    </div>
+</div>

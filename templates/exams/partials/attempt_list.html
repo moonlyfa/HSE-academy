@@ -1,0 +1,42 @@
+{% load core_extras %}
+{# فهرست کارنامه‌ها — در صفحه آزمون و در داشبورد استفاده می‌شود #}
+<ul class="attempt-list">
+    {% for attempt in attempts %}
+        <li class="attempt-row {% if attempt.is_finished %}{% if attempt.is_passed %}attempt-row--passed{% else %}attempt-row--failed{% endif %}{% endif %}">
+            <div class="attempt-row__main">
+                {% if show_exam %}
+                    <strong class="d-block">{{ attempt.exam.title }}</strong>
+                    <a class="small" href="{{ attempt.exam.course.get_absolute_url }}">
+                        {{ attempt.exam.course.title }}
+                    </a>
+                {% endif %}
+                <span class="small text-muted d-block">
+                    {{ attempt.started_at|jalali_time }}
+                </span>
+            </div>
+
+            <div class="attempt-row__score">
+                {% if attempt.is_finished %}
+                    <strong class="attempt-score">{{ attempt.score|fa_digits }}٪</strong>
+                    <span class="attempt-result">
+                        {% if attempt.is_passed %}قبول{% else %}مردود{% endif %}
+                    </span>
+                {% else %}
+                    <span class="attempt-result">در حال انجام</span>
+                {% endif %}
+            </div>
+
+            <div class="attempt-row__action">
+                {% if attempt.is_finished %}
+                    <a class="btn btn-outline-brand btn-sm" href="{{ attempt.get_absolute_url }}">
+                        مشاهده کارنامه
+                    </a>
+                {% else %}
+                    <a class="btn btn-primary btn-sm" href="{% url 'exams:take' attempt.pk %}">
+                        ادامه آزمون
+                    </a>
+                {% endif %}
+            </div>
+        </li>
+    {% endfor %}
+</ul>

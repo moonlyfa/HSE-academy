@@ -7,11 +7,12 @@
 """
 
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from apps.courses.enrollment import enroll
 from apps.courses.models import (
+    CourseType,
     Course,
     CourseCategory,
     EnrollmentSource,
@@ -39,6 +40,7 @@ class ProgressTestMixin:
         cls.category = CourseCategory.objects.create(name="ایمنی", slug="safety")
 
         cls.course = Course.objects.create(
+            course_type=CourseType.OFFLINE_RECORDED,
             title="دوره رایگان",
             slug="free-course",
             category=cls.category,
@@ -80,6 +82,7 @@ class ProgressTestMixin:
         )
 
 
+@override_settings(ONLINE_COURSES_ENABLED=True)
 class CourseProgressCalculationTests(ProgressTestMixin, TestCase):
     def test_no_progress_means_zero_percent(self):
         progress = course_progress(self.student, self.course)
@@ -104,6 +107,7 @@ class CourseProgressCalculationTests(ProgressTestMixin, TestCase):
 
     def test_course_without_lessons_does_not_divide_by_zero(self):
         empty = Course.objects.create(
+            course_type=CourseType.OFFLINE_RECORDED,
             title="بدون درس", slug="empty", category=self.category, is_published=True
         )
 
@@ -165,6 +169,7 @@ class CourseProgressCalculationTests(ProgressTestMixin, TestCase):
         self.assertEqual(course_progress(self.student, self.course).resume_lesson, self.lesson_b)
 
 
+@override_settings(ONLINE_COURSES_ENABLED=True)
 class ProgressRecordingTests(ProgressTestMixin, TestCase):
     def test_opening_a_lesson_creates_one_record(self):
         record_view(self.student, self.lesson_a)
@@ -206,10 +211,12 @@ class ProgressRecordingTests(ProgressTestMixin, TestCase):
         self.assertEqual(LessonProgress.objects.get().last_position_seconds, 0)
 
 
+@override_settings(ONLINE_COURSES_ENABLED=True)
 class LearnerOverviewTests(ProgressTestMixin, TestCase):
     def test_my_courses_lists_enrolled_courses_only(self):
         """دوره‌ای که در آن ثبت‌نام نکرده‌اید، «دوره من» نیست."""
         other_course = Course.objects.create(
+            course_type=CourseType.OFFLINE_RECORDED,
             title="دوره دست‌نخورده", slug="untouched", category=self.category, is_published=True
         )
         Section.objects.create(course=other_course, title="فصل")
@@ -231,6 +238,7 @@ class LearnerOverviewTests(ProgressTestMixin, TestCase):
     def test_watching_a_free_preview_does_not_add_the_course(self):
         """دیدن یک درس نمونه هنوز «دوره من» نیست."""
         paid = Course.objects.create(
+            course_type=CourseType.OFFLINE_RECORDED,
             title="دوره پولی", slug="paid", category=self.category,
             price=900_000, is_published=True,
         )
@@ -246,6 +254,7 @@ class LearnerOverviewTests(ProgressTestMixin, TestCase):
 
     def test_my_courses_are_sorted_by_most_recent_activity(self):
         second = Course.objects.create(
+            course_type=CourseType.OFFLINE_RECORDED,
             title="دوره دوم", slug="second", category=self.category, price=0, is_published=True
         )
         second_lesson = Lesson.objects.create(
@@ -306,6 +315,7 @@ class LearnerOverviewTests(ProgressTestMixin, TestCase):
         self.assertEqual(learner_courses(self.student), [])
 
 
+@override_settings(ONLINE_COURSES_ENABLED=True)
 class LessonCompletionViewTests(ProgressTestMixin, TestCase):
     def setUp(self):
         self.client.force_login(self.student)
@@ -346,6 +356,7 @@ class LessonCompletionViewTests(ProgressTestMixin, TestCase):
 
     def test_a_locked_lesson_cannot_be_marked_complete(self):
         paid = Course.objects.create(
+            course_type=CourseType.OFFLINE_RECORDED,
             title="دوره پولی",
             slug="paid",
             category=self.category,
@@ -363,6 +374,7 @@ class LessonCompletionViewTests(ProgressTestMixin, TestCase):
         self.assertEqual(LessonProgress.objects.count(), 0)
 
 
+@override_settings(ONLINE_COURSES_ENABLED=True)
 class LessonPositionViewTests(ProgressTestMixin, TestCase):
     def setUp(self):
         self.client.force_login(self.student)
@@ -388,6 +400,7 @@ class LessonPositionViewTests(ProgressTestMixin, TestCase):
         self.assertEqual(LessonProgress.objects.count(), 0)
 
 
+@override_settings(ONLINE_COURSES_ENABLED=True)
 class DashboardTests(ProgressTestMixin, TestCase):
     def setUp(self):
         self.client.force_login(self.student)
@@ -457,6 +470,7 @@ class DashboardTests(ProgressTestMixin, TestCase):
                 self.assertContains(response, 'name="robots"')
 
 
+@override_settings(ONLINE_COURSES_ENABLED=True)
 class LessonPageProgressTests(ProgressTestMixin, TestCase):
     def test_opening_a_lesson_records_it(self):
         self.client.force_login(self.student)
@@ -468,6 +482,7 @@ class LessonPageProgressTests(ProgressTestMixin, TestCase):
 
     def test_a_locked_lesson_is_not_recorded_as_viewed(self):
         paid = Course.objects.create(
+            course_type=CourseType.OFFLINE_RECORDED,
             title="دوره پولی",
             slug="paid",
             category=self.category,

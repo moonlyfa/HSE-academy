@@ -119,7 +119,10 @@ def icon(name: str, size: int = 24, css_class: str = "") -> str:
     )
 
 
-@register.filter(name="jalali")
+# expects_localtime=True یعنی جنگو پیش از رسیدن مقدار به این فیلتر، آن را
+# به ساعت محلی (Asia/Tehran) تبدیل می‌کند. بدون این، زمانِ ذخیره‌شده که
+# UTC است چاپ می‌شد و کلاس ساعت ۲۱:۰۰ تهران، «۱۷:۳۰ روز قبل» دیده می‌شد.
+@register.filter(name="jalali", expects_localtime=True)
 def jalali(value, with_weekday: bool = False) -> str:
     """
     تبدیل تاریخ میلادی به شمسی در قالب.
@@ -129,6 +132,21 @@ def jalali(value, with_weekday: bool = False) -> str:
     if value is None:
         return ""
     return to_jalali_string(value, with_weekday=with_weekday)
+
+
+@register.filter(name="jalali_time", expects_localtime=True)
+def jalali_time(value, with_weekday: bool = False) -> str:
+    """
+    تاریخ و ساعت با هم — برای رویدادهای زمان‌دار مثل کلاس آنلاین.
+
+    نمونه: {{ session.starts_at|jalali_time }}  →  ۱۱ شهریور ۱۴۰۵ ساعت ۱۸:۳۰
+    """
+    if value is None:
+        return ""
+
+    date_text = to_jalali_string(value, with_weekday=with_weekday)
+    clock = to_persian_digits(f"{value:%H:%M}")
+    return f"{date_text} ساعت {clock}"
 
 
 @register.filter(name="fa_digits")
@@ -197,11 +215,18 @@ def static_v(path: str) -> str:
 # json.dumps این کار را درست انجام می‌دهد و ما هم < را جداگانه بی‌اثر می‌کنیم.
 
 
-def _json_ld(data: dict) -> str:
-    """تبدیل دیکشنری پایتون به تگ <script> امن."""
+def _json_ld(data: dict, request=None) -> str:
+    """
+    تبدیل دیکشنری پایتون به تگ <script> امن.
+
+    `nonce` از میان‌افزار امنیتی می‌آید تا این بلوک‌ها در مرورگرهایی که
+    CSP را روی داده‌های درون‌خطی هم اعمال می‌کنند حذف نشوند.
+    """
     payload = json.dumps(data, ensure_ascii=False).replace("<", "\\u003c")
+    nonce = getattr(request, "csp_nonce", "") if request is not None else ""
+    nonce_attr = f' nonce="{nonce}"' if nonce else ""
     return mark_safe(  # noqa: S308 — خروجی با json.dumps ساخته شده و < خنثی شده است
-        f'<script type="application/ld+json">{payload}</script>'
+        f'<script type="application/ld+json"{nonce_attr}>{payload}</script>'
     )
 
 
@@ -243,7 +268,8 @@ def breadcrumb_jsonld(context, items, current: str) -> str:
             "@context": "https://schema.org",
             "@type": "BreadcrumbList",
             "itemListElement": elements,
-        }
+        },
+        request,
     )
 
 
@@ -300,11 +326,14 @@ def course_jsonld(context, course) -> str:
     instance = {
         "@type": "CourseInstance",
         "courseMode": {
+            "in_person": "onsite",
             "online_live": "online",
             "offline_recorded": "online",
             "hybrid": "blended",
-        }.get(course.course_type, "online"),
+        }.get(course.course_type, "onsite"),
     }
+    if course.is_in_person and course.location:
+        instance["location"] = {"@type": "Place", "name": course.location}
     if course.start_date:
         instance["startDate"] = course.start_date.isoformat()
     if course.end_date:
@@ -313,4 +342,189 @@ def course_jsonld(context, course) -> str:
         instance["courseWorkload"] = f"PT{course.duration_hours}H"
     data["hasCourseInstance"] = [instance]
 
-    return _json_ld(data)
+    return _json_ld(data, request)
+
+
+@register.simple_tag(takes_context=True)
+def organization_jsonld(context) -> str:
+    """
+    معرفی خود آکادمی به موتور جست‌وجو.
+
+    این همان چیزی است که «کارت دانش» (Knowledge Panel) کنار نتایج از روی
+    آن ساخته می‌شود: نام، لوگو، راه تماس و صفحه‌های رسمی. فقط یک‌بار و در
+    صفحه اصلی می‌آید؛ تکرارش در همه صفحه‌ها چیزی اضافه نمی‌کند.
+    """
+    request = context.get("request")
+    site = context.get("site")
+    if request is None or site is None:
+        return ""
+
+    data = {
+        "@context": "https://schema.org",
+        "@type": "EducationalOrganization",
+        "name": site.site_name,
+        "url": request.build_absolute_uri("/"),
+        "description": site.meta_description or site.site_tagline,
+        "inLanguage": "fa-IR",
+    }
+
+    if site.logo:
+        data["logo"] = request.build_absolute_uri(site.logo.url)
+
+    if site.phone or site.email:
+        contact = {"@type": "ContactPoint", "contactType": "customer support"}
+        if site.phone:
+            contact["telephone"] = site.phone
+        if site.email:
+            contact["email"] = site.email
+        data["contactPoint"] = [contact]
+
+    if site.address:
+        data["address"] = {"@type": "PostalAddress", "streetAddress": site.address}
+
+    # فقط شبکه‌هایی که ادمین واقعاً پر کرده است.
+    social = [
+        url
+        for url in (
+            site.instagram_url,
+            site.telegram_url,
+            site.linkedin_url,
+            site.whatsapp_url,
+        )
+        if url
+    ]
+    if social:
+        data["sameAs"] = social
+
+    return _json_ld(data, request)
+
+
+@register.simple_tag(takes_context=True)
+def website_jsonld(context) -> str:
+    """
+    معرفی خود سایت، به‌همراه راه جست‌وجو در آن.
+
+    `SearchAction` باعث می‌شود گوگل زیر نتیجه سایت، یک کادر جست‌وجوی
+    مخصوص همین سایت نشان بدهد.
+    """
+    request = context.get("request")
+    site = context.get("site")
+    if request is None or site is None:
+        return ""
+
+    home = request.build_absolute_uri("/")
+    search = request.build_absolute_uri(reverse("core:search"))
+
+    return _json_ld(
+        {
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            "name": site.site_name,
+            "url": home,
+            "inLanguage": "fa-IR",
+            "potentialAction": {
+                "@type": "SearchAction",
+                "target": {
+                    "@type": "EntryPoint",
+                    "urlTemplate": f"{search}?q={{search_term_string}}",
+                },
+                "query-input": "required name=search_term_string",
+            },
+        },
+        request,
+    )
+
+
+@register.simple_tag(takes_context=True)
+def article_jsonld(context, post) -> str:
+    """
+    معرفی ماشین‌خوان یک مقاله یا خبر.
+
+    نوع خبر (`NewsArticle`) از نوع مقاله جداست چون گوگل خبرها را در
+    بخش جداگانه‌ای نشان می‌دهد.
+    """
+    request = context.get("request")
+    site = context.get("site")
+    if request is None:
+        return ""
+
+    site_name = getattr(site, "site_name", settings.SITE_NAME)
+
+    data = {
+        "@context": "https://schema.org",
+        "@type": "NewsArticle" if post.post_type == "news" else "Article",
+        "headline": post.title[:110],  # حد استاندارد گوگل برای عنوان
+        "description": post.meta_description or post.summary,
+        "inLanguage": "fa-IR",
+        "datePublished": post.published_at.isoformat(),
+        "dateModified": post.updated_at.isoformat(),
+        "mainEntityOfPage": request.build_absolute_uri(post.get_absolute_url()),
+        "author": {"@type": "Person", "name": post.author_name},
+        "publisher": {"@type": "Organization", "name": site_name},
+    }
+
+    if post.cover:
+        data["image"] = request.build_absolute_uri(post.cover.url)
+
+    return _json_ld(data, request)
+
+
+@register.simple_tag(takes_context=True)
+def faq_jsonld(context, faqs) -> str:
+    """
+    سؤالات متداول به شکل ماشین‌خوان.
+
+    نتیجه‌اش این است که سؤال و جواب‌ها می‌توانند مستقیماً زیر نتیجه سایت
+    در گوگل باز شوند. فقط سؤال‌هایی که در خود صفحه هم دیده می‌شوند
+    اینجا می‌آیند؛ همان قاعده همیشگی: داده ساختاریافته نباید چیزی بگوید
+    که روی صفحه نیست.
+    """
+    questions = [
+        {
+            "@type": "Question",
+            "name": faq.question,
+            "acceptedAnswer": {"@type": "Answer", "text": faq.answer},
+        }
+        for faq in faqs
+    ]
+
+    if not questions:
+        return ""
+
+    return _json_ld(
+        {
+            "@context": "https://schema.org",
+            "@type": "FAQPage",
+            "mainEntity": questions,
+        },
+        context.get("request"),
+    )
+
+
+@register.simple_tag(takes_context=True)
+def person_jsonld(context, instructor) -> str:
+    """معرفی ماشین‌خوان یک مدرس."""
+    request = context.get("request")
+    site = context.get("site")
+    if request is None:
+        return ""
+
+    data = {
+        "@context": "https://schema.org",
+        "@type": "Person",
+        "name": instructor.display_name,
+        "url": request.build_absolute_uri(instructor.get_absolute_url()),
+        "worksFor": {
+            "@type": "EducationalOrganization",
+            "name": getattr(site, "site_name", settings.SITE_NAME),
+        },
+    }
+
+    if instructor.specialty:
+        data["jobTitle"] = instructor.specialty
+    if instructor.bio:
+        data["description"] = instructor.bio
+    if instructor.avatar:
+        data["image"] = request.build_absolute_uri(instructor.avatar.url)
+
+    return _json_ld(data, request)

@@ -383,3 +383,87 @@
         window.addEventListener("pagehide", function () { save(video.currentTime); });
     });
 })();
+
+
+/* =========================================================================
+   آزمون: زمان‌سنج و ذخیره خودکار پاسخ‌ها
+   -------------------------------------------------------------------------
+   هر دو بخش اختیاری‌اند. اگر جاوااسکریپت خاموش باشد، آزمون همچنان یک فرم
+   معمولی است: دانشجو پاسخ می‌دهد و «ثبت نهایی» را می‌زند.
+
+   مهلت واقعی آزمون در سرور نگه داشته می‌شود. این شمارنده فقط به دانشجو
+   می‌گوید چقدر وقت دارد؛ دستکاری‌اش در مرورگر، یک ثانیه هم وقت اضافه
+   نمی‌دهد.
+   ========================================================================= */
+(function () {
+    "use strict";
+
+    const form = document.getElementById("exam-form");
+    if (!form) return;
+
+    function csrfToken() {
+        const field = form.querySelector("[name=csrfmiddlewaretoken]");
+        return field ? field.value : "";
+    }
+
+    /* --- ذخیره هر پاسخ، همان لحظه انتخاب ---
+       فایده‌اش وقتی معلوم می‌شود که مرورگر بسته شود یا مهلت تمام شود:
+       هرچه انتخاب شده بود، در سرور ثبت است. */
+    const answerUrl = form.getAttribute("data-answer-url");
+
+    form.querySelectorAll("input[type=radio][data-answer]").forEach(function (input) {
+        input.addEventListener("change", function () {
+            if (!answerUrl) return;
+
+            const body = new FormData();
+            body.append("csrfmiddlewaretoken", csrfToken());
+            body.append("answer", input.getAttribute("data-answer"));
+            body.append("option", input.value);
+
+            fetch(answerUrl, { method: "POST", body: body, keepalive: true }).catch(function () {
+                // اگر ذخیره خودکار کار نکند، پاسخ‌ها موقع ثبت نهایی می‌روند.
+            });
+        });
+    });
+
+    /* --- زمان‌سنج --- */
+    const timer = document.getElementById("exam-timer");
+    if (!timer) return;
+
+    const valueBox = timer.querySelector("[data-timer-value]");
+    let remaining = parseInt(timer.getAttribute("data-remaining"), 10);
+    if (isNaN(remaining)) return;
+
+    function persianDigits(text) {
+        const digits = "۰۱۲۳۴۵۶۷۸۹";
+        return text.replace(/[0-9]/g, function (d) { return digits[Number(d)]; });
+    }
+
+    function render() {
+        const minutes = Math.floor(remaining / 60);
+        const seconds = remaining % 60;
+        const text = String(minutes) + ":" + String(seconds).padStart(2, "0");
+        valueBox.textContent = persianDigits(text);
+
+        // پنج دقیقه آخر، شمارنده قرمز می‌شود.
+        timer.classList.toggle("is-urgent", remaining <= 300);
+    }
+
+    render();
+
+    const ticker = setInterval(function () {
+        remaining -= 1;
+
+        if (remaining <= 0) {
+            clearInterval(ticker);
+            remaining = 0;
+            render();
+            // پایان زمان یعنی همین برگه ثبت شود. سرور هم مستقل از این،
+            // پاسخ دیرتر از مهلت را نمی‌پذیرد.
+            form.submit();
+            return;
+        }
+
+        render();
+    }, 1000);
+})();

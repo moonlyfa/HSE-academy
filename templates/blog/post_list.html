@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% load core_extras %}
+
+{% block title %}{% if active_category %}{{ active_category.name }}{% else %}مقالات و اخبار{% endif %} — {{ site.site_name }}{% endblock %}
+{% block meta_description %}{% if active_category and active_category.meta_description %}{{ active_category.meta_description }}{% else %}مقاله‌های تخصصی و اخبار حوزه ایمنی، بهداشت و محیط زیست در {{ site.site_name }}.{% endif %}{% endblock %}
+{% block canonical %}{{ seo_canonical|default:request.build_absolute_uri }}{% endblock %}
+
+{% block breadcrumb %}
+    {% include "partials/breadcrumb.html" with items=breadcrumb_items current=breadcrumb_current %}
+{% endblock %}
+
+{% block content %}
+<section class="section pt-4">
+    <div class="container">
+
+        <div class="section-head">
+            <h1 class="h2">
+                {% if active_category %}{{ active_category.name }}{% else %}مقالات و اخبار{% endif %}
+            </h1>
+            <p class="m-0">
+                {% if active_category and active_category.description %}
+                    {{ active_category.description }}
+                {% else %}
+                    مطالب آموزشی، تحلیل‌ها و اخبار حوزه ایمنی، بهداشت و محیط زیست.
+                {% endif %}
+            </p>
+        </div>
+
+        <div class="row g-4">
+            <div class="col-lg-9">
+
+                {# --- نوار فیلتر --- #}
+                <form class="row g-2 mb-4" method="get">
+                    {% if active_category %}
+                        <input type="hidden" name="category" value="{{ active_category.slug }}">
+                    {% endif %}
+                    <div class="col-md-6">
+                        <label for="blog-search" class="visually-hidden">جست‌وجو در مطالب</label>
+                        <input type="search" class="form-control" id="blog-search"
+                               name="q" value="{{ query }}"
+                               placeholder="جست‌وجو در مطالب…">
+                    </div>
+                    <div class="col-md-4">
+                        <label for="blog-type" class="visually-hidden">نوع مطلب</label>
+                        <select class="form-select" id="blog-type" name="type">
+                            <option value="">همه مطالب</option>
+                            {% for value, label in post_types %}
+                                <option value="{{ value }}" {% if selected_type == value %}selected{% endif %}>
+                                    {{ label }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2 d-grid">
+                        <button type="submit" class="btn btn-primary">اعمال</button>
+                    </div>
+                </form>
+
+                {% if posts %}
+                    <p class="small text-muted">{{ total_count|fa_digits }} مطلب</p>
+
+                    <div class="row g-4">
+                        {% for post in posts %}
+                            <div class="col-md-6">
+                                {% include "blog/partials/post_card.html" with post=post %}
+                            </div>
+                        {% endfor %}
+                    </div>
+
+                    {% include "partials/pagination.html" with page_obj=page_obj querystring=querystring %}
+                {% else %}
+                    <div class="empty-state">
+                        {% icon "book" size=36 %}
+                        <p class="mt-3 mb-0">مطلبی با این مشخصات پیدا نشد.</p>
+                    </div>
+                {% endif %}
+            </div>
+
+            {# --- ستون کناری --- #}
+            <div class="col-lg-3">
+                <aside class="blog-sidebar">
+                    {% if categories %}
+                        <div class="content-block">
+                            <h2 class="h6">دسته‌بندی‌ها</h2>
+                            <ul class="blog-category-list">
+                                {% for category in categories %}
+                                    <li>
+                                        <a href="{{ category.get_absolute_url }}"
+                                           class="{% if active_category and active_category.pk == category.pk %}is-active{% endif %}">
+                                            <span>{{ category.name }}</span>
+                                            <small>{{ category.num_posts|fa_digits }}</small>
+                                        </a>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% endif %}
+
+                    {% if featured_posts %}
+                        <div class="content-block">
+                            <h2 class="h6">مطالب منتخب</h2>
+                            <ul class="blog-featured-list">
+                                {% for post in featured_posts %}
+                                    <li>
+                                        <a href="{{ post.get_absolute_url }}">{{ post.title }}</a>
+                                        <small>{{ post.published_at|jalali }}</small>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% endif %}
+                </aside>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

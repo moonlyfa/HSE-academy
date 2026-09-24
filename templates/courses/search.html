@@ -2,7 +2,7 @@
 {% load core_extras %}
 
 {% block title %}جست‌وجو{% if query %}: {{ query }}{% endif %} — {{ site.site_name }}{% endblock %}
-{% block extra_head %}<meta name="robots" content="noindex">{% endblock %}
+{% block canonical %}{{ seo_canonical|default:request.build_absolute_uri }}{% endblock %}
 
 {% block breadcrumb %}
     {% include "partials/breadcrumb.html" with current="نتایج جست‌وجو" %}

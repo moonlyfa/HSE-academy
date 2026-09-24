@@ -1,14 +1,18 @@
 """
-تصمیم‌گیری درباره اینکه چه کسی اجازه دیدن یک درس را دارد.
+تصمیم‌گیری درباره اینکه چه کسی اجازه دیدن محتوای یک دوره را دارد.
 
 چرا این منطق در یک فایل جدا و نه داخل Viewها؟
 چون همین یک تصمیم در چند جای مختلف لازم می‌شود: صفحه درس، تحویل فایل ویدیو،
-دانلود جزوه و بعداً صفحه آزمون. اگر این شرط را در هر جا دوباره بنویسیم، روزی
-یکی از آن‌ها یادمان می‌رود و همان یک نقطه، در پولی‌بودن کل دوره‌ها رخنه
-می‌اندازد. با یک تابع مرکزی، اصلاح در یک جا همه‌جا اعمال می‌شود.
+دانلود جزوه، ورود به کلاس آنلاین و بعداً صفحه آزمون. اگر این شرط را در هر جا
+دوباره بنویسیم، روزی یکی از آن‌ها یادمان می‌رود و همان یک نقطه، در پولی‌بودن
+کل دوره‌ها رخنه می‌اندازد. با یک تابع مرکزی، اصلاح در یک جا همه‌جا اعمال
+می‌شود.
 
-در فاز ۱۴ (ثبت‌نام و دسترسی) شرط «کاربر این دوره را خریده است» دقیقاً در
-همین تابع اضافه می‌شود و هیچ جای دیگری از پروژه لازم نیست عوض شود.
+سه تابع بیرونی دارد و هر سه به یک جا می‌رسند:
+
+    check_course_access   ← قاعده اصلی: این شخص به این دوره دسترسی دارد؟
+    check_lesson_access   ← همان، به‌علاوه شرط‌های خاص درس (انتشار، پیش‌نمایش)
+    check_session_access  ← همان، به‌علاوه شرط‌های خاص کلاس آنلاین (لغو، زمان)
 """
 
 from __future__ import annotations
@@ -65,7 +69,29 @@ def check_lesson_access(user, lesson) -> LessonAccess:
     if lesson.is_free_preview:
         return LessonAccess(True, "free_preview")
 
-    if staff:
+    return check_course_access(
+        user,
+        course,
+        purpose="دسترسی به این درس",
+        next_url=lesson.get_absolute_url(),
+    )
+
+
+def check_course_access(
+    user,
+    course,
+    *,
+    purpose: str = "دسترسی به این درس",
+    next_url: str = "",
+) -> LessonAccess:
+    """
+    آیا این کاربر به محتوای این دوره دسترسی دارد؟
+
+    این همان تصمیم مرکزی پروژه است و درس، فایل و کلاس آنلاین همگی از
+    همین‌جا می‌پرسند. `purpose` فقط متن پیام را طبیعی می‌کند («دسترسی به
+    این درس» در برابر «ورود به کلاس آنلاین»)؛ خودِ قاعده یکی است.
+    """
+    if _is_course_staff(user, course):
         return LessonAccess(True, "staff")
 
     # --- ثبت‌نام: تنها منبع حقیقت برای دسترسی ---
@@ -112,12 +138,13 @@ def check_lesson_access(user, lesson) -> LessonAccess:
                 "ثبت‌نام رایگان",
                 course.get_absolute_url(),
             )
+        login_url = reverse("accounts:login")
         return LessonAccess(
             False,
             "login_required",
-            "این دوره رایگان است؛ برای مشاهده درس‌ها وارد حساب خود شوید.",
+            f"این دوره رایگان است؛ برای {purpose} وارد حساب خود شوید.",
             "ورود یا ثبت‌نام",
-            f"{reverse('accounts:login')}?next={lesson.get_absolute_url()}",
+            f"{login_url}?next={next_url}" if next_url else login_url,
         )
 
     # برای مهمان هم همین پیام درست است، نه «وارد شوید»: ورود به سایت به
@@ -126,7 +153,65 @@ def check_lesson_access(user, lesson) -> LessonAccess:
     return LessonAccess(
         False,
         "purchase_required",
-        "برای دسترسی به این درس باید در دوره ثبت‌نام کنید.",
+        f"برای {purpose} باید در دوره ثبت‌نام کنید.",
         "ثبت‌نام در دوره",
         course.get_absolute_url(),
     )
+
+
+def check_session_access(user, session) -> LessonAccess:
+    """
+    آیا این کاربر می‌تواند همین حالا وارد این کلاس آنلاین شود؟
+
+    سه سؤال پشت سر هم پرسیده می‌شود و ترتیبشان مهم است:
+
+    ۱. آیا جلسه اصلاً برقرار است؟ (لغو نشده و لینک دارد)
+    ۲. آیا این شخص در دوره ثبت‌نام دارد؟
+    ۳. آیا الان زمانش است؟
+
+    مدیر و مدرسِ دوره از شرط زمان مستثنا هستند؛ آن‌ها باید بتوانند پیش
+    از دانشجوها کلاس را باز کنند و لینک را امتحان کنند.
+    """
+    course = session.course
+
+    if session.is_cancelled:
+        return LessonAccess(
+            False,
+            "session_cancelled",
+            session.cancel_reason or "این جلسه لغو شده است.",
+        )
+
+    access = check_course_access(
+        user,
+        course,
+        purpose="ورود به کلاس آنلاین",
+        next_url=course.get_absolute_url(),
+    )
+    if not access.allowed:
+        return access
+
+    if not session.has_link:
+        return LessonAccess(
+            False,
+            "session_no_link",
+            "لینک ورود این جلسه هنوز ثبت نشده است. کمی پیش از شروع کلاس دوباره سر بزنید.",
+        )
+
+    if access.reason == "staff":
+        return LessonAccess(True, "staff")
+
+    if session.is_finished:
+        return LessonAccess(
+            False,
+            "session_finished",
+            "این جلسه برگزار شده است.",
+        )
+
+    if not session.is_running:
+        return LessonAccess(
+            False,
+            "session_not_started",
+            "لینک ورود، کمی پیش از شروع کلاس فعال می‌شود.",
+        )
+
+    return LessonAccess(True, access.reason)

@@ -10,6 +10,7 @@ from datetime import timedelta
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -43,6 +44,10 @@ class OtpTestMixin:
 
     def setUp(self):
         super().setUp()
+        # شمارنده‌های محدودسازی نرخ (ارسال کد و سقف ثبت‌نام هر IP) در
+        # Cache می‌مانند و بین تست‌ها پاک نمی‌شوند؛ بدون این خط، تست‌ها به
+        # سقف یکدیگر می‌خورند و ترتیب اجرا روی نتیجه اثر می‌گذارد.
+        cache.clear()
         CapturingSmsProvider.sent = []
         patcher = patch(
             "apps.accounts.services.otp.get_sms_service",

@@ -4,6 +4,9 @@
 {% block title %}سؤالات متداول — {{ site.site_name }}{% endblock %}
 {% block meta_description %}پاسخ پرتکرارترین پرسش‌های دانشجویان درباره دوره‌ها، گواهی و شیوه برگزاری کلاس‌ها.{% endblock %}
 
+{# سؤال و جواب‌ها می‌توانند مستقیماً زیر نتیجه گوگل باز شوند #}
+{% block extra_head %}{% faq_jsonld faqs %}{% endblock %}
+
 {% block breadcrumb %}
     {% include "partials/breadcrumb.html" with current="سؤالات متداول" %}
 {% endblock %}

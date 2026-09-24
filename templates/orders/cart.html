@@ -35,7 +35,7 @@
                                     <a href="{{ line.course.get_absolute_url }}">{{ line.course.title }}</a>
                                 </h2>
                                 <div class="cart-line__meta">
-                                    <span>{% icon "video" size=15 %} {{ line.course.get_course_type_display }}</span>
+                                    <span>{% if line.course.is_in_person %}{% icon "location" size=15 %}{% else %}{% icon "video" size=15 %}{% endif %} {{ line.course.get_course_type_display }}</span>
                                     {% if line.course.duration_hours %}
                                         <span>{% icon "clock" size=15 %} {{ line.course.duration_hours|fa_digits }} ساعت</span>
                                     {% endif %}

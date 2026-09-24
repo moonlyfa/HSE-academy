@@ -60,12 +60,19 @@
                         </div>
                     {% endif %}
 
-                    {% if lesson.lesson_type == "live" and lesson.scheduled_at %}
+                    {% if session_rows %}
+                        {# کلاس آنلاین این درس. لینک ورود در HTML نوشته نمی‌شود؛ #}
+                        {# دکمه به Viewی می‌رود که ثبت‌نام را بررسی می‌کند.      #}
+                        <div class="content-block">
+                            <h2 class="h5">کلاس آنلاین این درس</h2>
+                            {% include "courses/partials/online_sessions.html" with rows=session_rows %}
+                        </div>
+                    {% elif lesson.lesson_type == "live" and lesson.scheduled_at %}
                         <div class="lesson-live">
                             {% icon "calendar" size=20 %}
                             <div>
                                 <strong class="d-block">جلسه آنلاین زنده</strong>
-                                <span>زمان برگزاری: {{ lesson.scheduled_at|jalali }}</span>
+                                <span>زمان برگزاری: {{ lesson.scheduled_at|jalali_time }}</span>
                                 <p class="m-0 small text-muted">
                                     لینک ورود به کلاس، پیش از شروع جلسه در همین صفحه قرار می‌گیرد.
                                 </p>

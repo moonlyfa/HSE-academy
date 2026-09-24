@@ -9,12 +9,28 @@
     <meta name="description" content="{% block meta_description %}{{ site.meta_description|default:site.site_tagline }}{% endblock %}">
     <link rel="canonical" href="{% block canonical %}{{ request.build_absolute_uri }}{% endblock %}">
 
+    {# --- دستور ایندکس --- #}
+    {# روی سرور آزمایشی (SEO_ALLOW_INDEXING=False) کل سایت بسته می‌شود. #}
+    {# صفحه‌های شخصی خودشان جداگانه noindex می‌گذارند.                  #}
+    {% if not seo_allow_indexing %}
+        <meta name="robots" content="noindex, nofollow">
+    {% elif page_noindex %}
+        <meta name="robots" content="noindex, follow">
+    {% endif %}
+
     {# --- OpenGraph: ظاهر لینک هنگام اشتراک‌گذاری در شبکه‌های اجتماعی --- #}
     <meta property="og:site_name" content="{{ site.site_name }}">
+    <meta property="og:locale" content="fa_IR">
+    <meta property="og:url" content="{% block og_url %}{{ request.build_absolute_uri }}{% endblock %}">
     <meta property="og:type" content="{% block og_type %}website{% endblock %}">
     <meta property="og:title" content="{% block og_title %}{{ site.site_name }}{% endblock %}">
     <meta property="og:description" content="{% block og_description %}{{ site.site_tagline }}{% endblock %}">
-    {% block og_image %}{% endblock %}
+    {% block og_image %}{% if site.logo %}<meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{{ site.logo.url }}">{% endif %}{% endblock %}
+
+    {# توییتر وقتی تگ اختصاصی نداشته باشد، خودش سراغ همین og:* بالا #}
+    {# می‌رود؛ پس فقط نوع کارت را اعلام می‌کنیم و عنوان و توضیح در یک #}
+    {# جا نگهداری می‌شوند.                                             #}
+    <meta name="twitter:card" content="summary_large_image">
 
     {# آیکون مرورگر: اگر ادمین آپلود نکرده باشد، از نسخه پیش‌فرض پروژه استفاده می‌شود #}
     {% if site.favicon %}

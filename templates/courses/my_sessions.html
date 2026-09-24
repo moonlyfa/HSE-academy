@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% load core_extras %}
+
+{% block title %}کلاس‌های آنلاین من — {{ site.site_name }}{% endblock %}
+{% block extra_head %}<meta name="robots" content="noindex">{% endblock %}
+
+{% block breadcrumb %}
+    {% include "partials/breadcrumb.html" with items=None current="کلاس‌های آنلاین من" %}
+{% endblock %}
+
+{% block content %}
+<section class="section pt-4">
+    <div class="container">
+        <div class="row g-4">
+            <div class="col-lg-3">
+                {% include "accounts/partials/sidebar.html" with dash_active="classes" %}
+            </div>
+
+            <div class="col-lg-9">
+                <div class="section-head">
+                    <h1 class="h3">کلاس‌های آنلاین من</h1>
+                    <p class="m-0">
+                        جلسه‌های زنده دوره‌هایی که در آن‌ها ثبت‌نام دارید.
+                        دکمه ورود کمی پیش از شروع هر کلاس فعال می‌شود.
+                    </p>
+                </div>
+
+                {% if upcoming_rows %}
+                    <div class="content-block">
+                        <h2 class="h5">کلاس‌های پیش‌رو</h2>
+                        {% include "courses/partials/online_sessions.html" with rows=upcoming_rows show_course=True %}
+                    </div>
+                {% else %}
+                    <div class="empty-state">
+                        {% icon "video" size=36 %}
+                        <p class="mt-3 mb-0">فعلاً کلاس آنلاینی برای شما برنامه‌ریزی نشده است.</p>
+                        <a class="btn btn-outline-primary btn-sm mt-3" href="{% url 'courses:list' %}">
+                            دیدن دوره‌ها
+                        </a>
+                    </div>
+                {% endif %}
+
+                {% if past_rows %}
+                    <div class="content-block mt-4">
+                        <h2 class="h5">کلاس‌های برگزارشده</h2>
+                        {% include "courses/partials/online_sessions.html" with rows=past_rows show_course=True %}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

@@ -58,6 +58,9 @@
                 <nav class="course-anchors" aria-label="بخش‌های این صفحه">
                     {% if course.full_description %}<a href="#about-course">درباره دوره</a>{% endif %}
                     {% if curriculum or course.syllabus_items %}<a href="#syllabus">سرفصل‌ها</a>{% endif %}
+                    {% if session_rows %}<a href="#online-sessions">کلاس‌های آنلاین</a>{% endif %}
+                    {% if exam_card %}<a href="#exam">آزمون</a>{% endif %}
+                    {% if certificate_card %}<a href="#certificate">گواهی</a>{% endif %}
                     {% if course.target_audience %}<a href="#audience">مخاطبان</a>{% endif %}
                     {% if course.prerequisites %}<a href="#prerequisites">پیش‌نیازها</a>{% endif %}
                     {% if course.instructor %}<a href="#instructor">مدرس</a>{% endif %}
@@ -112,6 +115,81 @@
                                 <li>{{ item }}</li>
                             {% endfor %}
                         </ol>
+                    </div>
+                {% endif %}
+
+                {% if session_rows %}
+                    <div class="content-block" id="online-sessions">
+                        <div class="d-flex justify-content-between align-items-end flex-wrap gap-2 mb-3">
+                            <h2 class="h4 m-0">کلاس‌های آنلاین</h2>
+                            <span class="small text-muted">
+                                زمان‌ها به وقت ایران است.
+                            </span>
+                        </div>
+
+                        {% include "courses/partials/online_sessions.html" with rows=session_rows %}
+
+                        <p class="small text-muted mt-3 mb-0">
+                            دکمه ورود به کلاس، کمی پیش از شروع هر جلسه و فقط برای
+                            دانشجویان ثبت‌نام‌شده فعال می‌شود.
+                        </p>
+                    </div>
+                {% endif %}
+
+                {% if exam_card %}
+                    <div class="content-block" id="exam">
+                        <h2 class="h4">آزمون پایان دوره</h2>
+
+                        <p>
+                            {{ exam_card.exam.questions_per_attempt|fa_digits }} سؤال ·
+                            {% if exam_card.exam.has_time_limit %}
+                                {{ exam_card.exam.time_limit_minutes|fa_digits }} دقیقه ·
+                            {% endif %}
+                            نمره قبولی {{ exam_card.exam.pass_score|fa_digits }}٪
+                        </p>
+
+                        {% if exam_card.best %}
+                            <p class="{% if exam_card.passed %}text-success{% else %}text-danger{% endif %}">
+                                بهترین نتیجه شما: {{ exam_card.best.score|fa_digits }}٪
+                                ({% if exam_card.passed %}قبول{% else %}مردود{% endif %})
+                            </p>
+                        {% endif %}
+
+                        <a class="btn btn-outline-brand" href="{{ exam_card.exam.get_absolute_url }}">
+                            {% icon "check" size=18 %}<span>صفحه آزمون</span>
+                        </a>
+                    </div>
+                {% endif %}
+
+                {% if certificate_card %}
+                    <div class="content-block" id="certificate">
+                        <h2 class="h4">گواهی پایان دوره</h2>
+
+                        {% if certificate_card.certificate %}
+                            <p>
+                                گواهی شما با کد
+                                <span class="ltr">{{ certificate_card.certificate.certificate_code }}</span>
+                                صادر شده است.
+                            </p>
+                            <a class="btn btn-outline-brand" href="{{ certificate_card.certificate.get_absolute_url }}">
+                                {% icon "certificate" size=18 %}<span>مشاهده گواهی</span>
+                            </a>
+                        {% elif certificate_card.eligibility.allowed %}
+                            <p>شرایط دریافت گواهی این دوره را دارید.</p>
+                            <form method="post" action="{% url 'certificates:issue' course.slug %}">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-primary">
+                                    {% icon "certificate" size=18 %}<span>دریافت گواهی</span>
+                                </button>
+                            </form>
+                        {% else %}
+                            <p class="mb-2">{{ certificate_card.eligibility.message }}</p>
+                            {% if certificate_card.eligibility.action_url %}
+                                <a class="btn btn-outline-brand btn-sm" href="{{ certificate_card.eligibility.action_url }}">
+                                    {{ certificate_card.eligibility.action_label }}
+                                </a>
+                            {% endif %}
+                        {% endif %}
                     </div>
                 {% endif %}
 
@@ -176,7 +254,7 @@
 
             {# --- کارت خرید --- #}
             <div class="col-lg-4">
-                <aside class="purchase-card">
+                <aside class="purchase-card" id="purchase">
                     <div class="purchase-card__price">
                         {% if course.is_free %}
                             <strong class="text-success">رایگان</strong>
@@ -204,11 +282,32 @@
                             </p>
                         {% endif %}
 
+                        {% if course.is_in_person %}
+                            <p class="purchase-card__note">
+                                {% if progress.is_finished %}
+                                    گذراندن این دوره برای شما تأیید شده است.
+                                {% else %}
+                                    زمان و محل کلاس حضوری در مشخصات همین دوره آمده است.
+                                {% endif %}
+                            </p>
+                        {% endif %}
+
                         {% if progress.resume_lesson %}
                             <a href="{{ progress.resume_lesson.get_absolute_url }}" class="btn btn-accent w-100 mt-2">
                                 {% if progress.is_finished %}مرور دوباره{% else %}ادامه یادگیری{% endif %}
                             </a>
                         {% endif %}
+                    {% elif course.registration_open and is_full %}
+                        <p class="purchase-card__status purchase-card__status--closed">
+                            {% icon "users" size=16 %} ظرفیت این دوره تکمیل شده است
+                        </p>
+                        <a href="{% url 'core:calendar' %}" class="btn btn-outline-brand w-100 mt-2">
+                            دوره‌های در حال ثبت‌نام
+                        </a>
+                        <p class="purchase-card__note">
+                            برای اطلاع از برگزاری دوباره این دوره
+                            <a href="{% url 'core:contact' %}?course={{ course.slug }}">با ما تماس بگیرید</a>.
+                        </p>
                     {% elif course.registration_open and course.is_free %}
                         <p class="purchase-card__status purchase-card__status--open">
                             {% icon "check" size=16 %} این دوره رایگان است
@@ -218,7 +317,7 @@
                             <form method="post" action="{% url 'courses:enroll_free' course.slug %}" class="mt-2">
                                 {% csrf_token %}
                                 <button type="submit" class="btn btn-accent w-100">
-                                    ثبت‌نام رایگان و شروع دوره
+                                    {% if course.is_in_person %}ثبت‌نام رایگان در دوره{% else %}ثبت‌نام رایگان و شروع دوره{% endif %}
                                 </button>
                             </form>
                         {% else %}
@@ -252,7 +351,11 @@
                         {% endif %}
 
                         <p class="purchase-card__note">
-                            پس از تکمیل خرید، دسترسی به همه درس‌های دوره فعال می‌شود.
+                            {% if course.is_in_person %}
+                                پس از تکمیل خرید، ثبت‌نام شما در این دوره حضوری قطعی می‌شود.
+                            {% else %}
+                                پس از تکمیل خرید، دسترسی به همه درس‌های دوره فعال می‌شود.
+                            {% endif %}
                         </p>
                     {% else %}
                         <p class="purchase-card__status purchase-card__status--closed">
@@ -264,12 +367,12 @@
                     {% endif %}
 
                     <ul class="purchase-card__specs">
-                        <li>{% icon "video" size=18 %}<span>شیوه برگزاری</span><strong>{{ course.get_course_type_display }}</strong></li>
+                        <li>{% if course.is_in_person %}{% icon "location" size=18 %}{% else %}{% icon "video" size=18 %}{% endif %}<span>شیوه برگزاری</span><strong>{{ course.get_course_type_display }}</strong></li>
                         <li>{% icon "chart" size=18 %}<span>سطح</span><strong>{{ course.get_level_display }}</strong></li>
                         {% if course.duration_hours %}
                             <li>{% icon "clock" size=18 %}<span>مدت</span><strong>{{ course.duration_hours|fa_digits }} ساعت</strong></li>
                         {% endif %}
-                        {% if course.lesson_count %}
+                        {% if course.has_online_content and course.lesson_count %}
                             <li>{% icon "book" size=18 %}<span>تعداد درس</span><strong>{{ course.lesson_count|fa_digits }} درس</strong></li>
                         {% endif %}
                         {% if course.start_date %}
@@ -279,15 +382,30 @@
                             <li>{% icon "calendar" size=18 %}<span>پایان</span><strong>{{ course.end_date|jalali }}</strong></li>
                         {% endif %}
                         {% if course.capacity %}
-                            <li>{% icon "users" size=18 %}<span>ظرفیت</span><strong>{{ course.capacity|fa_digits }} نفر</strong></li>
+                            <li>
+                                {% icon "users" size=18 %}<span>ظرفیت</span>
+                                <strong>
+                                    {{ course.capacity|fa_digits }} نفر
+                                    {% if course.registration_open and seats_left is not None %}
+                                        {% if seats_left %}
+                                            <span class="d-block small text-muted">{{ seats_left|fa_digits }} جای خالی</span>
+                                        {% else %}
+                                            <span class="d-block small text-danger">تکمیل</span>
+                                        {% endif %}
+                                    {% endif %}
+                                </strong>
+                            </li>
                         {% endif %}
                         {% if course.location %}
                             <li>{% icon "location" size=18 %}<span>محل</span><strong>{{ course.location }}</strong></li>
                         {% endif %}
-                        {% if course.access_duration_days %}
-                            <li>{% icon "clock" size=18 %}<span>مدت دسترسی</span><strong>{{ course.access_duration_days|fa_digits }} روز</strong></li>
-                        {% else %}
-                            <li>{% icon "check" size=18 %}<span>مدت دسترسی</span><strong>دائمی</strong></li>
+                        {# «مدت دسترسی» به محتوای آنلاین برمی‌گردد و برای کلاس حضوری معنا ندارد #}
+                        {% if not course.is_in_person %}
+                            {% if course.access_duration_days %}
+                                <li>{% icon "clock" size=18 %}<span>مدت دسترسی</span><strong>{{ course.access_duration_days|fa_digits }} روز</strong></li>
+                            {% else %}
+                                <li>{% icon "check" size=18 %}<span>مدت دسترسی</span><strong>دائمی</strong></li>
+                            {% endif %}
                         {% endif %}
                         {% if course.certificate_available %}
                             <li>{% icon "certificate" size=18 %}<span>گواهی پایان دوره</span><strong>دارد</strong></li>
@@ -332,8 +450,11 @@
                 {% endif %}
             </span>
 
-            {% if course.registration_open %}
-                <a href="{{ enroll_url }}" class="btn btn-accent">ثبت‌نام در دوره</a>
+            {% if course.registration_open and is_full and not enrollment %}
+                <span class="mobile-buy-bar__closed">ظرفیت تکمیل است</span>
+            {% elif course.registration_open %}
+                {# کارت خرید همین صفحه — همان‌جا که ثبت‌نام (سبد خرید یا ثبت‌نام رایگان) انجام می‌شود #}
+                <a href="#purchase" class="btn btn-accent">ثبت‌نام در دوره</a>
             {% else %}
                 <span class="mobile-buy-bar__closed">ثبت‌نام بسته است</span>
             {% endif %}

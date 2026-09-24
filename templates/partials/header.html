@@ -51,7 +51,10 @@
                            href="{% url 'core:contact' %}">تماس با ما</a>
                     </li>
                     {% if blog_enabled %}
-                        <li class="nav-item"><a class="nav-link" href="#articles">مقالات</a></li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if nav_active == 'blog' %}active{% endif %}"
+                               href="{% url 'blog:list' %}">مقالات و اخبار</a>
+                        </li>
                     {% endif %}
                 </ul>
 

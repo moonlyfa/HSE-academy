@@ -1,0 +1,52 @@
+{% load core_extras %}
+{# فهرست کلاس‌های آنلاین. rows از View می‌آید و هر ردیف {session, access} است؛ #}
+{# قالب هیچ تصمیمی درباره دسترسی نمی‌گیرد، فقط نتیجه را نشان می‌دهد.        #}
+<ul class="session-list">
+    {% for row in rows %}
+        <li class="session-row session-row--{{ row.session.state }}">
+            <div class="session-row__when">
+                {% icon "calendar" size=18 %}
+                <div>
+                    <strong class="d-block">{{ row.session.starts_at|jalali_time:True }}</strong>
+                    <span class="small text-muted">
+                        {{ row.session.duration_minutes|fa_digits }} دقیقه
+                    </span>
+                </div>
+            </div>
+
+            <div class="session-row__main">
+                <strong class="session-row__title">{{ row.session.title }}</strong>
+                {% if show_course %}
+                    <a class="small d-block" href="{{ row.session.course.get_absolute_url }}">
+                        {{ row.session.course.title }}
+                    </a>
+                {% endif %}
+                {% if row.session.description %}
+                    <p class="small text-muted m-0">{{ row.session.description }}</p>
+                {% endif %}
+            </div>
+
+            <div class="session-row__action">
+                {% if row.access.allowed %}
+                    {# آدرس کلاس اینجا نوشته نمی‌شود؛ این لینک به Viewی می‌رود #}
+                    {# که اول ثبت‌نام کاربر را بررسی می‌کند.                    #}
+                    <a class="btn btn-primary btn-sm"
+                       href="{{ row.session.get_join_url }}"
+                       target="_blank" rel="noopener">
+                        {% icon "video" size=16 %}<span>ورود به کلاس</span>
+                    </a>
+                {% else %}
+                    <span class="session-state session-state--{{ row.session.state }}">
+                        {{ row.session.state_label }}
+                    </span>
+                    {% if row.access.message %}
+                        <small class="d-block text-muted">{{ row.access.message }}</small>
+                    {% endif %}
+                    {% if row.access.action_url %}
+                        <a class="small" href="{{ row.access.action_url }}">{{ row.access.action_label }}</a>
+                    {% endif %}
+                {% endif %}
+            </div>
+        </li>
+    {% endfor %}
+</ul>

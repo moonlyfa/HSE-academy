@@ -1,0 +1,22 @@
+# زمان‌بندی پشتیبان‌گیری شبانه.
+#
+#  بررسی اینکه کِی اجرا می‌شود:  systemctl list-timers hse-backup.timer
+#  دیدن نتیجه آخرین اجرا:        journalctl -u hse-backup.service
+
+[Unit]
+Description=Nightly HSE Academy backup
+
+[Timer]
+# ساعت ۳ بامداد به وقت سرور؛ کم‌ترافیک‌ترین ساعت.
+OnCalendar=*-*-* 03:00:00
+
+# اگر سرور آن ساعت خاموش بوده، پشتیبان‌گیری بعد از روشن شدن انجام شود
+# (نه اینکه آن شب کلاً از دست برود).
+Persistent=true
+
+# چند دقیقه تأخیر تصادفی، تا اگر چند سرویس هم‌زمان زمان‌بندی شده‌اند،
+# همه با هم به دیسک فشار نیاورند.
+RandomizedDelaySec=15m
+
+[Install]
+WantedBy=timers.target

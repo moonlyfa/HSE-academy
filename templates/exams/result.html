@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% load core_extras %}
+
+{% block title %}کارنامه {{ exam.title }}{% endblock %}
+{% block extra_head %}<meta name="robots" content="noindex">{% endblock %}
+
+{% block content %}
+<section class="section pt-4">
+    <div class="container">
+        <div class="row g-4 justify-content-center">
+            <div class="col-lg-8">
+
+                <div class="result-card {% if attempt.is_passed %}is-passed{% else %}is-failed{% endif %}">
+                    <span class="result-card__label">
+                        {% if attempt.is_passed %}قبول شدید{% else %}قبول نشدید{% endif %}
+                    </span>
+                    <span class="result-card__score">{{ attempt.score|fa_digits }}٪</span>
+                    <p class="result-card__meta m-0">
+                        {{ attempt.earned_points|fa_digits }} از
+                        {{ attempt.total_points|fa_digits }} امتیاز ·
+                        نمره قبولی: {{ attempt.pass_score|fa_digits }}٪
+                    </p>
+                </div>
+
+                {% if attempt.auto_submitted %}
+                    <p class="alert alert-warning mt-3 mb-0">
+                        مهلت آزمون تمام شد و پاسخ‌های ثبت‌شده تا آن لحظه تصحیح شدند.
+                    </p>
+                {% endif %}
+
+                <div class="content-block">
+                    <ul class="summary-list">
+                        <li><span>آزمون</span><strong>{{ exam.title }}</strong></li>
+                        <li>
+                            <span>دوره</span>
+                            <strong><a href="{{ course.get_absolute_url }}">{{ course.title }}</a></strong>
+                        </li>
+                        <li><span>زمان شروع</span><strong>{{ attempt.started_at|jalali_time }}</strong></li>
+                        <li><span>مدت پاسخ‌گویی</span><strong>{{ attempt.duration_minutes|fa_digits }} دقیقه</strong></li>
+                        <li>
+                            <span>پاسخ درست</span>
+                            <strong>
+                                {{ attempt.correct_count|fa_digits }} از
+                                {{ attempt.question_count|fa_digits }} سؤال
+                            </strong>
+                        </li>
+                    </ul>
+
+                    <div class="d-flex gap-2 flex-wrap">
+                        <a class="btn btn-outline-brand btn-sm" href="{{ exam.get_absolute_url }}">
+                            صفحه آزمون
+                        </a>
+                        {% if can_start.allowed %}
+                            <form method="post" action="{% url 'exams:start' course.slug %}">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-primary btn-sm">
+                                    شرکت دوباره
+                                    {% if attempts_left is not None %}
+                                        ({{ attempts_left|fa_digits }} بار باقی مانده)
+                                    {% endif %}
+                                </button>
+                            </form>
+                        {% endif %}
+                    </div>
+                </div>
+
+                {# --- گواهی: قدم بعدی دانشجوی قبول‌شده --- #}
+                {% if certificate_card %}
+                    <div class="content-block">
+                        <h2 class="h5">گواهی پایان دوره</h2>
+
+                        {% if certificate_card.certificate %}
+                            <a class="btn btn-outline-brand" href="{{ certificate_card.certificate.get_absolute_url }}">
+                                {% icon "certificate" size=18 %}<span>مشاهده گواهی</span>
+                            </a>
+                        {% elif certificate_card.eligibility.allowed %}
+                            <p>شرایط دریافت گواهی این دوره را دارید.</p>
+                            <form method="post" action="{% url 'certificates:issue' course.slug %}">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-primary">
+                                    {% icon "certificate" size=18 %}<span>دریافت گواهی</span>
+                                </button>
+                            </form>
+                        {% else %}
+                            <p class="mb-2">{{ certificate_card.eligibility.message }}</p>
+                            {% if certificate_card.eligibility.action_url %}
+                                <a class="btn btn-outline-brand btn-sm" href="{{ certificate_card.eligibility.action_url }}">
+                                    {{ certificate_card.eligibility.action_label }}
+                                </a>
+                            {% endif %}
+                        {% endif %}
+                    </div>
+                {% endif %}
+
+                {# --- مرور پاسخ‌ها --- #}
+                {% if review %}
+                    <div class="content-block">
+                        <h2 class="h5">مرور پاسخ‌ها</h2>
+
+                        {% for row in review %}
+                            <div class="exam-question {% if row.answer.is_correct %}is-correct{% else %}is-wrong{% endif %}">
+                                <div class="exam-question__head">
+                                    <span class="exam-question__number">{{ row.number|fa_digits }}</span>
+                                    <p class="exam-question__text">{{ row.question.text|linebreaksbr }}</p>
+                                </div>
+
+                                <ul class="exam-review">
+                                    {% for option in row.options %}
+                                        <li class="{% if option.is_correct %}is-correct{% elif row.answer.selected_option_id == option.pk %}is-chosen{% endif %}">
+                                            <span>{{ option.text }}</span>
+                                            {% if option.is_correct %}
+                                                <small>پاسخ درست</small>
+                                            {% elif row.answer.selected_option_id == option.pk %}
+                                                <small>پاسخ شما</small>
+                                            {% endif %}
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+
+                                {% if not row.answer.is_answered %}
+                                    <p class="small text-muted mb-0">به این سؤال پاسخ ندادید.</p>
+                                {% endif %}
+
+                                {% if row.question.explanation %}
+                                    <p class="exam-explanation">{{ row.question.explanation }}</p>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="small text-muted">
+                        نمایش پاسخ‌های درست برای این آزمون خاموش است.
+                    </p>
+                {% endif %}
+
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

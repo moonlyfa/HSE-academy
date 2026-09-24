@@ -1,0 +1,18 @@
+# سرویس یک‌باره پشتیبان‌گیری. خودش زمان‌بندی ندارد؛ hse-backup.timer
+# آن را اجرا می‌کند.
+#
+#     sudo cp deploy/hse-backup.{service,timer} /etc/systemd/system/
+#     sudo systemctl enable --now hse-backup.timer
+
+[Unit]
+Description=HSE Academy backup
+After=postgresql.service
+
+[Service]
+Type=oneshot
+User=hse
+Group=hse
+ExecStart=/srv/hse/deploy/backup.sh
+Environment=PROJECT_DIR=/srv/hse
+Environment=BACKUP_DIR=/var/backups/hse
+Environment=KEEP_DAYS=14

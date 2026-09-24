@@ -48,6 +48,9 @@ LOCAL_APPS = [
     "apps.accounts",
     "apps.courses",
     "apps.orders",
+    "apps.exams",
+    "apps.certificates",
+    "apps.blog",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -66,6 +69,10 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    # هدرهای امنیتی که جنگو خودش نمی‌فرستد: CSP و Permissions-Policy.
+    "apps.core.middleware.SecurityHeadersMiddleware",
+    # محدودسازی تلاش ورود به پنل مدیریت (فرم ورود پنل، فرم خود جنگو است).
+    "apps.core.middleware.AdminLoginThrottleMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -117,6 +124,20 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
+
+# ---------------------------------------------------------------------------
+# نشست (Session) و کوکی‌ها
+# ---------------------------------------------------------------------------
+# دو هفته اعتبار: کاربری که دوره خریده نباید هر روز دوباره وارد شود، اما
+# نشست ابدی هم روی یک کامپیوتر مشترک خطرناک است.
+SESSION_COOKIE_AGE = env.int("SESSION_COOKIE_AGE", default=60 * 60 * 24 * 14)
+
+# SameSite=Lax یعنی کوکی در درخواست‌هایی که از سایت دیگری آمده‌اند فرستاده
+# نمی‌شود (مگر پیمایش ساده). این یک لایه دفاع اضافه در برابر CSRF است،
+# روی محافظت خود جنگو.
+SESSION_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_SAMESITE = "Lax"
+SESSION_COOKIE_HTTPONLY = True
 
 LOGIN_URL = "/accounts/login/"
 LOGIN_REDIRECT_URL = "/accounts/dashboard/"
@@ -204,6 +225,13 @@ USE_MOCK_PAYMENT = env.bool("USE_MOCK_PAYMENT", default=True)
 # بخش مقالات و اخبار در نسخه اول منتشر نمی‌شود اما زیرساخت آن ساخته می‌شود.
 BLOG_ENABLED = env.bool("BLOG_ENABLED", default=False)
 
+# دوره‌های غیرحضوری (آنلاین زنده، آفلاین ضبط‌شده، ترکیبی) و همه‌ی ابزارهایشان:
+# درس و ویدیو، کلاس اسکای‌روم، «کلاس‌های آنلاین من». آکادمی فعلاً فقط دوره
+# حضوری برگزار می‌کند، پس این بخش خاموش است؛ اما چیزی حذف نشده: دوره‌ها،
+# درس‌ها و جلسه‌ها در دیتابیس می‌مانند و با True شدن همین کلید، همه‌چیز
+# دوباره در سایت دیده می‌شود.
+ONLINE_COURSES_ENABLED = env.bool("ONLINE_COURSES_ENABLED", default=False)
+
 # ---------------------------------------------------------------------------
 # کد یکبارمصرف پیامکی (OTP)
 # ---------------------------------------------------------------------------
@@ -254,9 +282,120 @@ PAYMENT_EXPIRY_MINUTES = env.int("PAYMENT_EXPIRY_MINUTES", default=20)
 ZARINPAL_MERCHANT_ID = env("ZARINPAL_MERCHANT_ID", default="")
 ZARINPAL_SANDBOX = env.bool("ZARINPAL_SANDBOX", default=True)
 
+# واحد مبلغی که به زرین‌پال فرستاده می‌شود. قیمت‌های سایت تومان است، پس
+# IRT یعنی «همان عدد، با اعلام صریح اینکه تومان است». IRR یعنی سایت عدد را
+# پیش از ارسال ده برابر می‌کند. واحد همیشه صریح فرستاده می‌شود؛ هیچ‌چیز به
+# پیش‌فرض درگاه سپرده نمی‌شود، چون اشتباهش یعنی یک‌دهم یا ده برابر مبلغ.
+ZARINPAL_CURRENCY = env("ZARINPAL_CURRENCY", default="IRT")
+
 # رفتار درگاه آزمایشی هنگام تست خودکار: success | failed | ask
 # مقدار ask یعنی صفحه‌ای نمایش داده می‌شود تا خودتان نتیجه را انتخاب کنید.
 MOCK_PAYMENT_RESULT = env("MOCK_PAYMENT_RESULT", default="ask")
+
+# ---------------------------------------------------------------------------
+# کلاس آنلاین (اسکای‌روم)
+# ---------------------------------------------------------------------------
+# manual = لینک کلاس را خودتان از پنل اسکای‌روم کپی و در پنل مدیریت وارد
+#          می‌کنید. این حالت هیچ سرویسی نمی‌خواهد و همین امروز کار می‌کند.
+# skyroom = سایت با API اسکای‌روم حرف می‌زند و برای هر دانشجو یک لینک
+#          ورود شخصی و کوتاه‌مدت می‌سازد.
+SKYROOM_PROVIDER = env("SKYROOM_PROVIDER", default="manual")
+SKYROOM_API_URL = env(
+    "SKYROOM_API_URL", default="https://www.skyroom.online/skyroom/api"
+)
+SKYROOM_API_KEY = env("SKYROOM_API_KEY", default="")
+SKYROOM_TIMEOUT_SECONDS = env.int("SKYROOM_TIMEOUT_SECONDS", default=10)
+
+# اعتبار لینک ورود شخصی (ثانیه). کوتاه است تا اگر کسی لینکش را برای
+# دیگری فرستاد، تا فردا قابل استفاده نماند.
+SKYROOM_LINK_TTL_SECONDS = env.int("SKYROOM_LINK_TTL_SECONDS", default=3600)
+
+# دکمه ورود چند دقیقه قبل از شروع کلاس فعال شود و تا چند دقیقه بعد از
+# پایان آن باز بماند.
+ONLINE_SESSION_JOIN_LEAD_MINUTES = env.int(
+    "ONLINE_SESSION_JOIN_LEAD_MINUTES", default=30
+)
+ONLINE_SESSION_GRACE_MINUTES = env.int("ONLINE_SESSION_GRACE_MINUTES", default=30)
+
+# ---------------------------------------------------------------------------
+# آزمون
+# ---------------------------------------------------------------------------
+# مهلت آزمون در سرور نگه داشته می‌شود، اما ثبت نهایی دانشجو چند ثانیه در
+# راه است. این ارفاق باعث می‌شود پاسخِ کسی که در ثانیه آخر دکمه را زده
+# دور ریخته نشود. خیلی بزرگ نکنید؛ هر ثانیه‌اش یعنی وقت اضافه.
+EXAM_SUBMIT_GRACE_SECONDS = env.int("EXAM_SUBMIT_GRACE_SECONDS", default=60)
+
+# ---------------------------------------------------------------------------
+# امنیت و محدودسازی نرخ درخواست
+# ---------------------------------------------------------------------------
+# آیا هدر X-Forwarded-For قابل اعتماد است؟ فقط وقتی سایت پشت Proxy خودمان
+# (Nginx) باشد. اگر همیشه باور شود، هرکسی می‌تواند با هدر ساختگی سقف‌ها را
+# دور بزند: هر درخواست، یک IP جدید. در Production روشن است.
+TRUST_X_FORWARDED_FOR = env.bool("TRUST_X_FORWARDED_FOR", default=False)
+
+# سقف‌های ساعتی به‌ازای هر IP. صفر یعنی بدون محدودیت.
+#
+# اعداد عمداً سخاوتمندند: در ایران یک شرکت یا آموزشگاه معمولاً با یک IP
+# مشترک به اینترنت وصل است، و ثبت‌نام گروهی ده‌ها کارمند از همان IP یک
+# اتفاق عادی است — نه حمله. سقف باید جلوی اسکریپت را بگیرد، نه جلوی
+# مشتری سازمانی را.
+CONTACT_MAX_PER_HOUR = env.int("CONTACT_MAX_PER_HOUR", default=10)
+REGISTRATION_MAX_PER_HOUR = env.int("REGISTRATION_MAX_PER_HOUR", default=40)
+PASSWORD_RESET_MAX_PER_HOUR = env.int("PASSWORD_RESET_MAX_PER_HOUR", default=20)
+
+# ورود به پنل مدیریت: تعداد مدیران کم است و هیچ مدیری در یک ساعت بیست بار
+# رمز را اشتباه نمی‌زند؛ پس سقف می‌تواند سخت‌گیر باشد.
+ADMIN_LOGIN_MAX_PER_HOUR = env.int("ADMIN_LOGIN_MAX_PER_HOUR", default=20)
+
+# --- Content Security Policy ---
+# سایت هیچ فایل جاوااسکریپت یا CSS خارجی ندارد، پس می‌توانیم سخت‌گیرترین
+# حالت را بگذاریم: مرورگر اجازه ندارد اسکریپتی از جای دیگری اجرا کند. اگر
+# روزی کسی موفق شود متنی داخل صفحه تزریق کند، همین یک هدر جلوی اجرایش را
+# می‌گیرد.
+#
+# style-src ناچاراً 'unsafe-inline' دارد چون چند قالب از style درون‌خطی
+# برای مقدار متغیرهای CSS استفاده می‌کنند. خطر CSS تزریقی در مقایسه با
+# اسکریپت ناچیز است و کل خروجی قالب‌ها هم Escape می‌شود.
+CSP_ENABLED = env.bool("CSP_ENABLED", default=True)
+
+# حالت گزارش‌محور: سیاست اعمال نمی‌شود، فقط تخلف‌ها در کنسول مرورگر دیده
+# می‌شوند. برای اولین روزهای استقرار مفید است.
+CSP_REPORT_ONLY = env.bool("CSP_REPORT_ONLY", default=False)
+
+CSP_DIRECTIVES = [
+    "default-src 'self'",
+    "script-src 'self'",
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data:",
+    "font-src 'self'",
+    "connect-src 'self'",
+    "form-action 'self'",
+    "base-uri 'self'",
+    "object-src 'none'",
+    "frame-src 'none'",
+    # همان کاری که X_FRAME_OPTIONS می‌کند، با پشتیبانی بهتر مرورگرهای تازه.
+    "frame-ancestors 'none'",
+]
+
+# سایت به دوربین، میکروفون و موقعیت مکانی نیازی ندارد؛ بستنشان جلوی
+# سوءاستفاده یک اسکریپت تزریق‌شده یا افزونه مرورگر را می‌گیرد.
+PERMISSIONS_POLICY = "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+
+# ---------------------------------------------------------------------------
+# سئو
+# ---------------------------------------------------------------------------
+# روی سرور آزمایشی این را False کنید: robots.txt کل سایت را می‌بندد و همه
+# صفحه‌ها تگ noindex می‌گیرند. اگر نسخه آزمایشی ایندکس شود، گوگل دو سایت
+# با محتوای یکسان می‌بیند و اعتبار سایت اصلی را هم پایین می‌آورد.
+SEO_ALLOW_INDEXING = env.bool("SEO_ALLOW_INDEXING", default=True)
+
+# ---------------------------------------------------------------------------
+# استعلام گواهی
+# ---------------------------------------------------------------------------
+# صفحه استعلام عمومی است و کد گواهی ترتیبی؛ بدون سقف، یک برنامه ساده
+# می‌تواند کدها را یکی‌یکی امتحان کند و ببیند کدام‌ها واقعی‌اند. این عدد
+# در حدی است که هیچ کارفرمای واقعی به آن نمی‌خورد. صفر یعنی بدون محدودیت.
+CERTIFICATE_LOOKUP_MAX_PER_HOUR = env.int("CERTIFICATE_LOOKUP_MAX_PER_HOUR", default=30)
 
 # ---------------------------------------------------------------------------
 # Cache

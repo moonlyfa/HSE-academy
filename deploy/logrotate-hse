@@ -1,0 +1,18 @@
+# چرخش فایل‌های لاگ پروژه.
+#
+#     sudo cp deploy/logrotate-hse /etc/logrotate.d/hse
+#
+# لاگ خود جنگو با RotatingFileHandler هم چرخش دارد (۵ مگابایت، ۵ نسخه)،
+# اما این فایل تضمین می‌کند حتی اگر آن تنظیم عوض شد، لاگ‌ها دیسک سرور را
+# پر نکنند.
+
+/srv/hse/logs/*.log {
+    daily
+    rotate 30
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 0640 hse hse
+    su hse hse
+}

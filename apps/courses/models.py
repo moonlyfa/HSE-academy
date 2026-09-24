@@ -5,6 +5,9 @@
 سبد خرید و گواهی همگی از همین‌ها می‌خوانند.
 """
 
+from datetime import timedelta
+
+from django.conf import settings
 from django.db import models
 from django.urls import reverse
 from django.utils import timezone
@@ -15,9 +18,49 @@ from .storages import lesson_attachment_path, lesson_video_path, protected_stora
 class CourseType(models.TextChoices):
     """شیوه برگزاری دوره."""
 
+    IN_PERSON = "in_person", "حضوری"
     ONLINE_LIVE = "online_live", "آنلاین زنده"
     OFFLINE_RECORDED = "offline_recorded", "آفلاین (ضبط‌شده)"
     HYBRID = "hybrid", "ترکیبی"
+
+
+def online_courses_enabled() -> bool:
+    """
+    آیا بخش دوره‌های غیرحضوری روشن است؟ (ONLINE_COURSES_ENABLED)
+
+    هر بار از تنظیمات خوانده می‌شود، نه یک‌بار هنگام بارگذاری ماژول؛ وگرنه
+    تغییر کلید بدون ری‌استارت کامل اثر نمی‌کرد و تست‌ها هم نمی‌توانستند
+    هر دو حالت را امتحان کنند.
+    """
+    return settings.ONLINE_COURSES_ENABLED
+
+
+def offered_course_types() -> list[str]:
+    """
+    شیوه‌های برگزاری‌ای که همین حالا در سایت عرضه می‌شوند.
+
+    دوره‌ای که شیوه‌اش در این فهرست نیست حذف نمی‌شود؛ فقط مثل دوره
+    منتشرنشده رفتار می‌کند: نه در فهرست‌ها می‌آید، نه صفحه‌اش باز می‌شود،
+    نه به سبد خرید اضافه می‌شود.
+    """
+    if online_courses_enabled():
+        return list(CourseType.values)
+    return [CourseType.IN_PERSON]
+
+
+def offered_courses_q(prefix: str = "") -> models.Q:
+    """
+    شرط «دوره در سایت دیده می‌شود» برای کوئری‌ها.
+
+    برای شمارش دوره‌ها از طرف دسته‌بندی یا مدرس، prefix را "courses__"
+    بدهید. یک تابع برای همه، تا هیچ شمارنده‌ای دوره‌ی پنهان را نشمارد.
+    """
+    return models.Q(
+        **{
+            f"{prefix}is_published": True,
+            f"{prefix}course_type__in": offered_course_types(),
+        }
+    )
 
 
 class CourseLevel(models.TextChoices):
@@ -101,12 +144,13 @@ class CourseCategory(models.Model):
 
     @property
     def published_course_count(self) -> int:
-        return self.courses.filter(is_published=True).count()
+        return self.courses.filter(offered_courses_q()).count()
 
 
 class PublishedCourseQuerySet(models.QuerySet):
     def published(self):
-        return self.filter(is_published=True)
+        """دوره‌هایی که در سایت دیده می‌شوند: منتشرشده و با شیوه برگزاری فعال."""
+        return self.filter(offered_courses_q())
 
     def featured(self):
         return self.published().filter(is_featured=True)
@@ -157,7 +201,11 @@ class Course(models.Model):
         "شیوه برگزاری",
         max_length=20,
         choices=CourseType.choices,
-        default=CourseType.ONLINE_LIVE,
+        default=CourseType.IN_PERSON,
+        help_text=(
+            "تا وقتی دوره‌های غیرحضوری خاموش‌اند (ONLINE_COURSES_ENABLED)، "
+            "دوره‌ای با شیوه‌ای غیر از «حضوری» در سایت دیده نمی‌شود."
+        ),
     )
     level = models.CharField(
         "سطح",
@@ -191,13 +239,16 @@ class Course(models.Model):
         "ظرفیت",
         null=True,
         blank=True,
-        help_text="خالی یعنی بدون محدودیت.",
+        help_text=(
+            "خالی یعنی بدون محدودیت. وقتی ظرفیت پر شود، ثبت‌نام در سایت خودکار "
+            "بسته می‌شود (ثبت‌نام دستی از همین پنل همچنان ممکن است)."
+        ),
     )
     location = models.CharField(
         "محل برگزاری",
         max_length=120,
         blank=True,
-        help_text="برای دوره‌های آنلاین می‌توانید «آنلاین» بنویسید.",
+        help_text="نشانی یا شهر برگزاری کلاس حضوری. مثال: تهران، خیابان ولیعصر، سالن همایش",
     )
 
     # --- محتوای آموزشی ---
@@ -282,6 +333,26 @@ class Course(models.Model):
             return 0
         return round((self.price - self.discount_price) / self.price * 100)
 
+    # --- شیوه برگزاری ---
+    @property
+    def is_in_person(self) -> bool:
+        return self.course_type == CourseType.IN_PERSON
+
+    @property
+    def is_offered(self) -> bool:
+        """آیا این دوره همین حالا در سایت دیده می‌شود؟ (همان شرط published())"""
+        return self.is_published and self.course_type in offered_course_types()
+
+    @property
+    def has_online_content(self) -> bool:
+        """
+        آیا صفحه دوره باید درس‌ها، ویدیوها و کلاس‌های آنلاین را نشان دهد؟
+
+        دوره حضوری محتوای آنلاین ندارد، حتی اگر مدیر برایش فصل ساخته
+        باشد؛ و وقتی بخش آنلاین خاموش است، هیچ دوره‌ای ندارد.
+        """
+        return online_courses_enabled() and not self.is_in_person
+
     # --- زمان‌بندی ---
     @property
     def is_upcoming(self) -> bool:
@@ -290,7 +361,7 @@ class Course(models.Model):
     @property
     def registration_open(self) -> bool:
         """ثبت‌نام تا قبل از شروع دوره باز است."""
-        if not self.is_published:
+        if not self.is_offered:
             return False
         if self.start_date is None:
             return True  # دوره آفلاین بدون تاریخ شروع، همیشه باز است.
@@ -698,6 +769,22 @@ class Enrollment(models.Model):
         help_text="خالی یعنی دسترسی دائمی است.",
     )
 
+    # دوره حضوری درسِ آنلاینی ندارد که دانشجو «تکمیل» کند؛ گذراندن آن را
+    # آکادمی بعد از برگزاری کلاس تأیید می‌کند. همین تاریخ برای دوره حضوری
+    # نقش «همه درس‌ها تکمیل شد» را دارد و آزمون و گواهی از روی آن باز
+    # می‌شوند.
+    completed_at = models.DateTimeField(
+        "تأیید گذراندن دوره",
+        null=True,
+        blank=True,
+        help_text=(
+            "برای دوره حضوری: بعد از اینکه دانشجو در کلاس شرکت کرد و دوره را "
+            "گذراند، این تاریخ را پر کنید (یا از عملیات «تأیید گذراندن دوره» در "
+            "فهرست ثبت‌نام‌ها استفاده کنید). تا خالی است، آزمون پایانی (اگر "
+            "«فقط پس از تکمیل دوره» باشد) و گواهی باز نمی‌شوند."
+        ),
+    )
+
     note = models.CharField("یادداشت", max_length=300, blank=True)
 
     created_at = models.DateTimeField("تاریخ ثبت‌نام", auto_now_add=True)
@@ -758,3 +845,200 @@ class Enrollment(models.Model):
         """کمتر از یک هفته تا پایان دسترسی."""
         days = self.days_remaining
         return days is not None and days <= 7
+
+
+class OnlineSessionStatus(models.TextChoices):
+    SCHEDULED = "scheduled", "برنامه‌ریزی‌شده"
+    CANCELLED = "cancelled", "لغو شده"
+
+
+class OnlineSessionQuerySet(models.QuerySet):
+    """کوئری‌های پرتکرار جلسه‌های آنلاین."""
+
+    def scheduled(self):
+        return self.filter(status=OnlineSessionStatus.SCHEDULED)
+
+    def upcoming(self):
+        """
+        جلسه‌هایی که هنوز تمام نشده‌اند — از نزدیک‌ترین.
+
+        جلسه لغوشده هم در این فهرست می‌ماند (و با برچسب «لغو شده» دیده
+        می‌شود). حذفش از فهرست یعنی دانشجویی که منتظر کلاس فردا بوده،
+        فردا فقط یک جای خالی می‌بیند و نمی‌فهمد چه شده است.
+        """
+        return self.filter(ends_at__gte=timezone.now()).order_by("starts_at")
+
+    def past(self):
+        """جلسه‌های برگزارشده — از تازه‌ترین."""
+        return self.filter(ends_at__lt=timezone.now()).order_by("-starts_at")
+
+
+class OnlineSession(models.Model):
+    """
+    یک جلسه کلاس آنلاین زنده (اسکای‌روم یا هر سامانه مشابه).
+
+    چرا جلسه به دوره وصل است و نه به فصل؟ چون جلسه آنلاین یک **رویداد
+    زمان‌دار** است: ساعت مشخصی شروع می‌شود و تمام می‌شود. فصل‌ها ترتیب
+    محتوا را می‌گویند، نه تقویم را. اگر جلسه را داخل فصل می‌گذاشتیم،
+    برای ساده‌ترین سؤال دانشجو — «کلاس بعدی من کِی است؟» — باید کل
+    درس‌های همه دوره‌ها را می‌گشتیم.
+
+    فیلد اختیاری `lesson` برای وقتی است که همین جلسه در سرفصل هم یک
+    ردیف دارد (درس از نوع «جلسه آنلاین زنده»)؛ آن‌وقت دکمه ورود در
+    صفحه همان درس هم دیده می‌شود.
+
+    **آدرس کلاس هیچ‌وقت داخل HTML قرار نمی‌گیرد.** صفحه فقط به
+    `courses:session_join` لینک می‌دهد و آن View پیش از هدایت کاربر،
+    ثبت‌نامش را بررسی می‌کند. اگر آدرس را مستقیم در صفحه می‌گذاشتیم،
+    هر بازدیدکننده‌ای می‌توانست با دیدن سورس صفحه وارد کلاسی شود که
+    پولش را نداده است.
+    """
+
+    course = models.ForeignKey(
+        Course,
+        verbose_name="دوره",
+        on_delete=models.CASCADE,
+        related_name="online_sessions",
+    )
+    lesson = models.ForeignKey(
+        Lesson,
+        verbose_name="درس مرتبط",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="online_sessions",
+        help_text="اختیاری. اگر این جلسه در سرفصل دوره هم یک درس دارد، آن را انتخاب کنید.",
+    )
+
+    title = models.CharField("عنوان جلسه", max_length=200)
+    description = models.TextField("توضیح کوتاه", blank=True)
+
+    starts_at = models.DateTimeField("زمان شروع")
+    duration_minutes = models.PositiveIntegerField("مدت (دقیقه)", default=90)
+
+    # زمان پایان از شروع و مدت ساخته می‌شود و در save() بروز می‌ماند.
+    # برخلاف «وضعیت انقضا» که با گذر زمان کهنه می‌شود، این مقدار فقط به
+    # دو فیلد دیگر وابسته است؛ پس ذخیره‌اش بی‌خطر است و در عوض اجازه
+    # می‌دهد «جلسه‌های تمام‌نشده» را با یک کوئری ساده بگیریم.
+    ends_at = models.DateTimeField("زمان پایان", editable=False, db_index=True)
+
+    meeting_url = models.URLField(
+        "آدرس ورود به کلاس",
+        blank=True,
+        help_text=(
+            "لینکی که از پنل اسکای‌روم کپی می‌کنید. این آدرس هرگز در صفحه سایت "
+            "نمایش داده نمی‌شود و فقط به کاربر ثبت‌نام‌شده تحویل می‌شود."
+        ),
+    )
+    room_id = models.CharField(
+        "شناسه کلاس در اسکای‌روم",
+        max_length=50,
+        blank=True,
+        help_text="فقط برای حالت اتصال خودکار به API اسکای‌روم لازم است.",
+    )
+
+    status = models.CharField(
+        "وضعیت",
+        max_length=20,
+        choices=OnlineSessionStatus.choices,
+        default=OnlineSessionStatus.SCHEDULED,
+    )
+    cancel_reason = models.CharField("علت لغو", max_length=300, blank=True)
+
+    created_at = models.DateTimeField("تاریخ ایجاد", auto_now_add=True)
+    updated_at = models.DateTimeField("آخرین بروزرسانی", auto_now=True)
+
+    objects = OnlineSessionQuerySet.as_manager()
+
+    class Meta:
+        verbose_name = "جلسه آنلاین"
+        verbose_name_plural = "جلسه‌های آنلاین"
+        ordering = ["starts_at", "id"]
+        indexes = [models.Index(fields=["course", "starts_at"])]
+
+    def __str__(self) -> str:
+        return f"{self.title} — {self.course.title}"
+
+    def clean(self) -> None:
+        """درس انتخاب‌شده باید از همین دوره باشد."""
+        from django.core.exceptions import ValidationError
+
+        if self.lesson_id and self.lesson.section.course_id != self.course_id:
+            raise ValidationError(
+                {"lesson": "این درس متعلق به دوره انتخاب‌شده نیست."}
+            )
+
+    def save(self, *args, **kwargs):
+        self.ends_at = self.starts_at + timedelta(minutes=self.duration_minutes or 0)
+        super().save(*args, **kwargs)
+
+    # --- زمان‌بندی ---
+
+    @property
+    def join_opens_at(self):
+        """
+        از چه لحظه‌ای دکمه ورود فعال می‌شود؟
+
+        کمی زودتر از شروع کلاس، چون دانشجو معمولاً چند دقیقه قبل پشت
+        سیستم می‌نشیند و نباید پشت یک دکمه خاکستری بماند.
+        """
+        return self.starts_at - timedelta(minutes=settings.ONLINE_SESSION_JOIN_LEAD_MINUTES)
+
+    @property
+    def join_closes_at(self):
+        """کلاس‌ها گاهی طول می‌کشند؛ لینک کمی بعد از زمان پایان هم باز می‌ماند."""
+        return self.ends_at + timedelta(minutes=settings.ONLINE_SESSION_GRACE_MINUTES)
+
+    @property
+    def is_cancelled(self) -> bool:
+        return self.status == OnlineSessionStatus.CANCELLED
+
+    @property
+    def is_finished(self) -> bool:
+        return not self.is_cancelled and timezone.now() > self.join_closes_at
+
+    @property
+    def is_running(self) -> bool:
+        """الان زمان ورود به کلاس است."""
+        if self.is_cancelled:
+            return False
+        return self.join_opens_at <= timezone.now() <= self.join_closes_at
+
+    @property
+    def is_upcoming(self) -> bool:
+        return not self.is_cancelled and timezone.now() < self.join_opens_at
+
+    @property
+    def has_link(self) -> bool:
+        return bool(self.meeting_url or self.room_id)
+
+    @property
+    def is_joinable(self) -> bool:
+        """آیا همین حالا می‌شود وارد کلاس شد؟ (جدا از اینکه چه کسی)"""
+        return self.is_running and self.has_link
+
+    @property
+    def state(self) -> str:
+        """وضعیت جلسه برای نمایش: cancelled | finished | live | upcoming"""
+        if self.is_cancelled:
+            return "cancelled"
+        if self.is_finished:
+            return "finished"
+        if self.is_running:
+            return "live"
+        return "upcoming"
+
+    @property
+    def state_label(self) -> str:
+        return {
+            "cancelled": "لغو شده",
+            "finished": "برگزار شده",
+            "live": "در حال برگزاری",
+            "upcoming": "برگزار نشده",
+        }[self.state]
+
+    def get_join_url(self) -> str:
+        return reverse(
+            "courses:session_join",
+            kwargs={"slug": self.course.slug, "pk": self.pk},
+        )

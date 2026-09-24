@@ -130,15 +130,23 @@ def enroll_from_order(order) -> list[Enrollment]:
         )
         return []
 
-    return [
-        enroll(
-            order.user,
-            item.course,
-            source=EnrollmentSource.PURCHASE,
-            order=order,
+    from .capacity import warn_if_over_capacity
+
+    enrollments = []
+    for item in order.items.select_related("course"):
+        # پرداخت تأییدشده هرگز به خاطر ظرفیت رد نمی‌شود؛ صندلی پیش از
+        # رفتن به درگاه نگه داشته شده است. اگر باز هم کلاس بیش از ظرفیت
+        # شد، فقط هشدار ثبت می‌شود تا مدیر رسیدگی کند.
+        enrollments.append(
+            enroll(
+                order.user,
+                item.course,
+                source=EnrollmentSource.PURCHASE,
+                order=order,
+            )
         )
-        for item in order.items.select_related("course")
-    ]
+        warn_if_over_capacity(item.course)
+    return enrollments
 
 
 def active_enrollment(user, course: Course) -> Enrollment | None:

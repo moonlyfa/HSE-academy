@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% load core_extras %}
+
+{% block title %}{{ post.meta_title|default:post.title }} — {{ site.site_name }}{% endblock %}
+{% block meta_description %}{{ post.meta_description|default:post.summary|truncatechars:160 }}{% endblock %}
+
+{% block og_type %}article{% endblock %}
+{% block og_title %}{{ post.title }}{% endblock %}
+{% block og_description %}{{ post.summary|truncatechars:160 }}{% endblock %}
+{% block og_image %}{% if post.cover %}<meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{{ post.cover.url }}">{% endif %}{% endblock %}
+{% block extra_head %}{% if is_preview %}<meta name="robots" content="noindex">{% else %}{% article_jsonld post %}{% endif %}{% endblock %}
+
+{% block breadcrumb %}
+    {% include "partials/breadcrumb.html" with items=breadcrumb_items current=breadcrumb_current %}
+{% endblock %}
+
+{% block content %}
+<section class="section pt-4">
+    <div class="container">
+        <div class="row g-4">
+            <div class="col-lg-9">
+
+                {% if is_preview %}
+                    {# فقط مدیر سایت این را می‌بیند؛ برای بقیه این صفحه ۴۰۴ است. #}
+                    <div class="alert alert-warning" role="alert">
+                        <strong>پیش‌نمایش مدیر:</strong>
+                        این مطلب هنوز منتشر نشده است
+                        {% if post.is_scheduled %}
+                            و برای {{ post.published_at|jalali_time }} زمان‌بندی شده است.
+                        {% else %}
+                            و برای بازدیدکنندگان دیده نمی‌شود.
+                        {% endif %}
+                    </div>
+                {% endif %}
+
+                <article class="post-detail">
+                    <span class="chip mb-3">{{ post.get_post_type_display }}</span>
+
+                    <h1 class="h2">{{ post.title }}</h1>
+
+                    <div class="post-detail__meta">
+                        <span>{% icon "users" size=16 %} {{ post.author_name }}</span>
+                        <span>{% icon "calendar" size=16 %} {{ post.published_at|jalali }}</span>
+                        <span>{% icon "clock" size=16 %} {{ post.reading_minutes|fa_digits }} دقیقه مطالعه</span>
+                        <a href="{{ post.category.get_absolute_url }}">{{ post.category.name }}</a>
+                    </div>
+
+                    {% if post.cover %}
+                        <img class="post-detail__cover" src="{{ post.cover.url }}" alt="{{ post.title }}">
+                    {% endif %}
+
+                    <p class="lead">{{ post.summary }}</p>
+
+                    <div class="content-block post-detail__content">
+                        {{ post.content|linebreaks }}
+                    </div>
+                </article>
+
+                {% if related_posts %}
+                    <div class="section-head mt-5">
+                        <h2 class="h5">مطالب مرتبط</h2>
+                    </div>
+                    <div class="row g-4">
+                        {% for related in related_posts %}
+                            <div class="col-md-4">
+                                {% include "blog/partials/post_card.html" with post=related %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+
+            <div class="col-lg-3">
+                <aside class="blog-sidebar">
+                    {% if categories %}
+                        <div class="content-block">
+                            <h2 class="h6">دسته‌بندی‌ها</h2>
+                            <ul class="blog-category-list">
+                                {% for category in categories %}
+                                    <li>
+                                        <a href="{{ category.get_absolute_url }}">
+                                            <span>{{ category.name }}</span>
+                                            <small>{{ category.num_posts|fa_digits }}</small>
+                                        </a>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% endif %}
+                </aside>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

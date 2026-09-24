@@ -2,7 +2,7 @@
 
 from datetime import timedelta
 
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
@@ -47,6 +47,7 @@ class CourseTestMixin:
             is_published=True,
         )
         cls.draft = Course.objects.create(
+            course_type=CourseType.OFFLINE_RECORDED,
             title="دوره پیش‌نویس",
             slug="draft-course",
             category=cls.cat_safety,
@@ -55,6 +56,7 @@ class CourseTestMixin:
         )
 
 
+@override_settings(ONLINE_COURSES_ENABLED=True)
 class CourseModelTests(CourseTestMixin, TestCase):
     def test_published_queryset_excludes_drafts(self):
         slugs = set(Course.objects.published().values_list("slug", flat=True))
@@ -62,6 +64,7 @@ class CourseModelTests(CourseTestMixin, TestCase):
 
     def test_upcoming_only_returns_future_courses(self):
         past = Course.objects.create(
+            course_type=CourseType.OFFLINE_RECORDED,
             title="دوره گذشته",
             slug="past-course",
             category=self.cat_safety,
@@ -109,6 +112,7 @@ class CourseModelTests(CourseTestMixin, TestCase):
         self.assertTrue(self.published_free.registration_open)
 
 
+@override_settings(ONLINE_COURSES_ENABLED=True)
 class CourseListViewTests(CourseTestMixin, TestCase):
     def setUp(self):
         self.url = reverse("courses:list")
@@ -155,6 +159,7 @@ class CourseListViewTests(CourseTestMixin, TestCase):
         self.assertEqual(response.status_code, 200)
 
 
+@override_settings(ONLINE_COURSES_ENABLED=True)
 class CourseDetailViewTests(CourseTestMixin, TestCase):
     def test_published_course_detail_loads(self):
         response = self.client.get(self.published_online.get_absolute_url())
@@ -167,6 +172,7 @@ class CourseDetailViewTests(CourseTestMixin, TestCase):
         self.assertEqual(self.client.get(url).status_code, 404)
 
 
+@override_settings(ONLINE_COURSES_ENABLED=True)
 class SearchViewTests(CourseTestMixin, TestCase):
     def setUp(self):
         self.url = reverse("core:search")
@@ -186,6 +192,7 @@ class SearchViewTests(CourseTestMixin, TestCase):
         self.assertEqual(response.context["total_count"], 0)
 
 
+@override_settings(ONLINE_COURSES_ENABLED=True)
 class CalendarViewTests(CourseTestMixin, TestCase):
     def test_calendar_lists_only_upcoming_courses(self):
         response = self.client.get(reverse("core:calendar"))

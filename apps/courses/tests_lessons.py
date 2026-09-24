@@ -17,6 +17,7 @@ from django.urls import reverse
 from apps.accounts.models import InstructorProfile
 from apps.courses.access import check_lesson_access
 from apps.courses.models import (
+    CourseType,
     Course,
     CourseCategory,
     Lesson,
@@ -46,6 +47,7 @@ class LessonTestMixin:
         )
 
         cls.paid_course = Course.objects.create(
+            course_type=CourseType.OFFLINE_RECORDED,
             title="دوره پولی",
             slug="paid-course",
             category=cls.category,
@@ -54,6 +56,7 @@ class LessonTestMixin:
             is_published=True,
         )
         cls.free_course = Course.objects.create(
+            course_type=CourseType.OFFLINE_RECORDED,
             title="دوره رایگان",
             slug="free-course",
             category=cls.category,
@@ -99,6 +102,7 @@ class LessonTestMixin:
         )
 
 
+@override_settings(ONLINE_COURSES_ENABLED=True)
 class CurriculumModelTests(LessonTestMixin, TestCase):
     """محاسبه‌های ساختار دوره."""
 
@@ -107,6 +111,7 @@ class CurriculumModelTests(LessonTestMixin, TestCase):
 
     def test_course_without_sections_has_no_curriculum(self):
         empty = Course.objects.create(
+            course_type=CourseType.OFFLINE_RECORDED,
             title="بدون فصل", slug="no-sections", category=self.category, is_published=True
         )
         self.assertFalse(empty.has_curriculum)
@@ -144,6 +149,7 @@ class CurriculumModelTests(LessonTestMixin, TestCase):
         self.assertFalse(self.paid_lesson.is_visible)
 
 
+@override_settings(ONLINE_COURSES_ENABLED=True)
 class LessonAccessRuleTests(LessonTestMixin, TestCase):
     """
     قواعد دسترسی — حساس‌ترین بخش این فاز.
@@ -230,6 +236,7 @@ class LessonAccessRuleTests(LessonTestMixin, TestCase):
         self.assertFalse(bool(check_lesson_access(self.student, self.paid_lesson)))
 
 
+@override_settings(ONLINE_COURSES_ENABLED=True)
 class LessonPageTests(LessonTestMixin, TestCase):
     """صفحه درس برای کاربران مختلف."""
 
@@ -328,6 +335,7 @@ class LessonPageTests(LessonTestMixin, TestCase):
 
 
 @override_settings(PROTECTED_MEDIA_ROOT=TEMP_PROTECTED_ROOT)
+@override_settings(ONLINE_COURSES_ENABLED=True)
 class ProtectedFileTests(LessonTestMixin, TestCase):
     """
     فایل ویدیو و جزوه باید دقیقاً همان قواعد صفحه درس را داشته باشند.
@@ -443,6 +451,7 @@ class ProtectedFileTests(LessonTestMixin, TestCase):
         self.assertEqual(response.content, b"")  # فایل را Nginx می‌فرستد، نه پایتون
 
 
+@override_settings(ONLINE_COURSES_ENABLED=True)
 class CourseCurriculumDisplayTests(LessonTestMixin, TestCase):
     """نمایش سرفصل‌ها در صفحه دوره."""
 
@@ -464,6 +473,7 @@ class CourseCurriculumDisplayTests(LessonTestMixin, TestCase):
     def test_text_syllabus_is_used_when_there_are_no_sections(self):
         """دوره‌های قدیمی که فصل‌بندی نشده‌اند نباید سرفصل خالی نشان دهند."""
         course = Course.objects.create(
+            course_type=CourseType.OFFLINE_RECORDED,
             title="دوره متنی",
             slug="text-syllabus",
             category=self.category,
