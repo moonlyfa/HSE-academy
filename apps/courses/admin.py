@@ -2,6 +2,7 @@
 
 from django.contrib import admin
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.html import format_html
 
 from .models import (
@@ -15,7 +16,21 @@ from .models import (
     OnlineSession,
     OnlineSessionStatus,
     Section,
+    online_courses_enabled,
 )
+
+
+class OnlineOnlyAdminMixin:
+    """
+    بخش‌هایی از پنل که فقط به دوره‌های آنلاین مربوط‌اند.
+
+    وقتی ONLINE_COURSES_ENABLED خاموش است، این بخش‌ها از فهرست پنل مدیریت
+    پنهان می‌شوند تا مدیر با گزینه‌هایی که فعلاً کاری نمی‌کنند سردرگم نشود.
+    داده‌ها و خود صفحه‌ها سر جایشان‌اند؛ با روشن شدن کلید برمی‌گردند.
+    """
+
+    def has_module_permission(self, request) -> bool:
+        return online_courses_enabled() and super().has_module_permission(request)
 
 
 @admin.register(CourseCategory)
@@ -116,7 +131,7 @@ class LessonAttachmentInline(admin.TabularInline):
 
 
 @admin.register(Section)
-class SectionAdmin(admin.ModelAdmin):
+class SectionAdmin(OnlineOnlyAdminMixin, admin.ModelAdmin):
     list_display = ("title", "course", "order", "lesson_count_display", "is_published")
     list_filter = ("is_published", "course")
     search_fields = ("title", "course__title")
@@ -130,7 +145,7 @@ class SectionAdmin(admin.ModelAdmin):
 
 
 @admin.register(Lesson)
-class LessonAdmin(admin.ModelAdmin):
+class LessonAdmin(OnlineOnlyAdminMixin, admin.ModelAdmin):
     list_display = (
         "title",
         "course_title",
@@ -190,6 +205,7 @@ class CourseAdmin(admin.ModelAdmin):
         "category",
         "instructor",
         "course_type",
+        "site_visibility",
         "start_date",
         "price_display",
         "lesson_count_display",
@@ -214,6 +230,13 @@ class CourseAdmin(admin.ModelAdmin):
     list_per_page = 25
     readonly_fields = ("created_at", "updated_at", "thumbnail_preview")
     inlines = (SectionInline, OnlineSessionInline)
+
+    def get_inlines(self, request, obj):
+        # فصل و درس و کلاس آنلاین فقط برای دوره غیرحضوری و فقط وقتی بخش
+        # آنلاین روشن است معنا دارند.
+        if not online_courses_enabled() or (obj is not None and obj.is_in_person):
+            return ()
+        return super().get_inlines(request, obj)
 
     fieldsets = (
         (
@@ -254,6 +277,20 @@ class CourseAdmin(admin.ModelAdmin):
     def lesson_count_display(self, obj: Course) -> int:
         return obj.lesson_count
 
+    @admin.display(description="در سایت")
+    def site_visibility(self, obj: Course):
+        """
+        دوره در سایت دیده می‌شود یا نه — و اگر نه، چرا.
+
+        «منتشر شده» به‌تنهایی کافی نیست: دوره آنلاینِ منتشرشده هم تا روشن
+        شدن بخش آنلاین پنهان است و مدیر باید این را همین‌جا ببیند.
+        """
+        if obj.is_offered:
+            return format_html('<span style="color:#1e8449">دیده می‌شود</span>')
+        if not obj.is_published:
+            return format_html('<span style="color:#7f8c8d">منتشر نشده</span>')
+        return format_html('<span style="color:#d99400">پنهان (غیرحضوری)</span>')
+
     @admin.display(description="قیمت")
     def price_display(self, obj: Course) -> str:
         if obj.is_free:
@@ -284,7 +321,7 @@ class CourseAdmin(admin.ModelAdmin):
 
 
 @admin.register(LessonProgress)
-class LessonProgressAdmin(admin.ModelAdmin):
+class LessonProgressAdmin(OnlineOnlyAdminMixin, admin.ModelAdmin):
     """
     مشاهده پیشرفت دانشجویان.
 
@@ -345,9 +382,16 @@ class EnrollmentAdmin(admin.ModelAdmin):
         "source",
         "status_badge",
         "access_until",
+        "completion_display",
         "created_at",
     )
-    list_filter = ("status", "source", "course", "created_at")
+    list_filter = (
+        "status",
+        "source",
+        ("completed_at", admin.EmptyFieldListFilter),
+        "course",
+        "created_at",
+    )
     search_fields = (
         "user__mobile",
         "user__first_name",
@@ -371,6 +415,16 @@ class EnrollmentAdmin(admin.ModelAdmin):
                     "هنگام خرید، این تاریخ خودکار از روی «مدت دسترسی» دوره پر می‌شود."
                 ),
                 "fields": ("starts_at", "expires_at"),
+            },
+        ),
+        (
+            "گذراندن دوره",
+            {
+                "description": (
+                    "برای دوره حضوری: پس از برگزاری کلاس، گذراندن دانشجو را اینجا "
+                    "تأیید کنید. آزمون پایانی و گواهی از روی همین تأیید باز می‌شوند."
+                ),
+                "fields": ("completed_at",),
             },
         ),
         ("سفارش مرتبط", {"fields": ("order",), "classes": ("collapse",)}),
@@ -400,6 +454,30 @@ class EnrollmentAdmin(admin.ModelAdmin):
             return "دائمی"
         return f"{obj.expires_at:%Y-%m-%d} ({obj.days_remaining} روز)"
 
+    @admin.display(description="گذراندن دوره", ordering="completed_at")
+    def completion_display(self, obj: Enrollment) -> str:
+        if obj.completed_at:
+            return f"تأییدشده ({obj.completed_at:%Y-%m-%d})"
+        return "—"
+
+    @admin.action(description="تأیید گذراندن دوره (حضوری) برای موارد انتخاب‌شده")
+    def mark_completed(self, request, queryset):
+        # تاریخ تأییدهای قبلی دست نمی‌خورد؛ روی گواهی‌ای که صادر شده، همان
+        # تاریخ اول معتبر است.
+        updated = queryset.filter(completed_at__isnull=True).update(
+            completed_at=timezone.now()
+        )
+        self.message_user(request, f"گذراندن دوره برای {updated} ثبت‌نام تأیید شد.")
+
+    @admin.action(description="لغو تأیید گذراندن دوره برای موارد انتخاب‌شده")
+    def unmark_completed(self, request, queryset):
+        updated = queryset.exclude(completed_at__isnull=True).update(completed_at=None)
+        self.message_user(
+            request,
+            f"تأیید گذراندن دوره برای {updated} ثبت‌نام برداشته شد. "
+            "گواهی‌هایی که قبلاً صادر شده‌اند خودکار باطل نمی‌شوند.",
+        )
+
     @admin.action(description="تعلیق دسترسی موارد انتخاب‌شده")
     def suspend_selected(self, request, queryset):
         updated = queryset.update(status=EnrollmentStatus.SUSPENDED)
@@ -410,14 +488,19 @@ class EnrollmentAdmin(admin.ModelAdmin):
         updated = queryset.update(status=EnrollmentStatus.ACTIVE)
         self.message_user(request, f"دسترسی {updated} ثبت‌نام فعال شد.")
 
-    actions = ("suspend_selected", "activate_selected")
+    actions = (
+        "mark_completed",
+        "unmark_completed",
+        "suspend_selected",
+        "activate_selected",
+    )
 
     def get_queryset(self, request):
         return super().get_queryset(request).select_related("user", "course", "order")
 
 
 @admin.register(OnlineSession)
-class OnlineSessionAdmin(admin.ModelAdmin):
+class OnlineSessionAdmin(OnlineOnlyAdminMixin, admin.ModelAdmin):
     """
     مدیریت کلاس‌های آنلاین.
 

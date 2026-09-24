@@ -10,7 +10,7 @@ from django.shortcuts import redirect, render
 from django.urls import reverse
 
 from apps.accounts.models import InstructorProfile
-from apps.courses.models import Course, CourseCategory
+from apps.courses.models import Course, CourseCategory, offered_courses_q
 
 from .forms import ContactForm
 from .throttling import CONTACT_LIMIT
@@ -36,14 +36,14 @@ def home(request: HttpRequest) -> HttpResponse:
 
     categories = (
         CourseCategory.objects.filter(is_active=True, show_on_homepage=True)
-        .annotate(num_courses=Count("courses", filter=Q(courses__is_published=True)))[
+        .annotate(num_courses=Count("courses", filter=offered_courses_q("courses__")))[
             : site.homepage_category_count
         ]
     )
 
     instructors = InstructorProfile.objects.filter(
         is_active=True, show_on_homepage=True
-    ).annotate(num_courses=Count("courses", filter=Q(courses__is_published=True)))[:4]
+    ).annotate(num_courses=Count("courses", filter=offered_courses_q("courses__")))[:4]
 
     context = {
         "slides": slides,
@@ -77,7 +77,7 @@ def about(request: HttpRequest) -> HttpResponse:
             # کارت مدرس همه‌جا تعداد دوره را نشان می‌دهد، پس همین‌جا
             # با یک کوئری شمرده می‌شود نه با یک کوئری به‌ازای هر مدرس.
             "instructors": InstructorProfile.objects.filter(is_active=True).annotate(
-                num_courses=Count("courses", filter=Q(courses__is_published=True))
+                num_courses=Count("courses", filter=offered_courses_q("courses__"))
             )[:4],
             "nav_active": "about",
         },

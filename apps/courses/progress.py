@@ -78,6 +78,9 @@ class CourseProgress:
 
 def course_progress(user, course: Course) -> CourseProgress:
     """وضعیت کاربر در یک دوره."""
+    if course.is_in_person:
+        return _in_person_progress(user, course)
+
     lessons = list(visible_lessons(course))
     total = len(lessons)
 
@@ -114,6 +117,30 @@ def course_progress(user, course: Course) -> CourseProgress:
         last_lesson=last_lesson,
         next_lesson=next_lesson,
     )
+
+
+def _in_person_progress(user, course: Course) -> CourseProgress:
+    """
+    پیشرفت در دوره حضوری: یک قدم، که آکادمی تأییدش می‌کند.
+
+    دانشجوی دوره حضوری درسی در سایت ندارد که تکمیل کند؛ «تمام کردن دوره»
+    یعنی آکادمی بعد از برگزاری کلاس، گذراندن او را در پنل مدیریت تأیید
+    کرده باشد (Enrollment.completed_at). با مدل کردن همین به‌صورت «یک از
+    یک»، آزمون و گواهی — که فقط `is_finished` را می‌پرسند — بدون هیچ
+    تغییری برای دوره حضوری هم درست کار می‌کنند.
+
+    فقط ثبت‌نامِ فعال حساب می‌شود؛ تأیید روی ثبت‌نامی که بعداً تعلیق یا
+    بازپرداخت شده، گواهی نمی‌دهد.
+    """
+    completed = 0
+    if user.is_authenticated:
+        from .enrollment import active_enrollment
+
+        enrollment = active_enrollment(user, course)
+        if enrollment is not None and enrollment.completed_at:
+            completed = 1
+
+    return CourseProgress(course=course, total=1, completed=completed)
 
 
 def record_view(user, lesson: Lesson) -> LessonProgress | None:
@@ -181,7 +208,7 @@ def learner_courses(user) -> list[CourseProgress]:
     enrollments = [
         enrollment
         for enrollment in enrolled_courses(user)
-        if enrollment.is_active and enrollment.course.is_published
+        if enrollment.is_active and enrollment.course.is_offered
     ]
     if not enrollments:
         return []

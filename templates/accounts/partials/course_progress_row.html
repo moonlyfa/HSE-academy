@@ -15,7 +15,20 @@
             <a href="{{ progress.course.get_absolute_url }}">{{ progress.course.title }}</a>
         </h3>
 
-        {% include "courses/partials/progress_bar.html" with progress=progress %}
+        {% if progress.course.is_in_person %}
+            {# دوره حضوری درصد پیشرفت ندارد؛ فقط «برگزار نشده / گذرانده شد» #}
+            <p class="course-row__status small mb-1">
+                {% if progress.is_finished %}
+                    {% icon "check" size=16 %} گذراندن دوره تأیید شده است
+                {% else %}
+                    {% icon "location" size=16 %} دوره حضوری
+                    {% if progress.course.start_date %}· شروع {{ progress.course.start_date|jalali }}{% endif %}
+                    {% if progress.course.location %}· {{ progress.course.location }}{% endif %}
+                {% endif %}
+            </p>
+        {% else %}
+            {% include "courses/partials/progress_bar.html" with progress=progress %}
+        {% endif %}
 
         {% if progress.enrollment.expires_at %}
             <span class="course-row__expiry {% if progress.enrollment.is_expiring_soon %}is-soon{% endif %}">

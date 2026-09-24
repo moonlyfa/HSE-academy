@@ -2,7 +2,7 @@
 چه کسی اجازه شرکت در آزمون را دارد؟
 
 پایه تصمیم همان `check_course_access` بخش دوره‌هاست — یعنی همان ثبت‌نامی
-که درس و کلاس آنلاین را باز می‌کند، آزمون را هم باز می‌کند. اینجا فقط
+که درس، کلاس آنلاین یا کلاس حضوری را باز می‌کند، آزمون را هم باز می‌کند. اینجا فقط
 شرط‌های خاص آزمون به آن اضافه می‌شود: آزمون منتشر شده باشد، سؤال داشته
 باشد، سقف دفعات پر نشده باشد و — اگر مدرس خواسته — دوره تمام شده باشد.
 """
@@ -98,6 +98,13 @@ def check_can_start(user, exam) -> LessonAccess:
 
     if exam.require_course_completion:
         progress = course_progress(user, exam.course)
+        if not progress.is_finished and exam.course.is_in_person:
+            return LessonAccess(
+                False,
+                "course_not_completed",
+                "آزمون این دوره پس از برگزاری کلاس حضوری و تأیید گذراندن دوره "
+                "توسط آکادمی باز می‌شود.",
+            )
         if not progress.is_finished:
             return LessonAccess(
                 False,

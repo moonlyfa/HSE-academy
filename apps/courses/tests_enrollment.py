@@ -8,7 +8,7 @@
 from datetime import timedelta
 
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
@@ -22,6 +22,7 @@ from apps.courses.enrollment import (
     revoke,
 )
 from apps.courses.models import (
+    CourseType,
     Course,
     CourseCategory,
     Enrollment,
@@ -42,6 +43,7 @@ class EnrollmentTestMixin:
         cls.category = CourseCategory.objects.create(name="ایمنی", slug="safety")
 
         cls.lifetime_course = Course.objects.create(
+            course_type=CourseType.OFFLINE_RECORDED,
             title="دوره دائمی",
             slug="lifetime",
             category=cls.category,
@@ -49,6 +51,7 @@ class EnrollmentTestMixin:
             is_published=True,
         )
         cls.timed_course = Course.objects.create(
+            course_type=CourseType.OFFLINE_RECORDED,
             title="دوره مدت‌دار",
             slug="timed",
             category=cls.category,
@@ -57,6 +60,7 @@ class EnrollmentTestMixin:
             is_published=True,
         )
         cls.free_course = Course.objects.create(
+            course_type=CourseType.OFFLINE_RECORDED,
             title="دوره رایگان",
             slug="free",
             category=cls.category,
@@ -76,6 +80,7 @@ class EnrollmentTestMixin:
         cls.other = User.objects.create_user(mobile="09127654321", password="HseTech!2026")
 
 
+@override_settings(ONLINE_COURSES_ENABLED=True)
 class EnrollmentBasicsTests(EnrollmentTestMixin, TestCase):
     def test_enrolling_creates_an_active_record(self):
         enrollment = enroll(self.user, self.lifetime_course)
@@ -136,6 +141,7 @@ class EnrollmentBasicsTests(EnrollmentTestMixin, TestCase):
         self.assertEqual(enrollment.source, EnrollmentSource.FREE)
 
 
+@override_settings(ONLINE_COURSES_ENABLED=True)
 class EnrollmentExpiryTests(EnrollmentTestMixin, TestCase):
     def test_an_expired_enrollment_is_not_active(self):
         enrollment = enroll(self.user, self.timed_course)
@@ -181,6 +187,7 @@ class EnrollmentExpiryTests(EnrollmentTestMixin, TestCase):
         self.assertFalse(enrollment.is_active)
 
 
+@override_settings(ONLINE_COURSES_ENABLED=True)
 class AccessThroughEnrollmentTests(EnrollmentTestMixin, TestCase):
     def test_without_an_enrollment_the_lesson_is_locked(self):
         access = check_lesson_access(self.user, self.lesson)
@@ -236,6 +243,7 @@ class AccessThroughEnrollmentTests(EnrollmentTestMixin, TestCase):
         self.assertTrue(check_lesson_access(self.user, self.lesson).allowed)
 
 
+@override_settings(ONLINE_COURSES_ENABLED=True)
 class VipAccessTests(EnrollmentTestMixin, TestCase):
     def test_a_vip_user_reaches_courses_marked_for_vip(self):
         self.user.is_vip = True
@@ -261,6 +269,7 @@ class VipAccessTests(EnrollmentTestMixin, TestCase):
         self.assertFalse(has_access(self.user, self.lifetime_course))
 
 
+@override_settings(ONLINE_COURSES_ENABLED=True)
 class EnrollmentFromPaymentTests(EnrollmentTestMixin, TestCase):
     def _paid_order(self, course):
         order = create_order(user=self.user, lines=[])
@@ -327,6 +336,7 @@ class EnrollmentFromPaymentTests(EnrollmentTestMixin, TestCase):
         )
 
 
+@override_settings(ONLINE_COURSES_ENABLED=True)
 class FreeCourseEnrollmentTests(EnrollmentTestMixin, TestCase):
     def setUp(self):
         self.client.force_login(self.user)
@@ -368,6 +378,7 @@ class FreeCourseEnrollmentTests(EnrollmentTestMixin, TestCase):
         self.assertEqual(Enrollment.objects.count(), 0)
 
 
+@override_settings(ONLINE_COURSES_ENABLED=True)
 class FreeOrderTests(EnrollmentTestMixin, TestCase):
     """
     سفارشی که مبلغش صفر است نباید به درگاه برود.
@@ -399,6 +410,7 @@ class FreeOrderTests(EnrollmentTestMixin, TestCase):
         self.assertTrue(check_lesson_access(self.user, self.free_lesson).allowed)
 
 
+@override_settings(ONLINE_COURSES_ENABLED=True)
 class CoursePageEnrollmentTests(EnrollmentTestMixin, TestCase):
     def test_a_free_course_offers_a_one_click_enrollment(self):
         self.client.force_login(self.user)

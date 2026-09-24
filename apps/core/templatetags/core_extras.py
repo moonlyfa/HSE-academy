@@ -326,11 +326,14 @@ def course_jsonld(context, course) -> str:
     instance = {
         "@type": "CourseInstance",
         "courseMode": {
+            "in_person": "onsite",
             "online_live": "online",
             "offline_recorded": "online",
             "hybrid": "blended",
-        }.get(course.course_type, "online"),
+        }.get(course.course_type, "onsite"),
     }
+    if course.is_in_person and course.location:
+        instance["location"] = {"@type": "Place", "name": course.location}
     if course.start_date:
         instance["startDate"] = course.start_date.isoformat()
     if course.end_date:

@@ -90,7 +90,10 @@ class Exam(models.Model):
     require_course_completion = models.BooleanField(
         "نیاز به تکمیل دوره",
         default=False,
-        help_text="اگر روشن باشد، تا همه درس‌ها تکمیل نشوند آزمون باز نمی‌شود.",
+        help_text=(
+            "اگر روشن باشد، تا همه درس‌ها تکمیل نشوند آزمون باز نمی‌شود. برای "
+            "دوره حضوری یعنی: تا آکادمی گذراندن دوره را تأیید نکند."
+        ),
     )
     is_published = models.BooleanField(
         "منتشر شده",

@@ -606,11 +606,18 @@ def dashboard_view(request: HttpRequest) -> HttpResponse:
     # که همین حالا تمامش کرده است.
     current = courses[0] if courses else None
 
+    from apps.certificates.models import Certificate, CertificateStatus
+
     return render(
         request,
         "accounts/dashboard.html",
         {
             "stats": learner_stats(request.user),
+            # برای دوره حضوری «درس تکمیل‌شده» و «دقیقه آموزش» معنا ندارد؛
+            # داشبورد به‌جایش گواهی‌های صادرشده را می‌شمارد.
+            "certificate_count": Certificate.objects.filter(
+                user=request.user, status=CertificateStatus.ACTIVE
+            ).count(),
             "recent_courses": courses[:3],
             "current_progress": current,
             "resume_lesson": current.resume_lesson if current else None,

@@ -18,9 +18,49 @@ from .storages import lesson_attachment_path, lesson_video_path, protected_stora
 class CourseType(models.TextChoices):
     """شیوه برگزاری دوره."""
 
+    IN_PERSON = "in_person", "حضوری"
     ONLINE_LIVE = "online_live", "آنلاین زنده"
     OFFLINE_RECORDED = "offline_recorded", "آفلاین (ضبط‌شده)"
     HYBRID = "hybrid", "ترکیبی"
+
+
+def online_courses_enabled() -> bool:
+    """
+    آیا بخش دوره‌های غیرحضوری روشن است؟ (ONLINE_COURSES_ENABLED)
+
+    هر بار از تنظیمات خوانده می‌شود، نه یک‌بار هنگام بارگذاری ماژول؛ وگرنه
+    تغییر کلید بدون ری‌استارت کامل اثر نمی‌کرد و تست‌ها هم نمی‌توانستند
+    هر دو حالت را امتحان کنند.
+    """
+    return settings.ONLINE_COURSES_ENABLED
+
+
+def offered_course_types() -> list[str]:
+    """
+    شیوه‌های برگزاری‌ای که همین حالا در سایت عرضه می‌شوند.
+
+    دوره‌ای که شیوه‌اش در این فهرست نیست حذف نمی‌شود؛ فقط مثل دوره
+    منتشرنشده رفتار می‌کند: نه در فهرست‌ها می‌آید، نه صفحه‌اش باز می‌شود،
+    نه به سبد خرید اضافه می‌شود.
+    """
+    if online_courses_enabled():
+        return list(CourseType.values)
+    return [CourseType.IN_PERSON]
+
+
+def offered_courses_q(prefix: str = "") -> models.Q:
+    """
+    شرط «دوره در سایت دیده می‌شود» برای کوئری‌ها.
+
+    برای شمارش دوره‌ها از طرف دسته‌بندی یا مدرس، prefix را "courses__"
+    بدهید. یک تابع برای همه، تا هیچ شمارنده‌ای دوره‌ی پنهان را نشمارد.
+    """
+    return models.Q(
+        **{
+            f"{prefix}is_published": True,
+            f"{prefix}course_type__in": offered_course_types(),
+        }
+    )
 
 
 class CourseLevel(models.TextChoices):
@@ -104,12 +144,13 @@ class CourseCategory(models.Model):
 
     @property
     def published_course_count(self) -> int:
-        return self.courses.filter(is_published=True).count()
+        return self.courses.filter(offered_courses_q()).count()
 
 
 class PublishedCourseQuerySet(models.QuerySet):
     def published(self):
-        return self.filter(is_published=True)
+        """دوره‌هایی که در سایت دیده می‌شوند: منتشرشده و با شیوه برگزاری فعال."""
+        return self.filter(offered_courses_q())
 
     def featured(self):
         return self.published().filter(is_featured=True)
@@ -160,7 +201,11 @@ class Course(models.Model):
         "شیوه برگزاری",
         max_length=20,
         choices=CourseType.choices,
-        default=CourseType.ONLINE_LIVE,
+        default=CourseType.IN_PERSON,
+        help_text=(
+            "تا وقتی دوره‌های غیرحضوری خاموش‌اند (ONLINE_COURSES_ENABLED)، "
+            "دوره‌ای با شیوه‌ای غیر از «حضوری» در سایت دیده نمی‌شود."
+        ),
     )
     level = models.CharField(
         "سطح",
@@ -200,7 +245,7 @@ class Course(models.Model):
         "محل برگزاری",
         max_length=120,
         blank=True,
-        help_text="برای دوره‌های آنلاین می‌توانید «آنلاین» بنویسید.",
+        help_text="نشانی یا شهر برگزاری کلاس حضوری. مثال: تهران، خیابان ولیعصر، سالن همایش",
     )
 
     # --- محتوای آموزشی ---
@@ -285,6 +330,26 @@ class Course(models.Model):
             return 0
         return round((self.price - self.discount_price) / self.price * 100)
 
+    # --- شیوه برگزاری ---
+    @property
+    def is_in_person(self) -> bool:
+        return self.course_type == CourseType.IN_PERSON
+
+    @property
+    def is_offered(self) -> bool:
+        """آیا این دوره همین حالا در سایت دیده می‌شود؟ (همان شرط published())"""
+        return self.is_published and self.course_type in offered_course_types()
+
+    @property
+    def has_online_content(self) -> bool:
+        """
+        آیا صفحه دوره باید درس‌ها، ویدیوها و کلاس‌های آنلاین را نشان دهد؟
+
+        دوره حضوری محتوای آنلاین ندارد، حتی اگر مدیر برایش فصل ساخته
+        باشد؛ و وقتی بخش آنلاین خاموش است، هیچ دوره‌ای ندارد.
+        """
+        return online_courses_enabled() and not self.is_in_person
+
     # --- زمان‌بندی ---
     @property
     def is_upcoming(self) -> bool:
@@ -293,7 +358,7 @@ class Course(models.Model):
     @property
     def registration_open(self) -> bool:
         """ثبت‌نام تا قبل از شروع دوره باز است."""
-        if not self.is_published:
+        if not self.is_offered:
             return False
         if self.start_date is None:
             return True  # دوره آفلاین بدون تاریخ شروع، همیشه باز است.
@@ -699,6 +764,22 @@ class Enrollment(models.Model):
         null=True,
         blank=True,
         help_text="خالی یعنی دسترسی دائمی است.",
+    )
+
+    # دوره حضوری درسِ آنلاینی ندارد که دانشجو «تکمیل» کند؛ گذراندن آن را
+    # آکادمی بعد از برگزاری کلاس تأیید می‌کند. همین تاریخ برای دوره حضوری
+    # نقش «همه درس‌ها تکمیل شد» را دارد و آزمون و گواهی از روی آن باز
+    # می‌شوند.
+    completed_at = models.DateTimeField(
+        "تأیید گذراندن دوره",
+        null=True,
+        blank=True,
+        help_text=(
+            "برای دوره حضوری: بعد از اینکه دانشجو در کلاس شرکت کرد و دوره را "
+            "گذراند، این تاریخ را پر کنید (یا از عملیات «تأیید گذراندن دوره» در "
+            "فهرست ثبت‌نام‌ها استفاده کنید). تا خالی است، آزمون پایانی (اگر "
+            "«فقط پس از تکمیل دوره» باشد) و گواهی باز نمی‌شوند."
+        ),
     )
 
     note = models.CharField("یادداشت", max_length=300, blank=True)

@@ -12,7 +12,7 @@ from datetime import timedelta
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
@@ -20,6 +20,7 @@ from apps.courses.access import check_session_access
 from apps.courses.enrollment import enroll, revoke
 from apps.courses.live import upcoming_session_rows, user_sessions
 from apps.courses.models import (
+    CourseType,
     Course,
     CourseCategory,
     EnrollmentSource,
@@ -46,6 +47,7 @@ class LiveTestMixin:
     def setUpTestData(cls):
         cls.category = CourseCategory.objects.create(name="ایمنی", slug="safety")
         cls.course = Course.objects.create(
+            course_type=CourseType.OFFLINE_RECORDED,
             title="دوره آنلاین",
             slug="online-course",
             category=cls.category,
@@ -75,6 +77,7 @@ class LiveTestMixin:
         return OnlineSession.objects.create(**defaults)
 
 
+@override_settings(ONLINE_COURSES_ENABLED=True)
 class OnlineSessionModelTests(LiveTestMixin, TestCase):
     """زمان‌بندی جلسه: کِی باز است، کِی تمام شده، کِی هنوز نرسیده."""
 
@@ -140,6 +143,7 @@ class OnlineSessionModelTests(LiveTestMixin, TestCase):
         from django.core.exceptions import ValidationError
 
         other_course = Course.objects.create(
+            course_type=CourseType.OFFLINE_RECORDED,
             title="دوره دیگر", slug="other", category=self.category, is_published=True
         )
         section = Section.objects.create(course=other_course, title="فصل")
@@ -157,6 +161,7 @@ class OnlineSessionModelTests(LiveTestMixin, TestCase):
             session.full_clean()
 
 
+@override_settings(ONLINE_COURSES_ENABLED=True)
 class SessionAccessTests(LiveTestMixin, TestCase):
     """قاعده اصلی فاز: چه کسی اجازه ورود دارد."""
 
@@ -236,6 +241,7 @@ class SessionAccessTests(LiveTestMixin, TestCase):
         self.assertTrue(access.allowed)
 
 
+@override_settings(ONLINE_COURSES_ENABLED=True)
 class SessionJoinViewTests(LiveTestMixin, TestCase):
     """آدرس ورود: تنها راه رسیدن به لینک کلاس."""
 
@@ -270,6 +276,7 @@ class SessionJoinViewTests(LiveTestMixin, TestCase):
     def test_session_of_another_course_is_not_reachable_through_this_slug(self):
         """شناسه جلسه یک دوره، زیر آدرس دوره‌ای دیگر کار نمی‌کند."""
         other = Course.objects.create(
+            course_type=CourseType.OFFLINE_RECORDED,
             title="دوره ارزان", slug="cheap", category=self.category, is_published=True
         )
         enroll(self.student, other)
@@ -306,6 +313,7 @@ class SessionJoinViewTests(LiveTestMixin, TestCase):
         self.assertNotContains(response, MEETING_URL)
 
 
+@override_settings(ONLINE_COURSES_ENABLED=True)
 class MySessionsPageTests(LiveTestMixin, TestCase):
     """صفحه «کلاس‌های آنلاین من» در داشبورد."""
 
@@ -315,6 +323,7 @@ class MySessionsPageTests(LiveTestMixin, TestCase):
 
     def test_only_sessions_of_enrolled_courses_are_listed(self):
         other = Course.objects.create(
+            course_type=CourseType.OFFLINE_RECORDED,
             title="دوره دیگر", slug="other", category=self.category, is_published=True
         )
         OnlineSession.objects.create(
@@ -350,6 +359,7 @@ class MySessionsPageTests(LiveTestMixin, TestCase):
         self.assertEqual(user_sessions(self.student).count(), 0)
 
 
+@override_settings(ONLINE_COURSES_ENABLED=True)
 class SkyroomServiceTests(LiveTestMixin, TestCase):
     """لایه سرویس: تعویض حالت دستی و API نباید به بقیه پروژه دست بزند."""
 

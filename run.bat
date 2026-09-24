@@ -46,16 +46,21 @@ echo [3/4] Updating database ...
 .venv\Scripts\python.exe manage.py migrate --noinput
 if errorlevel 1 goto migrate_failed
 
-REM --- 3b. Demo data (only when the database is empty) -------------------
-REM اولین اجرا نباید سایت خالی نشان بدهد؛ اگر هیچ دوره‌ای نیست، داده
-REM نمونه و یک حساب مدیر ساخته می‌شود.
-.venv\Scripts\python.exe -c "import os,django;os.environ.setdefault('DJANGO_SETTINGS_MODULE','config.settings.dev');django.setup();from apps.courses.models import Course;raise SystemExit(0 if Course.objects.exists() else 1)" >nul 2>&1
-if errorlevel 1 (
+REM --- 3b. Demo data ------------------------------------------------------
+REM اولین اجرا نباید سایت خالی نشان بدهد. کد خروج بررسی:
+REM   2 = دیتابیس خالی است  -> داده نمونه + حساب مدیر
+REM   1 = دوره حضوری نیست    -> فقط داده نمونه (دیتابیس قدیمی که فقط دوره آنلاین داشت)
+REM   0 = همه چیز هست
+.venv\Scripts\python.exe -c "import os,django;os.environ.setdefault('DJANGO_SETTINGS_MODULE','config.settings.dev');django.setup();from apps.courses.models import Course;raise SystemExit(0 if Course.objects.filter(course_type='in_person').exists() else (1 if Course.objects.exists() else 2))" >nul 2>&1
+if errorlevel 2 (
     echo       Loading demo data ^(first run only^) ...
     .venv\Scripts\python.exe manage.py seed_demo
     .venv\Scripts\python.exe manage.py make_admin 09121234567 hse12345
     echo.
     echo       Admin login:  09121234567  /  hse12345
+) else if errorlevel 1 (
+    echo       Adding in-person demo courses ...
+    .venv\Scripts\python.exe manage.py seed_demo
 )
 
 REM --- 4. Run ------------------------------------------------------------

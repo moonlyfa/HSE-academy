@@ -46,8 +46,11 @@
             <div class="col-lg-2 col-md-6 col-6">
                 <h5>خدمات</h5>
                 <ul class="footer-links">
-                    <li><a href="{% url 'courses:list' %}?type=online_live">دوره‌های آنلاین</a></li>
-                    <li><a href="{% url 'courses:list' %}?type=offline_recorded">دوره‌های آفلاین</a></li>
+                    <li><a href="{% url 'courses:list' %}{% if online_courses_enabled %}?type=in_person{% endif %}">دوره‌های حضوری</a></li>
+                    {% if online_courses_enabled %}
+                        <li><a href="{% url 'courses:list' %}?type=online_live">دوره‌های آنلاین</a></li>
+                        <li><a href="{% url 'courses:list' %}?type=offline_recorded">دوره‌های آفلاین</a></li>
+                    {% endif %}
                     <li><a href="{% url 'core:contact' %}">دوره‌های سازمانی</a></li>
                     <li><a href="{% url 'core:contact' %}">مشاوره آموزشی</a></li>
                 </ul>

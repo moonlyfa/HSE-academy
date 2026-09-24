@@ -102,6 +102,13 @@ def check_eligibility(user, course) -> LessonAccess:
 
     progress = course_progress(user, course)
     if not progress.is_finished:
+        if course.is_in_person:
+            return LessonAccess(
+                False,
+                "course_not_completed",
+                "گواهی پس از برگزاری کلاس حضوری و تأیید گذراندن دوره توسط "
+                "آکادمی صادر می‌شود. این تأیید هنوز ثبت نشده است.",
+            )
         return LessonAccess(
             False,
             "course_not_completed",

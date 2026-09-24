@@ -28,6 +28,7 @@ from apps.blog.models import BlogCategory, BlogPost, PostStatus
 from apps.certificates.issue import issue_certificate
 from apps.courses.enrollment import enroll
 from apps.courses.models import (
+    CourseType,
     Course,
     CourseCategory,
     Lesson,
@@ -56,6 +57,7 @@ class AccessMatrixMixin:
     def setUpTestData(cls):
         cls.category = CourseCategory.objects.create(name="ایمنی", slug="safety")
         cls.course = Course.objects.create(
+            course_type=CourseType.OFFLINE_RECORDED,
             title="دوره پولی",
             slug="paid-course",
             category=cls.category,
@@ -139,6 +141,7 @@ class AccessMatrixMixin:
         self.assertIn("login", response["Location"])
 
 
+@override_settings(ONLINE_COURSES_ENABLED=True)
 class CourseContentAccessTests(AccessMatrixMixin, TestCase):
     """محتوای خریدنی: صفحه باز می‌شود، محتوا نه."""
 
@@ -185,6 +188,7 @@ class CourseContentAccessTests(AccessMatrixMixin, TestCase):
         self.assert_status("staff", url, 404)
 
 
+@override_settings(ONLINE_COURSES_ENABLED=True)
 class OnlineClassAccessTests(AccessMatrixMixin, TestCase):
     def test_join_link_only_for_the_enrolled_student(self):
         url = self.session.get_join_url()
@@ -207,6 +211,7 @@ class OnlineClassAccessTests(AccessMatrixMixin, TestCase):
         self.assert_sent_to_login("anonymous", reverse("courses:my_sessions"))
 
 
+@override_settings(ONLINE_COURSES_ENABLED=True)
 class ExamAccessTests(AccessMatrixMixin, TestCase):
     def test_exam_page_explains_itself_but_does_not_open(self):
         url = self.exam.get_absolute_url()
@@ -251,6 +256,7 @@ class ExamAccessTests(AccessMatrixMixin, TestCase):
         self.assertIsNone(answer.selected_option)
 
 
+@override_settings(ONLINE_COURSES_ENABLED=True)
 class CertificateAccessTests(AccessMatrixMixin, TestCase):
     @classmethod
     def setUpTestData(cls):
@@ -302,6 +308,7 @@ class CertificateAccessTests(AccessMatrixMixin, TestCase):
         self.assertEqual(Certificate.objects.filter(user=self.stranger).count(), 0)
 
 
+@override_settings(ONLINE_COURSES_ENABLED=True)
 class OrderAccessTests(AccessMatrixMixin, TestCase):
     @classmethod
     def setUpTestData(cls):
@@ -342,6 +349,7 @@ class OrderAccessTests(AccessMatrixMixin, TestCase):
         self.assertEqual(self.order.status, OrderStatus.PENDING)
 
 
+@override_settings(ONLINE_COURSES_ENABLED=True)
 class DashboardAccessTests(AccessMatrixMixin, TestCase):
     """همه صفحه‌های شخصی، پشت ورود."""
 
@@ -368,6 +376,7 @@ class DashboardAccessTests(AccessMatrixMixin, TestCase):
                 self.assert_status("stranger", url, 200)
 
 
+@override_settings(ONLINE_COURSES_ENABLED=True)
 class AdminAccessTests(AccessMatrixMixin, TestCase):
     def test_admin_is_closed_to_ordinary_users(self):
         response = self.assert_status("student", "/admin/", 302)
@@ -378,6 +387,7 @@ class AdminAccessTests(AccessMatrixMixin, TestCase):
 
 
 @override_settings(BLOG_ENABLED=True)
+@override_settings(ONLINE_COURSES_ENABLED=True)
 class BlogAccessTests(AccessMatrixMixin, TestCase):
     @classmethod
     def setUpTestData(cls):

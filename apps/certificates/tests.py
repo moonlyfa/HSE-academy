@@ -13,7 +13,7 @@
 from datetime import timedelta
 
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
@@ -27,7 +27,7 @@ from apps.certificates.issue import (
 from apps.certificates.models import Certificate, CertificateStatus
 from apps.certificates.pdf import fa, render_certificate
 from apps.courses.enrollment import enroll
-from apps.courses.models import Course, CourseCategory, Lesson, Section
+from apps.courses.models import CourseType, Course, CourseCategory, Lesson, Section
 from apps.courses.progress import set_completed
 from apps.exams.grading import finish_attempt, save_answer, start_attempt
 from apps.exams.models import Exam, Question, QuestionOption
@@ -40,6 +40,7 @@ class CertificateTestMixin:
     def setUpTestData(cls):
         cls.category = CourseCategory.objects.create(name="ایمنی", slug="safety")
         cls.course = Course.objects.create(
+            course_type=CourseType.OFFLINE_RECORDED,
             title="دوره گواهی‌دار",
             slug="cert-course",
             category=cls.category,
@@ -81,6 +82,7 @@ class CertificateTestMixin:
         return self.student
 
 
+@override_settings(ONLINE_COURSES_ENABLED=True)
 class EligibilityTests(CertificateTestMixin, TestCase):
     def test_ready_student_is_eligible(self):
         self.assertTrue(check_eligibility(self.ready_student(), self.course).allowed)
@@ -151,6 +153,7 @@ class EligibilityTests(CertificateTestMixin, TestCase):
         self.assertEqual(result.reason, "course_not_completed")
 
 
+@override_settings(ONLINE_COURSES_ENABLED=True)
 class ExamRequirementTests(CertificateTestMixin, TestCase):
     """اگر دوره آزمون دارد، قبولی در آن شرط گواهی است."""
 
@@ -199,6 +202,7 @@ class ExamRequirementTests(CertificateTestMixin, TestCase):
         self.assertTrue(check_eligibility(self.student, self.course).allowed)
 
 
+@override_settings(ONLINE_COURSES_ENABLED=True)
 class IssueTests(CertificateTestMixin, TestCase):
     def test_holder_name_is_never_the_mobile_number(self):
         """روی گواهی باید نام واقعی چاپ شود، نه شماره تماس."""
@@ -274,6 +278,7 @@ class IssueTests(CertificateTestMixin, TestCase):
         self.assertNotEqual(first.verification_token, second.verification_token)
 
 
+@override_settings(ONLINE_COURSES_ENABLED=True)
 class RevokeAndValidityTests(CertificateTestMixin, TestCase):
     def setUp(self):
         self.certificate = issue_certificate(self.ready_student(), self.course)
@@ -299,6 +304,7 @@ class RevokeAndValidityTests(CertificateTestMixin, TestCase):
         self.assertEqual(self.certificate.status_label, "منقضی‌شده")
 
 
+@override_settings(ONLINE_COURSES_ENABLED=True)
 class PdfTests(CertificateTestMixin, TestCase):
     def setUp(self):
         self.certificate = issue_certificate(self.ready_student(), self.course)
@@ -326,6 +332,7 @@ class PdfTests(CertificateTestMixin, TestCase):
         self.assertTrue(content.startswith(b"%PDF"))
 
 
+@override_settings(ONLINE_COURSES_ENABLED=True)
 class CertificateViewTests(CertificateTestMixin, TestCase):
     def setUp(self):
         self.issue_url = reverse(
@@ -433,6 +440,7 @@ class CertificateViewTests(CertificateTestMixin, TestCase):
         self.assertIsNone(certificate_card(AnonymousUser(), self.course))
 
 
+@override_settings(ONLINE_COURSES_ENABLED=True)
 class VerificationHelperTests(TestCase):
     """کد را آن‌طور که آدم‌ها می‌نویسند بخوان، نه آن‌طور که ذخیره شده."""
 
@@ -457,6 +465,7 @@ class VerificationHelperTests(TestCase):
         self.assertEqual(mask_name(""), "")
 
 
+@override_settings(ONLINE_COURSES_ENABLED=True)
 class PublicVerificationTests(CertificateTestMixin, TestCase):
     """
     صفحه عمومی استعلام.

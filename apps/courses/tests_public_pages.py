@@ -8,12 +8,12 @@
 import json
 import re
 
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from apps.accounts.models import InstructorProfile
 from apps.core.models import ContactMessage
-from apps.courses.models import Course, CourseCategory
+from apps.courses.models import CourseType, Course, CourseCategory
 from apps.courses.tests import CourseTestMixin
 
 
@@ -28,6 +28,7 @@ def json_ld_blocks(html: str) -> list[dict]:
     return [json.loads(block) for block in re.findall(pattern, html, re.DOTALL)]
 
 
+@override_settings(ONLINE_COURSES_ENABLED=True)
 class InstructorSlugTests(TestCase):
     """اسلاگ مدرس باید همیشه ساخته شود و یکتا بماند."""
 
@@ -72,6 +73,7 @@ class InstructorSlugTests(TestCase):
         )
 
 
+@override_settings(ONLINE_COURSES_ENABLED=True)
 class InstructorPageTests(CourseTestMixin, TestCase):
     """صفحه فهرست مدرسان و صفحه هر مدرس."""
 
@@ -128,6 +130,7 @@ class InstructorPageTests(CourseTestMixin, TestCase):
         self.assertNotContains(response, "مدرسان آکادمی")
 
 
+@override_settings(ONLINE_COURSES_ENABLED=True)
 class CategoryLandingTests(CourseTestMixin, TestCase):
     """صفحه دوره‌ها وقتی روی یک دسته‌بندی فیلتر شده است."""
 
@@ -143,6 +146,7 @@ class CategoryLandingTests(CourseTestMixin, TestCase):
             parent=cls.cat_safety,
         )
         cls.child_course = Course.objects.create(
+            course_type=CourseType.OFFLINE_RECORDED,
             title="دوره زیردسته",
             slug="child-course",
             category=cls.child,
@@ -181,6 +185,7 @@ class CategoryLandingTests(CourseTestMixin, TestCase):
         self.assertEqual(response.context["total_count"], 0)
 
 
+@override_settings(ONLINE_COURSES_ENABLED=True)
 class BreadcrumbTests(CourseTestMixin, TestCase):
     """مسیر راهنما هم برای کاربر و هم برای موتور جست‌وجو."""
 
@@ -214,6 +219,7 @@ class BreadcrumbTests(CourseTestMixin, TestCase):
         self.assertEqual(response.context["breadcrumb_current"], "ایمنی صنعتی")
 
 
+@override_settings(ONLINE_COURSES_ENABLED=True)
 class CourseStructuredDataTests(CourseTestMixin, TestCase):
     """داده ساختاریافته دوره باید معتبر و صادق باشد."""
 
@@ -274,6 +280,7 @@ class CourseStructuredDataTests(CourseTestMixin, TestCase):
                          "<script>alert(1)</script>")
 
 
+@override_settings(ONLINE_COURSES_ENABLED=True)
 class CourseDetailContentTests(CourseTestMixin, TestCase):
     """محتوای صفحه دوره: وضعیت ثبت‌نام، اشتراک‌گذاری و دکمه ثبت‌نام."""
 
@@ -292,12 +299,13 @@ class CourseDetailContentTests(CourseTestMixin, TestCase):
         self.assertContains(response, "مهلت ثبت‌نام این دوره به پایان رسیده است")
         self.assertNotContains(response, "ثبت‌نام این دوره باز است")
 
-    def test_enroll_button_carries_the_course_slug(self):
+    def test_mobile_enroll_button_goes_to_the_purchase_card(self):
+        # ثبت‌نام از خود سایت انجام می‌شود (سبد خرید یا ثبت‌نام رایگان)، نه
+        # از فرم تماس؛ دکمه نوار پایین موبایل به کارت خرید همین صفحه می‌رود.
         response = self.client.get(self.published_online.get_absolute_url())
-        self.assertEqual(
-            response.context["enroll_url"],
-            f"{reverse('core:contact')}?course={self.published_online.slug}",
-        )
+        self.assertContains(response, 'id="purchase"')
+        self.assertContains(response, 'href="#purchase"')
+        self.assertNotContains(response, f"?course={self.published_online.slug}")
 
     def test_share_links_use_the_full_address(self):
         response = self.client.get(self.published_online.get_absolute_url())
@@ -315,6 +323,7 @@ class CourseDetailContentTests(CourseTestMixin, TestCase):
         self.assertContains(response, "۲۵")
 
 
+@override_settings(ONLINE_COURSES_ENABLED=True)
 class EnrollmentRequestTests(CourseTestMixin, TestCase):
     """
     تا زمانی که سبد خرید و درگاه پرداخت ساخته نشده (فاز ۱۱ و ۱۲)، دکمه
@@ -355,6 +364,7 @@ class EnrollmentRequestTests(CourseTestMixin, TestCase):
         self.assertIn(self.published_online.title, message.subject)
 
 
+@override_settings(ONLINE_COURSES_ENABLED=True)
 class NavigationHighlightTests(CourseTestMixin, TestCase):
     """لینک فعال در منوی بالا باید مشخص باشد تا کاربر بداند کجاست."""
 

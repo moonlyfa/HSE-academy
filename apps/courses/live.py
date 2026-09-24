@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from .access import check_session_access
 from .enrollment import enrolled_courses
-from .models import OnlineSession
+from .models import CourseType, OnlineSession, offered_courses_q, online_courses_enabled
 
 
 def sessions_with_access(user, sessions) -> list[dict]:
@@ -29,13 +29,18 @@ def user_sessions(user):
     ثبت‌نامِ فعال ملاک است، نه سفارش: کسی که دوره را هدیه گرفته یا
     پشتیبانی دستی اضافه‌اش کرده هم باید کلاس‌هایش را ببیند.
     """
-    if not user.is_authenticated:
+    # کلاس آنلاین فقط وقتی معنا دارد که بخش آنلاین روشن باشد؛ جلسه‌های
+    # ثبت‌شده در دیتابیس می‌مانند ولی به هیچ کاربری نشان داده نمی‌شوند.
+    if not user.is_authenticated or not online_courses_enabled():
         return OnlineSession.objects.none()
 
     course_ids = enrolled_courses(user).values_list("course_id", flat=True)
-    return OnlineSession.objects.filter(
-        course_id__in=course_ids, course__is_published=True
-    ).select_related("course")
+    return (
+        OnlineSession.objects.filter(course_id__in=course_ids)
+        .filter(offered_courses_q("course__"))
+        .exclude(course__course_type=CourseType.IN_PERSON)
+        .select_related("course")
+    )
 
 
 def upcoming_session_rows(user, limit: int | None = None) -> list[dict]:

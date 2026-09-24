@@ -84,6 +84,8 @@
                             {% endfor %}
                         </div>
 
+                        {# وقتی فقط یک شیوه برگزاری عرضه می‌شود (مثلاً فقط حضوری)، فیلترش بی‌معناست #}
+                        {% if course_types|length > 1 %}
                         <div class="filter-group">
                             <h3 class="filter-group__title">شیوه برگزاری</h3>
                             <label class="filter-option">
@@ -99,6 +101,7 @@
                                 </label>
                             {% endfor %}
                         </div>
+                        {% endif %}
 
                         <div class="filter-group">
                             <h3 class="filter-group__title">سطح دوره</h3>

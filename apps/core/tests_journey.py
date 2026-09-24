@@ -19,13 +19,14 @@ from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from apps.accounts.models import OtpPurpose
 from apps.accounts.services.sms import SmsResult
 from apps.certificates.models import Certificate
 from apps.courses.models import (
+    CourseType,
     Course,
     CourseCategory,
     Enrollment,
@@ -58,6 +59,7 @@ class CapturingSms:
         return SmsResult(success=True, provider=self.name)
 
 
+@override_settings(ONLINE_COURSES_ENABLED=True)
 class FullJourneyTests(TestCase):
     """
     یک دانشجو، از صفر تا گواهی قابل استعلام.
@@ -71,6 +73,7 @@ class FullJourneyTests(TestCase):
     def setUpTestData(cls):
         cls.category = CourseCategory.objects.create(name="ایمنی صنعتی", slug="safety")
         cls.course = Course.objects.create(
+            course_type=CourseType.OFFLINE_RECORDED,
             title="ایمنی کار در ارتفاع",
             slug="work-at-height",
             category=cls.category,
@@ -309,6 +312,7 @@ class FullJourneyTests(TestCase):
         self.assertFalse(Enrollment.objects.filter(user=user).exists())
 
 
+@override_settings(ONLINE_COURSES_ENABLED=True)
 class FreeCourseJourneyTests(TestCase):
     """دوره رایگان: همان زنجیره، بدون حلقه پرداخت."""
 
@@ -316,6 +320,7 @@ class FreeCourseJourneyTests(TestCase):
     def setUpTestData(cls):
         cls.category = CourseCategory.objects.create(name="عمومی", slug="general")
         cls.course = Course.objects.create(
+            course_type=CourseType.OFFLINE_RECORDED,
             title="آشنایی با HSE",
             slug="hse-intro",
             category=cls.category,

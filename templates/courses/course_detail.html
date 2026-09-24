@@ -254,7 +254,7 @@
 
             {# --- کارت خرید --- #}
             <div class="col-lg-4">
-                <aside class="purchase-card">
+                <aside class="purchase-card" id="purchase">
                     <div class="purchase-card__price">
                         {% if course.is_free %}
                             <strong class="text-success">رایگان</strong>
@@ -282,6 +282,16 @@
                             </p>
                         {% endif %}
 
+                        {% if course.is_in_person %}
+                            <p class="purchase-card__note">
+                                {% if progress.is_finished %}
+                                    گذراندن این دوره برای شما تأیید شده است.
+                                {% else %}
+                                    زمان و محل کلاس حضوری در مشخصات همین دوره آمده است.
+                                {% endif %}
+                            </p>
+                        {% endif %}
+
                         {% if progress.resume_lesson %}
                             <a href="{{ progress.resume_lesson.get_absolute_url }}" class="btn btn-accent w-100 mt-2">
                                 {% if progress.is_finished %}مرور دوباره{% else %}ادامه یادگیری{% endif %}
@@ -296,7 +306,7 @@
                             <form method="post" action="{% url 'courses:enroll_free' course.slug %}" class="mt-2">
                                 {% csrf_token %}
                                 <button type="submit" class="btn btn-accent w-100">
-                                    ثبت‌نام رایگان و شروع دوره
+                                    {% if course.is_in_person %}ثبت‌نام رایگان در دوره{% else %}ثبت‌نام رایگان و شروع دوره{% endif %}
                                 </button>
                             </form>
                         {% else %}
@@ -330,7 +340,11 @@
                         {% endif %}
 
                         <p class="purchase-card__note">
-                            پس از تکمیل خرید، دسترسی به همه درس‌های دوره فعال می‌شود.
+                            {% if course.is_in_person %}
+                                پس از تکمیل خرید، ثبت‌نام شما در این دوره حضوری قطعی می‌شود.
+                            {% else %}
+                                پس از تکمیل خرید، دسترسی به همه درس‌های دوره فعال می‌شود.
+                            {% endif %}
                         </p>
                     {% else %}
                         <p class="purchase-card__status purchase-card__status--closed">
@@ -342,12 +356,12 @@
                     {% endif %}
 
                     <ul class="purchase-card__specs">
-                        <li>{% icon "video" size=18 %}<span>شیوه برگزاری</span><strong>{{ course.get_course_type_display }}</strong></li>
+                        <li>{% if course.is_in_person %}{% icon "location" size=18 %}{% else %}{% icon "video" size=18 %}{% endif %}<span>شیوه برگزاری</span><strong>{{ course.get_course_type_display }}</strong></li>
                         <li>{% icon "chart" size=18 %}<span>سطح</span><strong>{{ course.get_level_display }}</strong></li>
                         {% if course.duration_hours %}
                             <li>{% icon "clock" size=18 %}<span>مدت</span><strong>{{ course.duration_hours|fa_digits }} ساعت</strong></li>
                         {% endif %}
-                        {% if course.lesson_count %}
+                        {% if course.has_online_content and course.lesson_count %}
                             <li>{% icon "book" size=18 %}<span>تعداد درس</span><strong>{{ course.lesson_count|fa_digits }} درس</strong></li>
                         {% endif %}
                         {% if course.start_date %}
@@ -362,10 +376,13 @@
                         {% if course.location %}
                             <li>{% icon "location" size=18 %}<span>محل</span><strong>{{ course.location }}</strong></li>
                         {% endif %}
-                        {% if course.access_duration_days %}
-                            <li>{% icon "clock" size=18 %}<span>مدت دسترسی</span><strong>{{ course.access_duration_days|fa_digits }} روز</strong></li>
-                        {% else %}
-                            <li>{% icon "check" size=18 %}<span>مدت دسترسی</span><strong>دائمی</strong></li>
+                        {# «مدت دسترسی» به محتوای آنلاین برمی‌گردد و برای کلاس حضوری معنا ندارد #}
+                        {% if not course.is_in_person %}
+                            {% if course.access_duration_days %}
+                                <li>{% icon "clock" size=18 %}<span>مدت دسترسی</span><strong>{{ course.access_duration_days|fa_digits }} روز</strong></li>
+                            {% else %}
+                                <li>{% icon "check" size=18 %}<span>مدت دسترسی</span><strong>دائمی</strong></li>
+                            {% endif %}
                         {% endif %}
                         {% if course.certificate_available %}
                             <li>{% icon "certificate" size=18 %}<span>گواهی پایان دوره</span><strong>دارد</strong></li>
@@ -411,7 +428,8 @@
             </span>
 
             {% if course.registration_open %}
-                <a href="{{ enroll_url }}" class="btn btn-accent">ثبت‌نام در دوره</a>
+                {# کارت خرید همین صفحه — همان‌جا که ثبت‌نام (سبد خرید یا ثبت‌نام رایگان) انجام می‌شود #}
+                <a href="#purchase" class="btn btn-accent">ثبت‌نام در دوره</a>
             {% else %}
                 <span class="mobile-buy-bar__closed">ثبت‌نام بسته است</span>
             {% endif %}

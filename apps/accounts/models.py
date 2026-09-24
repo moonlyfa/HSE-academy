@@ -233,7 +233,9 @@ class InstructorProfile(models.Model):
 
     @property
     def published_course_count(self) -> int:
-        return self.courses.filter(is_published=True).count()
+        from apps.courses.models import offered_courses_q
+
+        return self.courses.filter(offered_courses_q()).count()
 
 
 class OtpPurpose(models.TextChoices):

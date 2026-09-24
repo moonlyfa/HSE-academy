@@ -32,6 +32,9 @@ from .models import (
     Lesson,
     LessonAttachment,
     OnlineSession,
+    offered_course_types,
+    offered_courses_q,
+    online_courses_enabled,
 )
 from .progress import (
     LessonProgress,
@@ -108,8 +111,14 @@ def _filter_context(request: HttpRequest) -> dict:
     return {
         "categories": CourseCategory.objects.filter(
             is_active=True, parent__isnull=True
-        ).annotate(num_courses=Count("courses", filter=Q(courses__is_published=True))),
-        "course_types": CourseType.choices,
+        ).annotate(num_courses=Count("courses", filter=offered_courses_q("courses__"))),
+        # فقط شیوه‌هایی که در سایت عرضه می‌شوند؛ اگر یکی بیشتر نباشد، قالب
+        # کل این گروه فیلتر را نشان نمی‌دهد.
+        "course_types": [
+            (value, label)
+            for value, label in CourseType.choices
+            if value in offered_course_types()
+        ],
         "levels": CourseLevel.choices,
         "sort_options": [(key, label) for key, (label, _) in SORT_OPTIONS.items()],
         # مقادیر انتخاب‌شده فعلی، تا در قالب تیک بخورند
@@ -155,7 +164,7 @@ def course_list(request: HttpRequest) -> HttpResponse:
                     "children",
                     queryset=CourseCategory.objects.filter(is_active=True).annotate(
                         num_courses=Count(
-                            "courses", filter=Q(courses__is_published=True)
+                            "courses", filter=offered_courses_q("courses__")
                         )
                     ),
                 )
@@ -245,17 +254,23 @@ def course_detail(request: HttpRequest, slug: str) -> HttpResponse:
     from apps.exams.summary import exam_card
     from apps.orders.services import purchased_course_ids
 
+    # دوره حضوری (و هر دوره‌ای وقتی بخش آنلاین خاموش است) درس و کلاس
+    # آنلاینی ندارد که نشان داده شود؛ صفحه فقط سرفصل متنی را می‌آورد.
+    online = course.has_online_content
+
     context = {
         "course": course,
         # ساختار دوره به‌همراه وضعیت قفل هر درس برای همین بازدیدکننده
-        "curriculum": _curriculum_for(course, request.user),
+        "curriculum": _curriculum_for(course, request.user) if online else [],
         "progress": course_progress(request.user, course),
         "in_cart": course.pk in request.session.get("cart", []),
         # جلسه‌های آنلاینِ تمام‌نشده. عنوان و ساعت را همه می‌بینند (برای
         # فروش دوره لازم است)، اما لینک ورود فقط از راه View بررسی‌کننده
         # دسترسی تحویل داده می‌شود.
-        "session_rows": sessions_with_access(
-            request.user, course.online_sessions.upcoming()[:5]
+        "session_rows": (
+            sessions_with_access(request.user, course.online_sessions.upcoming()[:5])
+            if online
+            else []
         ),
         "enrollment": active_enrollment(request.user, course),
         # کارت آزمون پایان دوره. None یعنی این دوره آزمون فعالی ندارد.
@@ -266,8 +281,6 @@ def course_detail(request: HttpRequest, slug: str) -> HttpResponse:
         "related_courses": related,
         "share": _share_links(request, course),
         "breadcrumb_items": breadcrumb_items,
-        # تا فاز سبد خرید، درخواست ثبت‌نام از راه فرم تماس ثبت می‌شود.
-        "enroll_url": f"{reverse('core:contact')}?course={course.slug}",
         "nav_active": "courses",
     }
     return render(request, "courses/course_detail.html", context)
@@ -340,7 +353,7 @@ def search(request: HttpRequest) -> HttpResponse:
 def instructor_list(request: HttpRequest) -> HttpResponse:
     """فهرست مدرسان فعال آکادمی."""
     instructors = InstructorProfile.objects.filter(is_active=True).annotate(
-        num_courses=Count("courses", filter=Q(courses__is_published=True))
+        num_courses=Count("courses", filter=offered_courses_q("courses__"))
     )
 
     return render(
@@ -406,8 +419,14 @@ def _lesson_or_404(slug: str, pk: int) -> Lesson:
     if lesson.section.course.slug != slug:
         raise Http404("این درس متعلق به این دوره نیست.")
 
-    if not lesson.section.course.is_published:
+    # درس، ویدیو و جزوه محتوای آنلاین‌اند. وقتی این بخش خاموش است (یا
+    # دوره حضوری است)، آدرس درس هم مثل صفحه‌ای که وجود ندارد رفتار می‌کند؛
+    # حتی برای کسی که آدرس را از قبل دارد.
+    if not lesson.section.course.is_offered:
         raise Http404("دوره منتشر نشده است.")
+
+    if not lesson.section.course.has_online_content:
+        raise Http404("این دوره محتوای آنلاین ندارد.")
 
     return lesson
 
@@ -685,8 +704,11 @@ def _session_or_404(slug: str, pk: int) -> OnlineSession:
     if session.course.slug != slug:
         raise Http404("این جلسه متعلق به این دوره نیست.")
 
-    if not session.course.is_published:
+    if not session.course.is_offered:
         raise Http404("دوره منتشر نشده است.")
+
+    if not session.course.has_online_content:
+        raise Http404("کلاس آنلاین برای این دوره فعال نیست.")
 
     return session
 
@@ -743,6 +765,9 @@ def my_sessions(request: HttpRequest) -> HttpResponse:
     فقط جلسه‌های دوره‌هایی که کاربر در آن‌ها ثبت‌نام فعال دارد؛ همان
     فهرستی که دانشجو برای پاسخ به «کلاس بعدی من کِی است؟» باز می‌کند.
     """
+    if not online_courses_enabled():
+        raise Http404("کلاس آنلاین فعال نیست.")
+
     sessions = user_sessions(request.user)
 
     return render(

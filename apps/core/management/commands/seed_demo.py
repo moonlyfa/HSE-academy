@@ -35,6 +35,7 @@ from apps.courses.models import (
     LessonType,
     OnlineSession,
     Section,
+    online_courses_enabled,
 )
 
 User = get_user_model()
@@ -43,11 +44,18 @@ FEATURES = [
     ("certificate", "گواهی قابل استعلام", "هر گواهی کد یکتا و صفحه استعلام عمومی دارد؛ کارفرما می‌تواند اصالت آن را بررسی کند."),
     ("users", "مدرسان متخصص", "تدریس توسط کارشناسان با سابقه اجرایی در صنایع نفت، گاز، پتروشیمی و ساختمان."),
     ("chart", "آموزش کاربردی", "محتوای دوره‌ها بر پایه سناریوهای واقعی محیط کار و الزامات قانونی تدوین شده است."),
-    ("video", "کلاس آنلاین زنده", "امکان شرکت در کلاس زنده و پرسش مستقیم از مدرس، بدون نیاز به حضور فیزیکی."),
-    ("download", "محتوای آفلاین", "دسترسی به ویدیوهای ضبط‌شده و جزوات دوره برای مرور در هر زمان."),
+    ("location", "کلاس حضوری و تعامل مستقیم", "کلاس‌ها حضوری برگزار می‌شوند؛ پرسش و پاسخ، کار گروهی و تمرین عملی کنار مدرس."),
+    ("calendar", "ثبت‌نام از همین سایت", "انتخاب دوره از تقویم آموزشی، ثبت‌نام و پرداخت آنلاین؛ بدون مراجعه حضوری برای ثبت‌نام."),
     ("lock", "پرداخت امن", "پرداخت از طریق درگاه بانکی معتبر و ثبت خودکار دسترسی پس از تأیید تراکنش."),
     ("headset", "پشتیبانی آموزشی", "پاسخ‌گویی به سؤالات علمی و فنی در طول دوره از طریق تیم پشتیبانی."),
     ("shield", "منطبق با استانداردها", "سرفصل‌ها بر اساس الزامات ISO 45001، HSE-MS و آیین‌نامه‌های وزارت کار طراحی شده‌اند."),
+]
+
+# مزیت‌های مخصوص دوره‌های غیرحضوری. پاک نمی‌شوند؛ فقط وقتی
+# ONLINE_COURSES_ENABLED روشن است فعال ساخته می‌شوند.
+ONLINE_FEATURES = [
+    ("video", "کلاس آنلاین زنده", "امکان شرکت در کلاس زنده و پرسش مستقیم از مدرس، بدون نیاز به حضور فیزیکی."),
+    ("download", "محتوای آفلاین", "دسترسی به ویدیوهای ضبط‌شده و جزوات دوره برای مرور در هر زمان."),
 ]
 
 CATEGORIES = [
@@ -104,6 +112,19 @@ COURSES = [
     ("بازرسی جرثقیل و تجهیزات بالابر", "crane-inspection", "equipment-inspection", 2, CourseType.ONLINE_LIVE, CourseLevel.ADVANCED, 24, 3_400_000, None, 38, False),
     ("ایمنی کار در ارتفاع", "working-at-height", "industrial-safety", 0, CourseType.OFFLINE_RECORDED, CourseLevel.BEGINNER, 10, 950_000, None, None, False),
 ]
+
+# دوره‌های حضوری — همان ستون‌های بالا. دوره‌های آنلاین بالا حذف نشده‌اند؛
+# تا وقتی بخش آنلاین خاموش است فقط در پنل مدیریت دیده می‌شوند.
+IN_PERSON_COURSES = [
+    ("دوره جامع افسر HSE (حضوری)", "hse-officer-in-person", "hse-general", 0, CourseType.IN_PERSON, CourseLevel.INTERMEDIATE, 40, 5_200_000, 4_400_000, 14, True),
+    ("ایمنی کار در ارتفاع (حضوری)", "working-at-height-in-person", "industrial-safety", 0, CourseType.IN_PERSON, CourseLevel.BEGINNER, 16, 2_100_000, None, 9, True),
+    ("ارزیابی ریسک HAZOP (حضوری)", "hazop-in-person", "risk-assessment", 2, CourseType.IN_PERSON, CourseLevel.ADVANCED, 24, 3_900_000, 3_300_000, 21, True),
+    ("کمک‌های اولیه در محیط کار", "first-aid-in-person", "occupational-health", 1, CourseType.IN_PERSON, CourseLevel.BEGINNER, 8, 0, None, 6, False),
+    ("ممیزی داخلی ISO 45001 (حضوری)", "iso-45001-audit-in-person", "iso-standards", 2, CourseType.IN_PERSON, CourseLevel.ADVANCED, 32, 4_600_000, None, 35, True),
+    ("آتش‌نشانی و اطفای حریق", "fire-fighting-in-person", "crisis-management", 2, CourseType.IN_PERSON, CourseLevel.INTERMEDIATE, 12, 1_700_000, None, 17, False),
+]
+
+IN_PERSON_LOCATION = "تهران، خیابان ولیعصر، پلاک ۱۰۰ — سالن آموزش آکادمی"
 
 # ساختار نمونه محتوای دوره: (عنوان فصل، [(عنوان درس، نوع، دقیقه، پیش‌نمایش رایگان)])
 CURRICULUM = [
@@ -269,26 +290,35 @@ BLOG_POSTS = [
 
 FAQS = [
     ("گواهی پایان دوره چگونه صادر می‌شود؟",
-     "پس از تکمیل دوره و قبولی در آزمون پایانی، گواهی به‌صورت خودکار صادر می‌شود و از طریق داشبورد کاربری قابل دانلود است."),
+     "پس از شرکت در کلاس حضوری، آکادمی گذراندن دوره را ثبت می‌کند. اگر دوره آزمون پایانی داشته باشد، پس از قبولی در آن گواهی از داشبورد کاربری شما قابل دریافت و دانلود است."),
     ("آیا گواهی قابل استعلام است؟",
      "بله. روی هر گواهی یک کد یکتا و QR درج می‌شود که از طریق صفحه «استعلام گواهی» در همین سایت قابل بررسی است."),
-    ("تفاوت دوره آنلاین و آفلاین چیست؟",
-     "دوره آنلاین در زمان مشخص و به‌صورت زنده برگزار می‌شود و امکان پرسش مستقیم از مدرس را دارد. دوره آفلاین از ویدیوهای ضبط‌شده تشکیل شده و در هر زمانی قابل مشاهده است."),
-    ("اگر جلسه آنلاین را از دست بدهم چه می‌شود؟",
-     "ویدیوی ضبط‌شده جلسات در داشبورد شما قرار می‌گیرد و تا پایان اعتبار دوره قابل مشاهده است."),
+    ("ثبت‌نام در دوره‌های حضوری چگونه است؟",
+     "از صفحه هر دوره، آن را به سبد خرید اضافه کنید و پرداخت را انجام دهید. ثبت‌نام شما بلافاصله قطعی می‌شود و در بخش «دوره‌های من» دیده می‌شود."),
+    ("کلاس‌ها کجا برگزار می‌شوند؟",
+     "همه دوره‌ها به‌صورت حضوری برگزار می‌شوند. محل و تاریخ هر دوره در صفحه همان دوره و در تقویم آموزشی درج شده است."),
     ("امکان صدور فاکتور رسمی برای سازمان وجود دارد؟",
      "بله. برای ثبت‌نام گروهی و سازمانی، از طریق صفحه تماس با ما درخواست خود را ثبت کنید تا همکاران ما پیگیری کنند."),
     ("پیش‌نیاز شرکت در دوره‌ها چیست؟",
      "بیشتر دوره‌های پایه پیش‌نیاز خاصی ندارند. برای دوره‌های تخصصی، پیش‌نیازها در صفحه هر دوره ذکر شده است."),
 ]
 
+# پرسش‌های مخصوص دوره‌های غیرحضوری؛ مثل ONLINE_FEATURES فقط وقتی بخش
+# آنلاین روشن است فعال ساخته می‌شوند.
+ONLINE_FAQS = [
+    ("تفاوت دوره آنلاین و آفلاین چیست؟",
+     "دوره آنلاین در زمان مشخص و به‌صورت زنده برگزار می‌شود و امکان پرسش مستقیم از مدرس را دارد. دوره آفلاین از ویدیوهای ضبط‌شده تشکیل شده و در هر زمانی قابل مشاهده است."),
+    ("اگر جلسه آنلاین را از دست بدهم چه می‌شود؟",
+     "ویدیوی ضبط‌شده جلسات در داشبورد شما قرار می‌گیرد و تا پایان اعتبار دوره قابل مشاهده است."),
+]
+
 TESTIMONIALS = [
     ("مریم احمدی", "کارشناس HSE، شرکت پتروشیمی",
      "دوره ارزیابی ریسک دقیقاً همان چیزی بود که برای کارم لازم داشتم. مثال‌ها واقعی بودند و مستقیماً در محل کار قابل استفاده."),
     ("رضا کریمی", "سرپرست ایمنی، پروژه عمرانی",
-     "کیفیت کلاس آنلاین خیلی خوب بود و مدرس به همه سؤالات با حوصله جواب داد. گواهی هم سریع صادر شد."),
+     "کلاس حضوری خیلی خوب برگزار شد و مدرس به همه سؤالات با حوصله جواب داد. گواهی هم سریع صادر شد."),
     ("سمیرا نوروزی", "مسئول بهداشت حرفه‌ای",
-     "امکان دیدن دوباره ویدیوها کمک بزرگی بود. توانستم قبل از ممیزی سازمان، مطالب را دوره کنم."),
+     "تمرین‌های عملی سر کلاس کمک بزرگی بود. توانستم قبل از ممیزی سازمان، مطالب را در محل کار پیاده کنم."),
 ]
 
 PARTNERS = [
@@ -308,6 +338,12 @@ SLIDES = [
     ("استانداردهای ISO 45001", (9, 48, 35), (29, 90, 125), "/courses/?category=iso-standards"),
     ("بهداشت حرفه‌ای در محیط کار", (30, 132, 73), (15, 76, 58), "/courses/?category=occupational-health"),
     ("دوره‌های سازمانی و درون‌سازمانی", (185, 97, 16), (15, 76, 58), "/contact/"),
+    ("کلاس‌های حضوری با تمرین عملی", (29, 90, 125), (9, 48, 35), "/courses/"),
+    ("ثبت‌نام آنلاین در دوره‌های حضوری", (15, 76, 58), (26, 107, 82), "/calendar/"),
+]
+
+# اسلایدهای دوره‌های غیرحضوری؛ فقط وقتی بخش آنلاین روشن است فعال می‌شوند.
+ONLINE_SLIDES = [
     ("کلاس‌های آنلاین زنده", (29, 90, 125), (9, 48, 35), "/courses/?type=online_live"),
     ("محتوای آفلاین و همیشه در دسترس", (15, 76, 58), (26, 107, 82), "/courses/?type=offline_recorded"),
 ]
@@ -440,10 +476,12 @@ class Command(BaseCommand):
         return ContentFile(buffer.getvalue())
 
     def _seed_slides(self):
-        for index, (title, start_rgb, end_rgb, link) in enumerate(SLIDES):
+        online = online_courses_enabled()
+        rows = [(row, True) for row in SLIDES] + [(row, online) for row in ONLINE_SLIDES]
+        for index, ((title, start_rgb, end_rgb, link), active) in enumerate(rows):
             slide, created = HeroSlide.objects.update_or_create(
                 title=title,
-                defaults={"link_url": link, "order": index},
+                defaults={"link_url": link, "order": index, "is_active": active},
             )
             if created or not slide.image:
                 slide.image.save(
@@ -454,10 +492,18 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(f"✓ {len(SLIDES)} اسلاید (تصاویر نمونه)"))
 
     def _seed_features(self):
-        for index, (icon, title, description) in enumerate(FEATURES):
+        # مزیت‌های آنلاین پاک نمی‌شوند؛ با خاموش بودن بخش آنلاین فقط غیرفعال‌اند.
+        online = online_courses_enabled()
+        rows = [(row, True) for row in FEATURES] + [(row, online) for row in ONLINE_FEATURES]
+        for index, ((icon, title, description), active) in enumerate(rows):
             Feature.objects.update_or_create(
                 title=title,
-                defaults={"icon": icon, "description": description, "order": index},
+                defaults={
+                    "icon": icon,
+                    "description": description,
+                    "order": index,
+                    "is_active": active,
+                },
             )
         self.stdout.write(self.style.SUCCESS(f"✓ {len(FEATURES)} مزیت"))
 
@@ -494,7 +540,7 @@ class Command(BaseCommand):
         today = timezone.now().date()
 
         for (title, slug, category_slug, instructor_index, course_type, level,
-             hours, price, discount, days_ahead, featured) in COURSES:
+             hours, price, discount, days_ahead, featured) in COURSES + IN_PERSON_COURSES:
             category = CourseCategory.objects.get(slug=category_slug)
             start_date = today + timedelta(days=days_ahead) if days_ahead else None
 
@@ -514,7 +560,10 @@ class Command(BaseCommand):
                         start_date + timedelta(days=hours // 4) if start_date else None
                     ),
                     "capacity": 30 if course_type != CourseType.OFFLINE_RECORDED else None,
-                    "location": "آنلاین" if course_type != CourseType.HYBRID else "تهران و آنلاین",
+                    "location": {
+                        CourseType.IN_PERSON: IN_PERSON_LOCATION,
+                        CourseType.HYBRID: "تهران و آنلاین",
+                    }.get(course_type, "آنلاین"),
                     "short_description": (
                         f"{title} با رویکرد کاربردی و منطبق بر الزامات قانونی، "
                         "همراه با مثال‌های واقعی محیط کار."
@@ -546,7 +595,12 @@ class Command(BaseCommand):
                     self._make_gradient_image(800, 450, start_rgb, end_rgb, "COURSE"),
                     save=True,
                 )
-        self.stdout.write(self.style.SUCCESS(f"✓ {len(COURSES)} دوره (با تصویر نمونه)"))
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"✓ {len(IN_PERSON_COURSES)} دوره حضوری و {len(COURSES)} دوره آنلاین "
+                "(با تصویر نمونه؛ دوره‌های آنلاین تا روشن شدن ONLINE_COURSES_ENABLED پنهان‌اند)"
+            )
+        )
         self._seed_curriculum()
 
     def _seed_curriculum(self):
@@ -560,7 +614,10 @@ class Command(BaseCommand):
         باز کردن درس، تکمیل کردن و دیدن درصد پیشرفت در داشبورد — را بدون
         خرید هیچ چیزی امتحان کنید.
         """
-        courses = Course.objects.filter(Q(is_featured=True) | Q(price=0))
+        # دوره حضوری درس آنلاین ندارد.
+        courses = Course.objects.filter(Q(is_featured=True) | Q(price=0)).exclude(
+            course_type=CourseType.IN_PERSON
+        )
         lesson_total = 0
 
         for course in courses:
@@ -765,10 +822,12 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(f"✓ {len(samples)} کد تخفیف نمونه"))
 
     def _seed_faqs(self):
-        for index, (question, answer) in enumerate(FAQS):
+        online = online_courses_enabled()
+        rows = [(row, True) for row in FAQS] + [(row, online) for row in ONLINE_FAQS]
+        for index, ((question, answer), active) in enumerate(rows):
             FAQ.objects.update_or_create(
                 question=question,
-                defaults={"answer": answer, "order": index},
+                defaults={"answer": answer, "order": index, "is_active": active},
             )
         self.stdout.write(self.style.SUCCESS(f"✓ {len(FAQS)} سؤال متداول"))
 
