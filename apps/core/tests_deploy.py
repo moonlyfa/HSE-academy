@@ -54,6 +54,8 @@ class DeployFilesExistTests(TestCase):
         "update.sh",
         "hse-backup.service",
         "hse-backup.timer",
+        "hse-verify-payments.service",
+        "hse-verify-payments.timer",
         "logrotate-hse",
     ]
 
@@ -160,6 +162,23 @@ class GunicornConfigTests(TestCase):
         socket = read("gunicorn.socket")
 
         self.assertIn("SocketGroup=www-data", socket)
+
+
+class VerifyPaymentsTimerTests(TestCase):
+    """تایمری که تراکنش‌های نامعلوم را دوباره از درگاه می‌پرسد."""
+
+    def test_the_service_runs_the_pending_payments_command(self):
+        service = read("hse-verify-payments.service")
+
+        self.assertIn("verify_pending_payments", service)
+        self.assertIn("config.settings.prod", service)
+        self.assertIn("EnvironmentFile=", service)
+
+    def test_it_runs_often_enough_to_matter(self):
+        """مشتری‌ای که پاسخ بانکش گم شده، نباید ساعت‌ها منتظر بماند."""
+        timer = read("hse-verify-payments.timer")
+
+        self.assertIn("OnUnitActiveSec=10min", timer)
 
 
 class BackupTests(TestCase):
@@ -275,6 +294,19 @@ class DeployCheckCommandTests(TestCase):
 
         self.assertIn("ZARINPAL_MERCHANT_ID", output)
 
+    def test_it_refuses_the_zarinpal_sandbox_on_a_real_site(self):
+        """Sandbox روی سایت واقعی: مشتری دوره را می‌گیرد، پولی نمی‌رسد."""
+        with override_settings(**self.healthy_settings(ZARINPAL_SANDBOX=True)):
+            output = self.output_of_failed_check()
+
+        self.assertIn("ZARINPAL_SANDBOX", output)
+
+    def test_it_refuses_an_unknown_currency(self):
+        with override_settings(**self.healthy_settings(ZARINPAL_CURRENCY="USD")):
+            output = self.output_of_failed_check()
+
+        self.assertIn("ZARINPAL_CURRENCY", output)
+
     def test_it_warns_but_does_not_fail_on_mock_sms(self):
         """
         پیامک آزمایشی ممکن است عمدی باشد (پنل هنوز خریداری نشده)؛
@@ -336,6 +368,8 @@ class DeployCheckCommandTests(TestCase):
             "USE_MOCK_IDENTITY": False,
             "PAYMENT_PROVIDER": "zarinpal",
             "ZARINPAL_MERCHANT_ID": "test-merchant",
+            "ZARINPAL_SANDBOX": False,
+            "ZARINPAL_CURRENCY": "IRT",
             "SMS_API_KEY": "test-key",
             "USE_X_ACCEL_REDIRECT": True,
         }

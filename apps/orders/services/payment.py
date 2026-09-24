@@ -35,6 +35,7 @@ import secrets
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 
+import requests
 from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
@@ -63,6 +64,11 @@ class PaymentResult:
     card_pan: str = ""
     error_code: str = ""
     raw: dict = field(default_factory=dict)
+
+    # True یعنی «نمی‌دانیم چه شد» — مثلاً پاسخ درگاه در شبکه گم شد. چنین
+    # تراکنشی نباید «ناموفق» ثبت شود، چون ممکن است پول کسر و تأیید شده
+    # باشد؛ باید دوباره پرسید.
+    retryable: bool = False
 
 
 class PaymentGateway(ABC):
@@ -156,18 +162,64 @@ class MockPaymentGateway(PaymentGateway):
 
 class ZarinPalGateway(PaymentGateway):
     """
-    درگاه واقعی زرین‌پال.
+    درگاه زرین‌پال (API نسخه ۴).
 
-    پیاده‌سازی کامل در فاز ۱۳ انجام می‌شود. همین که کلاسش اینجاست یعنی
-    وقتی درگاه را خریدید، فقط یک خط در فایل .env عوض می‌شود:
+    فعال‌سازی، دو خط در فایل .env است:
 
-        PAYMENT_PROVIDER=zarinpal
         USE_MOCK_PAYMENT=False
+        PAYMENT_PROVIDER=zarinpal
+        ZARINPAL_MERCHANT_ID=<کد پذیرنده>
 
-    و هیچ View و مدل و قالبی دست نمی‌خورد.
+    **سه قاعده که این کلاس را شکل داده‌اند:**
+
+    ۱. **مبلغ و شناسه تراکنش در verify از دیتابیس خودمان می‌آیند،** نه از
+       آدرس بازگشتی. آدرس بازگشتی را مرورگر کاربر صدا می‌زند و هرچه در
+       آن هست قابل دستکاری است.
+
+    ۲. **واحد پول صریح فرستاده می‌شود.** قیمت‌های این سایت به تومان است و
+       زرین‌پال هم ریال می‌پذیرد هم تومان. اگر واحد را نفرستیم و درگاه
+       ریال فرض کند، مشتری یک‌دهم مبلغ را می‌پردازد؛ اگر برعکس، ده برابر.
+       هر دو فاجعه‌اند، پس هیچ‌چیز به فرض سپرده نمی‌شود.
+
+    ۳. **«نمی‌دانم» با «نه» فرق دارد.** اگر پاسخ verify در شبکه گم شود،
+       ممکن است زرین‌پال تراکنش را تأیید کرده و پول مشتری کسر شده باشد.
+       ثبت «ناموفق» در این حالت یعنی مشتری پول داده و چیزی نگرفته. پس
+       چنین خطایی retryable است و تراکنش در انتظار می‌ماند تا دوباره
+       پرسیده شود (دستور verify_pending_payments).
     """
 
     name = "zarinpal"
+
+    PRODUCTION_API = "https://api.zarinpal.com/pg/v4/payment"
+    PRODUCTION_STARTPAY = "https://www.zarinpal.com/pg/StartPay/"
+    SANDBOX_API = "https://sandbox.zarinpal.com/pg/v4/payment"
+    SANDBOX_STARTPAY = "https://sandbox.zarinpal.com/pg/StartPay/"
+
+    # کد موفقیت. 101 یعنی «موفق، و قبلاً هم تأیید شده بود» — برای ما همان
+    # موفقیت است؛ اتفاقاً وقتی رخ می‌دهد که تأیید قبلی در شبکه گم شده بود.
+    CODE_OK = 100
+    CODE_ALREADY_VERIFIED = 101
+
+    # پیام فارسی برای خطاهای رایج. فهرست کامل در مستندات زرین‌پال است؛
+    # برای کدی که اینجا نیست، پیام کلی به کاربر نشان داده می‌شود و متن
+    # اصلی درگاه در لاگ و در raw_response تراکنش می‌ماند.
+    ERROR_MESSAGES = {
+        -9: "اطلاعات ارسالی به درگاه معتبر نبود.",
+        -10: "کد پذیرنده یا آدرس سرور در درگاه معتبر نیست.",
+        -11: "حساب پذیرنده در درگاه فعال نیست.",
+        -12: "تعداد درخواست‌ها به درگاه بیش از حد مجاز بوده است.",
+        -15: "حساب پذیرنده در درگاه معلق شده است.",
+        -50: "مبلغ پرداخت‌شده با مبلغ سفارش یکی نیست.",
+        -51: "پرداخت انجام نشد یا توسط شما لغو شد.",
+        -53: "این تراکنش متعلق به این فروشگاه نیست.",
+        -54: "شناسه تراکنش نامعتبر است.",
+    }
+
+    # خطاهایی که کاربر باید عین علتشان را ببیند. بقیه، مشکل تنظیمات
+    # فروشگاه‌اند و نشان دادنشان به مشتری فقط گیج‌کننده است.
+    USER_FACING_CODES = {-50, -51}
+
+    SUPPORTED_CURRENCIES = {"IRT", "IRR"}
 
     def __init__(self) -> None:
         self.merchant_id = settings.ZARINPAL_MERCHANT_ID
@@ -176,11 +228,218 @@ class ZarinPalGateway(PaymentGateway):
                 "ZARINPAL_MERCHANT_ID تنظیم نشده است. مقدار آن را در فایل .env قرار دهید."
             )
 
+        self.currency = settings.ZARINPAL_CURRENCY.upper()
+        if self.currency not in self.SUPPORTED_CURRENCIES:
+            raise ValueError(
+                f"ZARINPAL_CURRENCY باید IRT (تومان) یا IRR (ریال) باشد، نه «{self.currency}»."
+            )
+
+        self.sandbox = settings.ZARINPAL_SANDBOX
+        self.api = self.SANDBOX_API if self.sandbox else self.PRODUCTION_API
+        self.startpay = self.SANDBOX_STARTPAY if self.sandbox else self.PRODUCTION_STARTPAY
+        self.timeout = settings.PAYMENT_TIMEOUT_SECONDS
+
+    # --- مبلغ -------------------------------------------------------------
+
+    def gateway_amount(self, amount_toman: int) -> int:
+        """
+        مبلغ، در واحدی که به درگاه فرستاده می‌شود.
+
+        تنها جای پروژه که تومان به چیز دیگری تبدیل می‌شود. هر تغییری در
+        واحد پول باید همین‌جا و فقط همین‌جا انجام شود.
+        """
+        return amount_toman * 10 if self.currency == "IRR" else amount_toman
+
+    # --- درخواست پرداخت ---------------------------------------------------
+
     def request(self, payment: Payment, callback_url: str) -> PaymentResult:
-        raise NotImplementedError("اتصال به زرین‌پال در فاز ۱۳ انجام می‌شود.")
+        order = payment.order
+        amount = self.gateway_amount(payment.amount)
+
+        body = {
+            "merchant_id": self.merchant_id,
+            "amount": amount,
+            "currency": self.currency,
+            "callback_url": callback_url,
+            "description": f"سفارش {order.order_number}",
+            "metadata": {
+                "mobile": order.mobile or "",
+                "order_id": order.order_number,
+            },
+        }
+
+        response = self._post("request.json", body)
+        if response.transport_error:
+            return PaymentResult(
+                success=False,
+                message="ارتباط با درگاه پرداخت برقرار نشد. لطفاً چند دقیقه دیگر دوباره تلاش کنید.",
+                error_code="network",
+                raw={"error": response.transport_error},
+            )
+
+        # مبلغ و واحدی که واقعاً فرستاده شد، کنار تراکنش ذخیره می‌شود تا
+        # verify دقیقاً همان را بفرستد — حتی اگر تنظیمات در این فاصله عوض
+        # شده باشد.
+        sent = {"gateway_amount": amount, "currency": self.currency}
+
+        authority = response.data.get("authority", "")
+        if response.code == self.CODE_OK and authority:
+            return PaymentResult(
+                success=True,
+                authority=authority,
+                redirect_url=f"{self.startpay}{authority}",
+                raw={"request": response.data, **sent},
+            )
+
+        return self._failure(response, stage="request", extra=sent)
+
+    # --- تأیید پرداخت -----------------------------------------------------
 
     def verify(self, payment: Payment, data: dict) -> PaymentResult:
-        raise NotImplementedError("اتصال به زرین‌پال در فاز ۱۳ انجام می‌شود.")
+        """
+        تأیید سرور به سرور.
+
+        `data` (پارامترهای آدرس بازگشتی) عمداً استفاده نمی‌شود: شناسه
+        تراکنش و مبلغ هر دو از رکورد خودمان خوانده می‌شوند.
+        """
+        amount = payment.raw_response.get(
+            "gateway_amount", self.gateway_amount(payment.amount)
+        )
+
+        body = {
+            "merchant_id": self.merchant_id,
+            "amount": amount,
+            "authority": payment.authority,
+        }
+
+        response = self._post("verify.json", body)
+        if response.transport_error:
+            return PaymentResult(
+                success=False,
+                message=(
+                    "پاسخ درگاه دریافت نشد. پرداخت شما در حال بررسی است؛ اگر مبلغی "
+                    "کسر شده، تا دقایقی دیگر دسترسی دوره خودکار فعال می‌شود."
+                ),
+                error_code="network",
+                retryable=True,
+                raw={"error": response.transport_error},
+            )
+
+        if response.code in (self.CODE_OK, self.CODE_ALREADY_VERIFIED):
+            return PaymentResult(
+                success=True,
+                ref_id=str(response.data.get("ref_id", "")),
+                card_pan=str(response.data.get("card_pan", "")),
+                raw={
+                    "verify": response.data,
+                    "already_verified": response.code == self.CODE_ALREADY_VERIFIED,
+                },
+            )
+
+        return self._failure(response, stage="verify")
+
+    # --- ابزار --------------------------------------------------------------
+
+    def _post(self, endpoint: str, body: dict) -> "_ZarinPalResponse":
+        """
+        یک درخواست به API زرین‌پال.
+
+        خطای شبکه، پاسخ غیر JSON و خطای ۵xx سرور همه «transport_error»
+        حساب می‌شوند: یعنی نمی‌دانیم درگاه چه کرد. پاسخ JSON با فیلد
+        errors، یعنی درگاه صریحاً «نه» گفته است.
+        """
+        url = f"{self.api}/{endpoint}"
+
+        try:
+            http = requests.post(
+                url,
+                json=body,
+                headers={"Accept": "application/json"},
+                timeout=self.timeout,
+            )
+        except requests.RequestException as exc:
+            logger.error("خطای شبکه در تماس با زرین‌پال. آدرس=%s خطا=%s", endpoint, exc)
+            return _ZarinPalResponse(transport_error=str(exc)[:200])
+
+        if http.status_code >= 500:
+            logger.error("خطای سرور زرین‌پال. آدرس=%s کد=%s", endpoint, http.status_code)
+            return _ZarinPalResponse(transport_error=f"http {http.status_code}")
+
+        try:
+            payload = http.json()
+        except ValueError:
+            logger.error("پاسخ نامعتبر از زرین‌پال. آدرس=%s", endpoint)
+            return _ZarinPalResponse(transport_error="invalid json")
+
+        return _ZarinPalResponse.from_payload(payload)
+
+    def _failure(self, response: "_ZarinPalResponse", *, stage: str, extra=None) -> PaymentResult:
+        code = response.code
+        known = self.ERROR_MESSAGES.get(code)
+
+        if code in self.USER_FACING_CODES and known:
+            message = known
+        elif stage == "request":
+            message = "درگاه پرداخت در حال حاضر پاسخ نمی‌دهد. لطفاً کمی بعد دوباره تلاش کنید."
+        else:
+            message = "پرداخت تأیید نشد. اگر مبلغی کسر شده، تا ۷۲ ساعت آینده به حساب شما برمی‌گردد."
+
+        logger.warning(
+            "زرین‌پال خطا داد. مرحله=%s کد=%s پیام=%s",
+            stage,
+            code,
+            response.message or known or "—",
+        )
+
+        return PaymentResult(
+            success=False,
+            message=message,
+            error_code=str(code) if code is not None else "unknown",
+            raw={
+                "errors": response.errors,
+                "gateway_message": response.message,
+                **(extra or {}),
+            },
+        )
+
+
+@dataclass
+class _ZarinPalResponse:
+    """پاسخ API زرین‌پال، یک‌دست‌شده."""
+
+    code: int | None = None
+    data: dict = field(default_factory=dict)
+    errors: dict | list = field(default_factory=dict)
+    message: str = ""
+    transport_error: str = ""
+
+    @classmethod
+    def from_payload(cls, payload: dict) -> "_ZarinPalResponse":
+        """
+        زرین‌پال در موفقیت `data` را شیء و `errors` را فهرست خالی
+        برمی‌گرداند، و در خطا برعکس. هر دو شکل اینجا یکی می‌شوند.
+        """
+        data = payload.get("data") if isinstance(payload, dict) else None
+        errors = payload.get("errors") if isinstance(payload, dict) else None
+
+        data = data if isinstance(data, dict) else {}
+
+        if isinstance(errors, dict) and errors:
+            return cls(
+                code=_as_int(errors.get("code")),
+                data=data,
+                errors=errors,
+                message=str(errors.get("message", ""))[:300],
+            )
+
+        return cls(code=_as_int(data.get("code")), data=data, errors=errors or {})
+
+
+def _as_int(value) -> int | None:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
 
 
 GATEWAYS: dict[str, type[PaymentGateway]] = {
@@ -300,9 +559,25 @@ def verify_payment(payment: Payment, data: dict) -> PaymentResult:
         )
 
     # ۲. تراکنشی که ساعت‌ها باز مانده پذیرفته نمی‌شود.
-    if payment.is_expired():
+    #
+    # در درگاه‌های شبکه شاپرک، تراکنشی که فروشنده verify نکند خودکار به
+    # حساب مشتری برمی‌گردد. پس رد کردن تراکنش منقضی **بدون** صدا زدن
+    # verify، پول کسی را نمی‌خورد — فقط پرداخت دیرهنگام را نمی‌پذیرد.
+    #
+    # یک استثنا: اگر قبلاً verify فرستاده‌ایم و پاسخش در شبکه گم شده،
+    # ممکن است درگاه تأییدش کرده باشد و دیگر خودکار برنگردد. چنین
+    # تراکنشی باید دوباره پرسیده شود، هر چقدر هم دیر شده باشد.
+    already_asked = bool(payment.raw_response.get("verify_attempts"))
+
+    if payment.is_expired() and not already_asked:
         _fail(payment, "مهلت این تراکنش تمام شده است.", "expired")
-        return PaymentResult(success=False, message="مهلت این تراکنش تمام شده است.")
+        return PaymentResult(
+            success=False,
+            message=(
+                "مهلت این تراکنش تمام شده است. اگر مبلغی از حساب شما کسر شده، "
+                "تا ۷۲ ساعت آینده خودکار برمی‌گردد."
+            ),
+        )
 
     # ۳. سفارشی که در این فاصله لغو شده نباید پرداخت شود.
     if order.status == OrderStatus.CANCELED:
@@ -316,8 +591,34 @@ def verify_payment(payment: Payment, data: dict) -> PaymentResult:
 
     # ۴. اینجاست که واقعاً از درگاه می‌پرسیم. تا این لحظه هیچ‌چیز از
     #    پارامترهای آدرس بازگشتی باور نشده است.
+    #
+    #    تلاش **پیش از** تماس ثبت می‌شود، نه بعدش: اگر پردازه وسط تماس از
+    #    کار بیفتد، باید بدانیم که شاید درگاه تأیید کرده باشد.
+    payment.raw_response = {
+        **payment.raw_response,
+        "verify_attempts": payment.raw_response.get("verify_attempts", 0) + 1,
+    }
+    payment.save(update_fields=["raw_response", "updated_at"])
+
     gateway = get_payment_gateway()
     result = gateway.verify(payment, data)
+
+    # «نمی‌دانیم» با «نه» فرق دارد. تراکنش در انتظار می‌ماند تا دوباره
+    # پرسیده شود — با بازگشت دوباره کاربر به همین آدرس، یا با دستور
+    # verify_pending_payments.
+    if result.retryable:
+        payment.raw_response = {
+            **payment.raw_response,
+            "last_verify_error": result.raw.get("error", result.error_code),
+            "last_verify_at": timezone.now().isoformat(),
+        }
+        payment.save(update_fields=["raw_response", "updated_at"])
+        logger.error(
+            "تأیید پرداخت نامعلوم ماند و بعداً دوباره پرسیده می‌شود. سفارش=%s شناسه=%s",
+            order.order_number,
+            payment.authority,
+        )
+        return result
 
     if not result.success:
         _fail(payment, result.message or "پرداخت تأیید نشد.", result.error_code)

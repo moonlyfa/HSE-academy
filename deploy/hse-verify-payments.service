@@ -1,0 +1,18 @@
+# رسیدگی به تراکنش‌های در انتظار (نامعلوم یا رهاشده).
+# hse-verify-payments.timer آن را هر ده دقیقه اجرا می‌کند.
+#
+#     sudo cp deploy/hse-verify-payments.{service,timer} /etc/systemd/system/
+#     sudo systemctl enable --now hse-verify-payments.timer
+
+[Unit]
+Description=HSE Academy - re-verify pending payments
+After=network-online.target postgresql.service
+
+[Service]
+Type=oneshot
+User=hse
+Group=hse
+WorkingDirectory=/srv/hse
+EnvironmentFile=/srv/hse/.env
+Environment=DJANGO_SETTINGS_MODULE=config.settings.prod
+ExecStart=/srv/hse/.venv/bin/python manage.py verify_pending_payments

@@ -2,7 +2,7 @@
 {% load core_extras %}
 
 {% block title %}
-    {% if success %}پرداخت موفق{% else %}پرداخت ناموفق{% endif %} — {{ site.site_name }}
+    {% if success %}پرداخت موفق{% elif pending %}پرداخت در حال بررسی{% else %}پرداخت ناموفق{% endif %} — {{ site.site_name }}
 {% endblock %}
 {% block extra_head %}<meta name="robots" content="noindex">{% endblock %}
 
@@ -10,14 +10,21 @@
 <section class="section pt-4">
     <div class="container">
         <div class="gateway-wrap">
-            <div class="result-card result-card--{% if success %}success{% else %}failed{% endif %}">
+            <div class="result-card result-card--{% if success %}success{% elif pending %}pending{% else %}failed{% endif %}">
                 <span class="result-card__icon">
-                    {% if success %}{% icon "check" size=34 %}{% else %}{% icon "close" size=34 %}{% endif %}
+                    {% if success %}{% icon "check" size=34 %}{% elif pending %}{% icon "clock" size=34 %}{% else %}{% icon "close" size=34 %}{% endif %}
                 </span>
 
                 {% if success %}
                     <h1 class="h4 mt-3">پرداخت با موفقیت انجام شد</h1>
                     <p>دسترسی شما به دوره‌های این سفارش هم‌اکنون فعال است.</p>
+                {% elif pending %}
+                    <h1 class="h4 mt-3">پرداخت شما در حال بررسی است</h1>
+                    <p>{{ message }}</p>
+                    <p class="small text-muted">
+                        لطفاً دوباره پرداخت نکنید. اگر تا یک ساعت دیگر دسترسی
+                        دوره فعال نشد، با شماره سفارش پایین با پشتیبانی تماس بگیرید.
+                    </p>
                 {% else %}
                     <h1 class="h4 mt-3">پرداخت انجام نشد</h1>
                     <p>{{ message|default:"تراکنش شما تأیید نشد. اگر مبلغی کسر شده باشد، تا ۷۲ ساعت آینده به حساب شما برمی‌گردد." }}</p>
@@ -54,6 +61,10 @@
                     {% if success %}
                         <a class="btn btn-accent" href="{% url 'accounts:my_courses' %}">
                             رفتن به دوره‌های من
+                        </a>
+                    {% elif pending %}
+                        <a class="btn btn-outline-brand" href="{{ order.get_absolute_url }}">
+                            پیگیری سفارش
                         </a>
                     {% elif order.is_payable %}
                         <form method="post" action="{% url 'orders:payment_start' order.order_number %}">

@@ -2465,6 +2465,7 @@ a.curriculum__lesson-link:hover { color: var(--color-primary); }
 
 .result-card--success .result-card__icon { background: #e6f4ec; color: var(--color-success); }
 .result-card--failed .result-card__icon { background: #fbe9e7; color: var(--color-danger); }
+.result-card--pending .result-card__icon { background: #fdf3dc; color: var(--color-warning); }
 
 .result-card p { color: var(--color-text-muted); }
 .result-card .summary-list { text-align: start; margin-top: var(--space-lg); }

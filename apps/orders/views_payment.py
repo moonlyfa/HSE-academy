@@ -141,6 +141,10 @@ def payment_callback(request: HttpRequest) -> HttpResponse:
             "payment": payment,
             "order": payment.order,
             "success": result.success,
+            # «در حال بررسی» حالت سوم است، نه نوعی شکست: ممکن است پول کسر
+            # شده باشد. کاربر نباید دکمه «پرداخت دوباره» ببیند و دو بار
+            # پرداخت کند.
+            "pending": result.retryable,
             "message": result.message,
         },
     )

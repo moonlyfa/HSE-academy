@@ -206,8 +206,20 @@ class Command(BaseCommand):
             self.fail("درگاه پرداخت در حالت آزمایشی است؛ خرید بدون پرداخت ممکن می‌شود.")
         elif settings.PAYMENT_PROVIDER == "zarinpal" and not settings.ZARINPAL_MERCHANT_ID:
             self.fail("درگاه زرین‌پال انتخاب شده اما ZARINPAL_MERCHANT_ID خالی است.")
+        elif settings.PAYMENT_PROVIDER == "zarinpal" and (
+            settings.ZARINPAL_CURRENCY.upper() not in {"IRT", "IRR"}
+        ):
+            self.fail("ZARINPAL_CURRENCY باید IRT (تومان) یا IRR (ریال) باشد.")
         else:
             self.ok(f"درگاه پرداخت: {settings.PAYMENT_PROVIDER}")
+
+            if settings.PAYMENT_PROVIDER == "zarinpal" and settings.ZARINPAL_SANDBOX:
+                # Sandbox روی سایت واقعی یعنی مشتری «پرداخت» می‌کند و دوره را
+                # می‌گیرد، اما هیچ پولی به حساب شما نمی‌رسد.
+                self.fail(
+                    "ZARINPAL_SANDBOX روشن است؛ روی سایت واقعی یعنی دوره بدون "
+                    "دریافت پول فروخته می‌شود."
+                )
 
         if settings.USE_MOCK_SMS:
             self.warn("پیامک در حالت آزمایشی است؛ کد تأیید واقعی ارسال نمی‌شود.")

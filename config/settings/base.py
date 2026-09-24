@@ -275,6 +275,12 @@ PAYMENT_EXPIRY_MINUTES = env.int("PAYMENT_EXPIRY_MINUTES", default=20)
 ZARINPAL_MERCHANT_ID = env("ZARINPAL_MERCHANT_ID", default="")
 ZARINPAL_SANDBOX = env.bool("ZARINPAL_SANDBOX", default=True)
 
+# واحد مبلغی که به زرین‌پال فرستاده می‌شود. قیمت‌های سایت تومان است، پس
+# IRT یعنی «همان عدد، با اعلام صریح اینکه تومان است». IRR یعنی سایت عدد را
+# پیش از ارسال ده برابر می‌کند. واحد همیشه صریح فرستاده می‌شود؛ هیچ‌چیز به
+# پیش‌فرض درگاه سپرده نمی‌شود، چون اشتباهش یعنی یک‌دهم یا ده برابر مبلغ.
+ZARINPAL_CURRENCY = env("ZARINPAL_CURRENCY", default="IRT")
+
 # رفتار درگاه آزمایشی هنگام تست خودکار: success | failed | ask
 # مقدار ask یعنی صفحه‌ای نمایش داده می‌شود تا خودتان نتیجه را انتخاب کنید.
 MOCK_PAYMENT_RESULT = env("MOCK_PAYMENT_RESULT", default="ask")
