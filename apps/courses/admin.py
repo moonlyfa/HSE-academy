@@ -207,6 +207,7 @@ class CourseAdmin(admin.ModelAdmin):
         "course_type",
         "site_visibility",
         "start_date",
+        "seats_display",
         "price_display",
         "lesson_count_display",
         "is_featured",
@@ -276,6 +277,15 @@ class CourseAdmin(admin.ModelAdmin):
     @admin.display(description="تعداد درس")
     def lesson_count_display(self, obj: Course) -> int:
         return obj.lesson_count
+
+    @admin.display(description="ثبت‌نام / ظرفیت")
+    def seats_display(self, obj: Course) -> str:
+        from .capacity import seats_taken
+
+        taken = seats_taken(obj)
+        if obj.capacity is None:
+            return f"{taken} / نامحدود"
+        return f"{taken} / {obj.capacity}"
 
     @admin.display(description="در سایت")
     def site_visibility(self, obj: Course):

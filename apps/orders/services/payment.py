@@ -493,10 +493,31 @@ def start_payment(order: Order, callback_url: str) -> PaymentResult:
             success=False, message="مبلغ این سفارش صفر است و نیازی به پرداخت ندارد."
         )
 
+    from apps.courses.capacity import full_message, lock_and_find_full
+
     gateway = get_payment_gateway()
-    payment = Payment.objects.create(
-        order=order, gateway=gateway.name, amount=order.total
-    )
+
+    # ساخت تراکنش همان «نگه داشتن صندلی» است؛ بررسی ظرفیت و ساختنش باید
+    # زیر یک قفل باشند تا دو نفر هم‌زمان آخرین صندلی را نگیرند. تماس با
+    # درگاه بیرون از قفل است تا کندی درگاه، بقیه خریداران را معطل نکند.
+    with transaction.atomic():
+        full = lock_and_find_full(
+            order.items.values_list("course_id", flat=True), order.user
+        )
+        if full:
+            logger.info(
+                "شروع پرداخت به خاطر تکمیل ظرفیت متوقف شد. سفارش=%s دوره‌ها=%s",
+                order.order_number,
+                ",".join(course.slug for course in full),
+            )
+            return PaymentResult(
+                success=False,
+                message=full_message(full) + " مبلغی از حساب شما کسر نشده است.",
+            )
+
+        payment = Payment.objects.create(
+            order=order, gateway=gateway.name, amount=order.total
+        )
 
     result = gateway.request(payment, callback_url)
 

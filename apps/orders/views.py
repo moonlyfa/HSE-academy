@@ -11,6 +11,7 @@ from __future__ import annotations
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.db import transaction
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -18,6 +19,7 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from apps.core.jalali import to_persian_digits
+from apps.courses.capacity import full_courses, full_message, has_seat, lock_and_find_full
 from apps.courses.models import Course
 
 from .cart import Cart
@@ -107,6 +109,10 @@ def cart_add(request: HttpRequest, slug: str) -> HttpResponse:
 
     if not course.registration_open:
         messages.error(request, "مهلت ثبت‌نام این دوره به پایان رسیده است.")
+        return redirect(course.get_absolute_url())
+
+    if not has_seat(course, request.user):
+        messages.error(request, full_message([course]))
         return redirect(course.get_absolute_url())
 
     if cart.add(course):
@@ -204,6 +210,15 @@ def checkout_view(request: HttpRequest) -> HttpResponse:
         )
         return redirect("orders:cart")
 
+    # دوره‌ای که در این فاصله پر شده، فاکتور نمی‌شود. این فقط هشدار زودهنگام
+    # است؛ نگه‌داشتن واقعی صندلی هنگام رفتن به درگاه و زیر قفل انجام می‌شود.
+    full = full_courses([line.course for line in lines], request.user)
+    if full:
+        for course in full:
+            cart.remove(course.pk)
+        messages.error(request, full_message(full) + " از سبد خرید حذف شد.")
+        return redirect("orders:cart")
+
     subtotal = cart.subtotal
     code = request.session.get(COUPON_SESSION_KEY, "")
     coupon_check = (
@@ -220,21 +235,38 @@ def checkout_view(request: HttpRequest) -> HttpResponse:
     discount = coupon_check.discount if coupon_check and coupon_check.valid else 0
 
     if request.method == "POST":
-        order = create_order(
-            user=request.user,
-            lines=lines,
-            coupon=coupon,
-            note=request.POST.get("note", "").strip()[:1000],
-        )
+        with transaction.atomic():
+            # سفارش با مبلغ صفر همین‌جا ثبت‌نام می‌شود و به درگاه نمی‌رود؛
+            # پس صندلی‌اش هم باید همین‌جا و زیر قفل گرفته شود.
+            free_total = max(subtotal - discount, 0) == 0
+            if free_total:
+                full = lock_and_find_full(
+                    [line.course.pk for line in lines], request.user
+                )
+                if full:
+                    transaction.set_rollback(True)
+                    for course in full:
+                        cart.remove(course.pk)
+                    messages.error(request, full_message(full) + " از سبد خرید حذف شد.")
+                    return redirect("orders:cart")
+
+            order = create_order(
+                user=request.user,
+                lines=lines,
+                coupon=coupon,
+                note=request.POST.get("note", "").strip()[:1000],
+            )
+
+            # سفارش با مبلغ صفر — دوره رایگان، یا تخفیف صددرصدی — به درگاه
+            # فرستاده نمی‌شود. تا پیش از این، چنین سفارشی برای همیشه در حالت
+            # «در انتظار پرداخت» می‌ماند چون درگاه مبلغ صفر را نمی‌پذیرد.
+            if order.total == 0:
+                mark_order_paid(order)
 
         cart.clear()
         request.session.pop(COUPON_SESSION_KEY, None)
 
-        # سفارش با مبلغ صفر — دوره رایگان، یا تخفیف صددرصدی — به درگاه
-        # فرستاده نمی‌شود. تا پیش از این، چنین سفارشی برای همیشه در حالت
-        # «در انتظار پرداخت» می‌ماند چون درگاه مبلغ صفر را نمی‌پذیرد.
         if order.total == 0:
-            mark_order_paid(order)
             messages.success(
                 request, "ثبت‌نام شما انجام شد و دسترسی به دوره‌ها فعال است."
             )

@@ -297,6 +297,17 @@
                                 {% if progress.is_finished %}مرور دوباره{% else %}ادامه یادگیری{% endif %}
                             </a>
                         {% endif %}
+                    {% elif course.registration_open and is_full %}
+                        <p class="purchase-card__status purchase-card__status--closed">
+                            {% icon "users" size=16 %} ظرفیت این دوره تکمیل شده است
+                        </p>
+                        <a href="{% url 'core:calendar' %}" class="btn btn-outline-brand w-100 mt-2">
+                            دوره‌های در حال ثبت‌نام
+                        </a>
+                        <p class="purchase-card__note">
+                            برای اطلاع از برگزاری دوباره این دوره
+                            <a href="{% url 'core:contact' %}?course={{ course.slug }}">با ما تماس بگیرید</a>.
+                        </p>
                     {% elif course.registration_open and course.is_free %}
                         <p class="purchase-card__status purchase-card__status--open">
                             {% icon "check" size=16 %} این دوره رایگان است
@@ -371,7 +382,19 @@
                             <li>{% icon "calendar" size=18 %}<span>پایان</span><strong>{{ course.end_date|jalali }}</strong></li>
                         {% endif %}
                         {% if course.capacity %}
-                            <li>{% icon "users" size=18 %}<span>ظرفیت</span><strong>{{ course.capacity|fa_digits }} نفر</strong></li>
+                            <li>
+                                {% icon "users" size=18 %}<span>ظرفیت</span>
+                                <strong>
+                                    {{ course.capacity|fa_digits }} نفر
+                                    {% if course.registration_open and seats_left is not None %}
+                                        {% if seats_left %}
+                                            <span class="d-block small text-muted">{{ seats_left|fa_digits }} جای خالی</span>
+                                        {% else %}
+                                            <span class="d-block small text-danger">تکمیل</span>
+                                        {% endif %}
+                                    {% endif %}
+                                </strong>
+                            </li>
                         {% endif %}
                         {% if course.location %}
                             <li>{% icon "location" size=18 %}<span>محل</span><strong>{{ course.location }}</strong></li>
@@ -427,7 +450,9 @@
                 {% endif %}
             </span>
 
-            {% if course.registration_open %}
+            {% if course.registration_open and is_full and not enrollment %}
+                <span class="mobile-buy-bar__closed">ظرفیت تکمیل است</span>
+            {% elif course.registration_open %}
                 {# کارت خرید همین صفحه — همان‌جا که ثبت‌نام (سبد خرید یا ثبت‌نام رایگان) انجام می‌شود #}
                 <a href="#purchase" class="btn btn-accent">ثبت‌نام در دوره</a>
             {% else %}

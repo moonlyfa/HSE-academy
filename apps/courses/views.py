@@ -12,6 +12,7 @@ from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
+from django.db import transaction
 from django.db.models import Count, Prefetch, Q, QuerySet
 from django.http import Http404, HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -22,6 +23,7 @@ from apps.accounts.models import InstructorProfile
 from apps.core.seo import listing_seo
 
 from .access import check_lesson_access, check_session_access
+from .capacity import full_message, has_seat, lock_and_find_full, seats_left
 from .enrollment import active_enrollment
 from .live import sessions_with_access, user_sessions
 from .models import (
@@ -278,6 +280,10 @@ def course_detail(request: HttpRequest, slug: str) -> HttpResponse:
         # کارت گواهی — فقط برای دانشجوی ثبت‌نام‌شده معنا دارد.
         "certificate_card": certificate_card(request.user, course),
         "already_purchased": course.pk in purchased_course_ids(request.user),
+        # ظرفیت: None یعنی نامحدود. «پر» برای کسی که خودش صندلی دارد معنا
+        # ندارد، پس has_seat با کاربر فعلی پرسیده می‌شود.
+        "seats_left": seats_left(course),
+        "is_full": not has_seat(course, request.user),
         "related_courses": related,
         "share": _share_links(request, course),
         "breadcrumb_items": breadcrumb_items,
@@ -674,7 +680,13 @@ def enroll_free(request: HttpRequest, slug: str) -> HttpResponse:
         messages.error(request, "مهلت ثبت‌نام این دوره به پایان رسیده است.")
         return redirect(course.get_absolute_url())
 
-    enroll(request.user, course, source=EnrollmentSource.FREE)
+    # بررسی ظرفیت و ساخت ثبت‌نام زیر یک قفل؛ وگرنه دو کلیک هم‌زمان روی
+    # آخرین صندلی هر دو موفق می‌شدند.
+    with transaction.atomic():
+        if lock_and_find_full([course.pk], request.user):
+            messages.error(request, full_message([course]))
+            return redirect(course.get_absolute_url())
+        enroll(request.user, course, source=EnrollmentSource.FREE)
     messages.success(request, f"ثبت‌نام شما در «{course.title}» انجام شد.")
 
     progress = course_progress(request.user, course)
