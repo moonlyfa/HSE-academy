@@ -263,7 +263,7 @@ class CardTransferAdmin(admin.ModelAdmin):
         ("عکس رسید", {"fields": ("receipts_preview",)}),
         (
             "سفارش",
-            {"fields": ("order_link", "buyer_info", "amount", "order_total", "courses_info")},
+            {"fields": ("order_link", "buyer_info", "amount_display", "order_total", "courses_info")},
         ),
         (
             "اطلاعاتی که خریدار وارد کرده",
@@ -287,6 +287,7 @@ class CardTransferAdmin(admin.ModelAdmin):
     def get_readonly_fields(self, request, obj=None):
         return [
             "receipts_preview",
+            "amount_display",
             "order_link",
             "buyer_info",
             "order_total",
@@ -330,7 +331,7 @@ class CardTransferAdmin(admin.ModelAdmin):
         order = obj.order
         return order.full_name or order.mobile or str(order.user)
 
-    @admin.display(description="مبلغ (تومان)", ordering="amount")
+    @admin.display(description="مبلغ رسید (تومان)", ordering="amount")
     def amount_display(self, obj: CardTransfer) -> str:
         return f"{obj.amount:,}"
 
@@ -422,6 +423,7 @@ class CardTransferAdmin(admin.ModelAdmin):
         obj = self.get_object(request, object_id)
         extra_context = {
             **(extra_context or {}),
+            "title": "بررسی رسید کارت به کارت",
             "can_review": bool(
                 obj and obj.is_pending and self.has_change_permission(request, obj)
             ),
