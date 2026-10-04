@@ -23,6 +23,14 @@ from apps.accounts.models import InstructorProfile
 from apps.core.seo import listing_seo
 
 from .access import check_lesson_access, check_session_access
+from .calendar import (
+    MAX_YEAR,
+    MIN_YEAR,
+    WEEKDAY_NAMES,
+    build_month,
+    parse_year_month,
+    today_jalali,
+)
 from .capacity import full_message, has_seat, lock_and_find_full, seats_left
 from .enrollment import active_enrollment
 from .live import sessions_with_access, user_sessions
@@ -294,25 +302,27 @@ def course_detail(request: HttpRequest, slug: str) -> HttpResponse:
 
 def training_calendar(request: HttpRequest) -> HttpResponse:
     """
-    تقویم دوره‌های آموزشی — دوره‌هایی که هنوز شروع نشده‌اند.
+    تقویم آموزشی ماهانه — جدول یک ماه شمسی با دوره‌ها روی روز شروعشان.
 
-    نسخه کوتاه همین لیست در صفحه اصلی هم نمایش داده می‌شود.
+    سال و ماه از آدرس خوانده می‌شود (?year=1405&month=7)؛ بدون آن، ماه
+    جاری. هر دوره در جدول لینک مستقیم به صفحه خودش است.
     """
-    courses = (
-        Course.objects.upcoming()
-        .select_related("category", "instructor")
-        .order_by("start_date")
-    )
-    courses = filter_courses(request, courses) if request.GET else courses
+    year, month = parse_year_month(request.GET.get("year"), request.GET.get("month"))
+    calendar = build_month(year, month)
+    current_year, current_month, _ = today_jalali()
 
     return render(
         request,
         "courses/calendar.html",
         {
-            "courses": courses,
-            "total_count": courses.count(),
+            "calendar": calendar,
+            "weekday_names": WEEKDAY_NAMES,
+            "prev_year": year - 1 if year > MIN_YEAR else None,
+            "next_year": year + 1 if year < MAX_YEAR else None,
+            "is_current_month": (year, month) == (current_year, current_month),
+            "current_year": current_year,
+            "current_month": current_month,
             "nav_active": "calendar",
-            **_filter_context(request),
         },
     )
 

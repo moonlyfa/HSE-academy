@@ -7,6 +7,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from apps.accounts.models import InstructorProfile
+from apps.core.jalali import gregorian_to_jalali
 from apps.courses.models import Course, CourseCategory, CourseLevel, CourseType
 
 
@@ -194,8 +195,10 @@ class SearchViewTests(CourseTestMixin, TestCase):
 
 @override_settings(ONLINE_COURSES_ENABLED=True)
 class CalendarViewTests(CourseTestMixin, TestCase):
-    def test_calendar_lists_only_upcoming_courses(self):
-        response = self.client.get(reverse("core:calendar"))
+    def test_calendar_shows_a_course_in_the_month_it_starts(self):
+        start = self.published_online.start_date
+        year, month, _ = gregorian_to_jalali(start.year, start.month, start.day)
+        response = self.client.get(reverse("core:calendar"), {"year": year, "month": month})
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "دوره آنلاین منتشرشده")
         # دوره آفلاین بدون تاریخ شروع در تقویم نمی‌آید

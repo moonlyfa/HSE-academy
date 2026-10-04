@@ -717,6 +717,243 @@ img { max-width: 100%; height: auto; }
 }
 
 /* =========================================================================
+   تقویم آموزشی ماهانه (صفحه /calendar/)
+   ========================================================================= */
+.tcal-nav {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-md);
+    margin-bottom: var(--space-lg);
+}
+
+.tcal-nav__year {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs);
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: var(--color-primary-dark);
+}
+
+.tcal-nav__arrow {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    color: var(--color-primary);
+    background: var(--color-primary-soft);
+    transition: background-color var(--transition-fast);
+}
+
+.tcal-nav__arrow:hover { background: var(--color-border-strong); color: var(--color-primary-dark); }
+
+.tcal-nav__months {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: var(--space-sm);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    flex: 1;
+}
+
+.tcal-nav__month {
+    position: relative;
+    display: block;
+    padding: 0.4rem 0.25rem;
+    white-space: nowrap;
+    border-radius: var(--radius-md);
+    background: #9aa5a2;
+    color: var(--color-white);
+    font-weight: 600;
+    font-size: 0.92rem;
+    text-align: center;
+    box-shadow: 0 3px 8px rgba(23, 33, 31, 0.15);
+    transition: background-color var(--transition-fast);
+}
+
+.tcal-nav__month:hover { background: var(--color-secondary-light); color: var(--color-white); }
+
+.tcal-nav__month.is-active { background: var(--color-primary); }
+
+.tcal-nav__count {
+    position: absolute;
+    top: -7px;
+    inset-inline-end: -6px;
+    min-width: 19px;
+    height: 19px;
+    padding: 0 4px;
+    border-radius: 10px;
+    background: var(--color-accent);
+    color: var(--color-white);
+    font-size: 0.7rem;
+    line-height: 19px;
+}
+
+.tcal-nav__today { font-size: 0.9rem; font-weight: 600; }
+
+.tcal-wrap {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+}
+
+.tcal {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+    margin: 0;
+}
+
+.tcal th {
+    padding: 0.6rem 0.75rem;
+    background: var(--color-primary);
+    color: var(--color-white);
+    font-weight: 600;
+    font-size: 0.92rem;
+    text-align: start;
+    border-inline-start: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+.tcal th:first-child { border-inline-start: none; }
+
+.tcal__day {
+    height: 140px;
+    padding: 0.5rem;
+    vertical-align: top;
+    border: 1px solid var(--color-border);
+    background: var(--color-bg);
+}
+
+.tcal__day.is-empty { background: var(--color-surface-alt); }
+
+.tcal__day.is-friday { background: #fdf0ef; }
+
+.tcal__date {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2rem;
+    height: 2rem;
+    margin-bottom: 0.25rem;
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+}
+
+.tcal__day.is-friday .tcal__date { color: var(--color-danger); }
+
+.tcal__day.is-today .tcal__date {
+    border-radius: 50%;
+    background: var(--color-accent);
+    color: var(--color-white);
+}
+
+.tcal__event {
+    display: block;
+    margin-top: 0.35rem;
+    padding: 0.4rem 0.55rem;
+    border-radius: var(--radius-sm);
+    background: var(--color-secondary);
+    color: var(--color-white);
+    font-size: 0.8rem;
+    line-height: 1.7;
+    transition: background-color var(--transition-fast);
+}
+
+.tcal__event:hover,
+.tcal__event:focus-visible {
+    background: var(--color-primary);
+    color: var(--color-white);
+}
+
+/* دوره‌ای که روزش گذشته هنوز لینک دارد (صفحه‌اش هست)، ولی کم‌رنگ است */
+.tcal__day.is-past .tcal__event { opacity: 0.55; }
+
+.tcal-agenda {
+    margin-top: var(--space-xl);
+}
+
+.tcal-agenda__list {
+    display: grid;
+    gap: var(--space-sm);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.tcal-agenda__item {
+    display: grid;
+    grid-template-columns: minmax(170px, auto) 1fr auto;
+    align-items: center;
+    gap: var(--space-md);
+    padding: var(--space-md) var(--space-lg);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-inline-start: 4px solid var(--color-secondary);
+    border-radius: var(--radius-md);
+    color: var(--color-text);
+    transition: background-color var(--transition-fast);
+}
+
+.tcal-agenda__item:hover { background: var(--color-primary-soft); color: var(--color-text); }
+
+.tcal-agenda__date { font-size: 0.88rem; color: var(--color-text-muted); }
+
+.tcal-agenda__title { font-weight: 600; }
+
+.tcal-agenda__meta { font-size: 0.85rem; color: var(--color-text-light); }
+
+.tcal-empty {
+    margin-top: var(--space-lg);
+    padding: var(--space-lg);
+    text-align: center;
+    color: var(--color-text-muted);
+    background: var(--color-surface);
+    border: 1px dashed var(--color-border-strong);
+    border-radius: var(--radius-md);
+}
+
+/* روی موبایل خانه‌ها کوچک‌اند: هر دوره یک نوار رنگی کوتاه می‌شود و
+   عنوان کامل در فهرست زیر جدول می‌آید. عنوان برای صفحه‌خوان می‌ماند. */
+@media (max-width: 991.98px) {
+    .tcal-nav__months { flex-basis: 100%; grid-template-columns: repeat(6, minmax(0, 1fr)); }
+}
+
+@media (max-width: 767.98px) {
+    .tcal-nav__months { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .tcal-nav__month { padding: 0.3rem 0.2rem; font-size: 0.85rem; }
+
+    .tcal th { padding: 0.4rem 0.15rem; font-size: 0.7rem; text-align: center; }
+
+    .tcal__day { height: 64px; padding: 0.2rem; }
+
+    .tcal__date { min-width: 1.6rem; height: 1.6rem; font-size: 0.9rem; margin-bottom: 0; }
+
+    .tcal__event {
+        height: 7px;
+        margin-top: 0.2rem;
+        padding: 0;
+        border-radius: 4px;
+    }
+
+    .tcal__event-title {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+    }
+
+    .tcal-agenda__item { grid-template-columns: 1fr; gap: var(--space-xs); }
+}
+
+/* =========================================================================
    کارت دوره
    ========================================================================= */
 .course-card { display: flex; flex-direction: column; }

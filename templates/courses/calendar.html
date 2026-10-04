@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 {% load core_extras %}
 
-{% block title %}تقویم دوره‌های آموزشی — {{ site.site_name }}{% endblock %}
-{% block meta_description %}تقویم برگزاری دوره‌های آموزشی ایمنی، بهداشت و محیط زیست به همراه تاریخ شروع، مدت و شیوه برگزاری.{% endblock %}
+{% block title %}تقویم آموزشی {{ calendar.month_name }} {{ calendar.year|fa_digits }} — {{ site.site_name }}{% endblock %}
+{% block meta_description %}تقویم برگزاری دوره‌های آموزشی ایمنی، بهداشت و محیط زیست در {{ calendar.month_name }} {{ calendar.year|fa_digits }}؛ روی هر دوره بزنید تا به صفحه ثبت‌نام آن بروید.{% endblock %}
 
 {% block breadcrumb %}
     {% include "partials/breadcrumb.html" with current="تقویم آموزشی" %}
@@ -12,18 +12,112 @@
 <section class="section pt-4">
     <div class="container">
         <div class="section-head">
-            <h1 class="h2">تقویم دوره‌های آموزشی</h1>
-            <p class="m-0">{{ total_count|fa_digits }} دوره در انتظار برگزاری</p>
+            <h1 class="h2">تقویم آموزشی</h1>
+            <p class="m-0">روی هر دوره بزنید تا به صفحه آن دوره و ثبت‌نام بروید.</p>
         </div>
 
-        {% if courses %}
-            {% include "courses/partials/calendar_table.html" with courses=courses %}
+        {# --- سال و ماه --- #}
+        <nav class="tcal-nav" aria-label="انتخاب ماه">
+            <div class="tcal-nav__year">
+                {% if prev_year %}
+                    <a class="tcal-nav__arrow" href="?year={{ prev_year }}&amp;month={{ calendar.month }}"
+                       aria-label="سال {{ prev_year|fa_digits }}" rel="nofollow">{% icon "chevron-right" size=18 %}</a>
+                {% endif %}
+                <span class="tcal-nav__year-label">{{ calendar.year|fa_digits }}</span>
+                {% if next_year %}
+                    <a class="tcal-nav__arrow" href="?year={{ next_year }}&amp;month={{ calendar.month }}"
+                       aria-label="سال {{ next_year|fa_digits }}" rel="nofollow">{% icon "chevron-left" size=18 %}</a>
+                {% endif %}
+            </div>
+
+            <ul class="tcal-nav__months">
+                {% for month in calendar.months %}
+                    <li>
+                        <a href="?year={{ calendar.year }}&amp;month={{ month.number }}"
+                           class="tcal-nav__month{% if month.number == calendar.month %} is-active{% endif %}"
+                           {% if month.number == calendar.month %}aria-current="page"{% endif %}>
+                            {{ month.name }}
+                            {% if month.count %}
+                                <span class="tcal-nav__count" aria-label="{{ month.count|fa_digits }} دوره">{{ month.count|fa_digits }}</span>
+                            {% endif %}
+                        </a>
+                    </li>
+                {% endfor %}
+            </ul>
+
+            {% if not is_current_month %}
+                <a class="tcal-nav__today" href="?year={{ current_year }}&amp;month={{ current_month }}">ماه جاری</a>
+            {% endif %}
+        </nav>
+
+        {# --- جدول ماه --- #}
+        <div class="tcal-wrap">
+            <table class="tcal">
+                <caption class="visually-hidden">دوره‌های {{ calendar.month_name }} {{ calendar.year|fa_digits }}</caption>
+                <thead>
+                    <tr>
+                        {% for name in weekday_names %}
+                            <th scope="col"{% if forloop.last %} class="is-friday"{% endif %}>{{ name }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for week in calendar.weeks %}
+                        <tr>
+                            {% for cell in week %}
+                                {% if cell %}
+                                    <td class="tcal__day{% if cell.is_friday %} is-friday{% endif %}{% if cell.is_today %} is-today{% endif %}{% if cell.is_past %} is-past{% endif %}">
+                                        <span class="tcal__date">{{ cell.day|fa_digits }}</span>
+                                        {% for course in cell.courses %}
+                                            <a href="{{ course.get_absolute_url }}" class="tcal__event"
+                                               title="{{ course.title }}{% if course.end_date and course.end_date != course.start_date %} — تا {{ course.end_date|jalali }}{% endif %}">
+                                                <span class="tcal__event-title">{{ course.title }}</span>
+                                            </a>
+                                        {% endfor %}
+                                    </td>
+                                {% else %}
+                                    <td class="tcal__day is-empty{% if forloop.last %} is-friday{% endif %}"></td>
+                                {% endif %}
+                            {% endfor %}
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {# --- فهرست دوره‌های ماه: روی موبایل جای عنوان‌های داخل جدول را می‌گیرد --- #}
+        {% if calendar.courses %}
+            <div class="tcal-agenda">
+                <h2 class="h5">دوره‌های {{ calendar.month_name }} {{ calendar.year|fa_digits }}</h2>
+                <ul class="tcal-agenda__list">
+                    {% for course in calendar.courses %}
+                        <li>
+                            <a href="{{ course.get_absolute_url }}" class="tcal-agenda__item">
+                                <span class="tcal-agenda__date">
+                                    {{ course.start_date|jalali:True }}
+                                    {% if course.end_date and course.end_date != course.start_date %}
+                                        تا {{ course.end_date|jalali }}
+                                    {% endif %}
+                                </span>
+                                <span class="tcal-agenda__title">{{ course.title }}</span>
+                                {% if course.location %}
+                                    <span class="tcal-agenda__meta">{% icon "location" size=14 %} {{ course.location }}</span>
+                                {% endif %}
+                            </a>
+                        </li>
+                    {% endfor %}
+                </ul>
+            </div>
         {% else %}
-            <div class="empty-state">
-                {% icon "calendar" size=40 %}
-                <h2 class="h5 mt-3">هنوز دوره‌ای زمان‌بندی نشده است</h2>
-                <p>به‌زودی تقویم دوره‌های جدید اینجا منتشر می‌شود.</p>
-                <a href="{% url 'courses:list' %}" class="btn btn-primary mt-2">مشاهده همه دوره‌ها</a>
+            <div class="tcal-empty">
+                <p class="m-0">در {{ calendar.month_name }} {{ calendar.year|fa_digits }} دوره‌ای برگزار نمی‌شود.</p>
+                {% with nxt=calendar.next_busy_month %}
+                    {% if nxt %}
+                        <a href="?year={{ calendar.year }}&amp;month={{ nxt.number }}" class="btn btn-outline-brand btn-sm mt-2">
+                            دوره‌های {{ nxt.name }}
+                        </a>
+                    {% endif %}
+                {% endwith %}
             </div>
         {% endif %}
     </div>
