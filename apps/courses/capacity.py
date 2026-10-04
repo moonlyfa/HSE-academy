@@ -11,7 +11,8 @@
    می‌شود تا پایان مهلت پرداخت (PAYMENT_EXPIRY_MINUTES)، صندلی برایش نگه
    داشته می‌شود. بدون این، دو نفر می‌توانستند هم‌زمان برای آخرین صندلی
    پرداخت کنند و هر دو موفق شوند.
-۳. کسی که پرداختش **نامعلوم** مانده (پاسخ تأیید درگاه گم شده). شاید پولش
+۳. کسی که رسید کارت به کارت فرستاده و هنوز بررسی نشده (تا تصمیم مدیر).
+۴. کسی که پرداختش **نامعلوم** مانده (پاسخ تأیید درگاه گم شده). شاید پولش
    کسر شده باشد؛ صندلی‌اش تا روشن شدن وضعیت آزاد نمی‌شود، حتی بعد از مهلت.
 
 **چه چیزی هرگز رد نمی‌شود؟** پرداختی که درگاه تأییدش کرده است. پول گرفته
@@ -38,7 +39,13 @@ logger = logging.getLogger("hse.capacity")
 
 def seat_holder_ids(course: Course) -> set[int]:
     """شناسه کاربرانی که همین حالا در این دوره صندلی دارند."""
-    from apps.orders.models import OrderStatus, Payment, PaymentStatus
+    from apps.orders.models import (
+        CardTransfer,
+        CardTransferStatus,
+        OrderStatus,
+        Payment,
+        PaymentStatus,
+    )
 
     enrolled = Enrollment.objects.filter(
         course=course, status=EnrollmentStatus.ACTIVE
@@ -52,7 +59,17 @@ def seat_holder_ids(course: Course) -> set[int]:
         .values_list("order__user_id", flat=True)
     )
 
-    return set(enrolled) | set(paying)
+    # رسید کارت به کارتی که هنوز بررسی نشده: احتمالاً پول واریز شده، پس
+    # صندلی تا تصمیم مدیر نگه داشته می‌شود — هر چقدر هم طول بکشد.
+    transferred = (
+        CardTransfer.objects.filter(
+            status=CardTransferStatus.SUBMITTED, order__items__course=course
+        )
+        .exclude(order__status__in=[OrderStatus.CANCELED, OrderStatus.REFUNDED])
+        .values_list("order__user_id", flat=True)
+    )
+
+    return set(enrolled) | set(paying) | set(transferred)
 
 
 def seats_taken(course: Course) -> int:

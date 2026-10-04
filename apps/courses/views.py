@@ -609,7 +609,18 @@ def protected_media(request: HttpRequest, path: str) -> HttpResponse:
     پنل مدیریت جنگو برای هر فایل یک لینک می‌سازد. این View فقط به همان
     لینک‌ها پاسخ می‌دهد تا مدیر بتواند فایل آپلودشده را بررسی کند؛ برای
     بقیه کاربران بسته است.
+
+    عکس رسیدهای کارت به کارت اطلاعات مالی خریدار است؛ فقط مدیری که
+    اجازه دیدن پرداخت‌های کارت به کارت را دارد آن را می‌بیند و مرورگر هم
+    نباید نسخه‌ای از آن نگه دارد.
     """
+    if path.startswith("card-receipts/"):
+        if not request.user.has_perm("orders.view_cardtransfer"):
+            raise Http404("فایل مورد نظر پیدا نشد.")
+        response = serve_protected_file(protected_storage, path)
+        response["Cache-Control"] = "private, no-store"
+        return response
+
     return serve_protected_file(protected_storage, path)
 
 

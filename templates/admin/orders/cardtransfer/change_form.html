@@ -1,0 +1,34 @@
+{% extends "admin/change_form.html" %}
+
+{% block submit_buttons_bottom %}
+    {% if can_review %}
+        <fieldset class="module aligned" style="margin-top:20px">
+            <h2>تصمیم مدیر</h2>
+            <div class="form-row">
+                <p style="margin:0 0 12px;line-height:1.9">
+                    پیش از تأیید، واریز همین مبلغ را در حساب بانکی ببینید. با تأیید،
+                    دوره‌ها برای خریدار باز و به او پیامک می‌شود. با تأیید یا رد،
+                    عکس رسید برای همیشه از سرور پاک می‌شود.
+                </p>
+                <button type="submit" name="_approve_transfer" value="1" class="button"
+                        style="background:#1e8449;color:#fff;border:0;padding:10px 15px;border-radius:4px">
+                    تأیید واریز و فعال‌سازی دوره‌ها
+                </button>
+            </div>
+            <div class="form-row">
+                <label for="id_reject_reason_input" style="display:block;margin-bottom:6px">
+                    دلیل رد (برای خریدار پیامک می‌شود):
+                </label>
+                <textarea id="id_reject_reason_input" name="reject_reason" rows="2" maxlength="300"
+                          class="vLargeTextField"
+                          placeholder="مثلاً: واریزی با این مبلغ در حساب دیده نشد."></textarea>
+                <div style="margin-top:8px">
+                    <button type="submit" name="_reject_transfer" value="1" class="button"
+                            style="background:#c0392b;color:#fff;border:0;padding:10px 15px;border-radius:4px">
+                        رد رسید
+                    </button>
+                </div>
+            </div>
+        </fieldset>
+    {% endif %}
+{% endblock %}

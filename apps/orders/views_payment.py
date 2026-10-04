@@ -1,8 +1,9 @@
 """
 Viewهای پرداخت.
 
-سه آدرس دارد:
+چهار آدرس دارد:
     /orders/<شماره>/pay/        شروع پرداخت (فقط POST)
+    /orders/<شماره>/card/       کارت به کارت: اطلاعات کارت و ارسال رسید
     /payments/mock/<شناسه>/     صفحه درگاه آزمایشی (فقط در حالت Mock)
     /payments/callback/         بازگشت از درگاه
 
@@ -24,8 +25,17 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_POST
 
+from apps.core.models import SiteSetting
+from apps.courses.capacity import full_courses, full_message
+
+from .forms import CardTransferForm
 from .models import Order, Payment, PaymentStatus
-from .services import start_payment, verify_payment
+from .services import (
+    pending_transfer,
+    start_payment,
+    submit_card_transfer,
+    verify_payment,
+)
 
 logger = logging.getLogger("hse.payment")
 
@@ -147,4 +157,63 @@ def payment_callback(request: HttpRequest) -> HttpResponse:
             "pending": result.retryable,
             "message": result.message,
         },
+    )
+
+
+# ---------------------------------------------------------------------------
+# کارت به کارت
+# ---------------------------------------------------------------------------
+
+
+@login_required
+def card_transfer(request: HttpRequest, order_number: str) -> HttpResponse:
+    """
+    صفحه پرداخت کارت به کارت: اطلاعات کارت + فرم ارسال رسید.
+
+    فرستادن رسید دسترسی باز نمی‌کند؛ فقط آن را در صف بررسی مدیر می‌گذارد.
+    """
+    site = SiteSetting.load()
+    if not site.card_transfer_available:
+        raise Http404("پرداخت کارت به کارت فعال نیست.")
+
+    order = get_object_or_404(
+        Order.objects.prefetch_related("items"),
+        order_number=order_number,
+        user=request.user,
+    )
+
+    if pending_transfer(order):
+        messages.info(request, "رسید این سفارش قبلاً ثبت شده و در حال بررسی است.")
+        return redirect(order.get_absolute_url())
+    if not order.is_payable or order.total <= 0:
+        return redirect(order.get_absolute_url())
+
+    # شماره کارت به کسی نشان داده نمی‌شود که کلاسش پر است؛ وگرنه پول
+    # واریز می‌کرد و بعد باید برگردانده می‌شد.
+    if request.method == "GET":
+        full = full_courses([item.course for item in order.items.all()], request.user)
+        if full:
+            messages.error(request, full_message(full))
+            return redirect(order.get_absolute_url())
+
+    form = CardTransferForm(request.POST or None, request.FILES or None)
+
+    if request.method == "POST" and form.is_valid():
+        result = submit_card_transfer(
+            order,
+            images=form.cleaned_data["receipts"],
+            payer_card_last4=form.cleaned_data["payer_card_last4"],
+            tracking_code=form.cleaned_data["tracking_code"],
+            payer_note=form.cleaned_data["payer_note"],
+        )
+        if result.success:
+            messages.success(request, result.message)
+        else:
+            messages.error(request, result.message)
+        return redirect(order.get_absolute_url())
+
+    return render(
+        request,
+        "orders/card_transfer.html",
+        {"order": order, "form": form, "card": site},
     )

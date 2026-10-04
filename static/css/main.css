@@ -2502,6 +2502,84 @@ a.curriculum__lesson-link:hover { color: var(--color-primary); }
     line-height: 1.8;
 }
 
+/* --- پرداخت کارت به کارت --- */
+.ctc-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+    padding: var(--space-md) var(--space-lg);
+    border-radius: var(--radius-lg);
+    background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+    color: var(--color-white);
+}
+
+.ctc-card__label,
+.ctc-card__holder { font-size: 0.85rem; opacity: 0.85; }
+
+.ctc-card__number {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-sm);
+    flex-wrap: wrap;
+}
+
+.ctc-card__number strong {
+    font-size: clamp(1.1rem, 4.5vw, 1.5rem);
+    letter-spacing: 0.08em;
+    font-variant-numeric: tabular-nums;
+}
+
+.ctc-card__number .btn {
+    background: transparent;
+    color: var(--color-white);
+    border-color: rgba(255, 255, 255, 0.6);
+}
+
+.ctc-card__number .btn:hover { background: rgba(255, 255, 255, 0.15); color: var(--color-white); }
+
+.ctc-sheba {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+    margin-top: var(--space-sm);
+    font-size: 0.9rem;
+    word-break: break-all;
+}
+
+.ctc-amount {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-sm);
+    margin-top: var(--space-md);
+    padding: var(--space-sm) var(--space-md);
+    border-radius: var(--radius-md);
+    background: var(--color-accent-soft);
+}
+
+.ctc-amount strong { color: var(--color-accent-dark); font-size: 1.15rem; }
+
+.ctc-rules {
+    margin: var(--space-md) 0 0;
+    padding-inline-start: 1.2rem;
+    font-size: 0.9rem;
+    line-height: 1.9;
+    color: var(--color-text-muted);
+}
+
+.ctc-privacy {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-xs);
+    font-size: 0.82rem;
+    color: var(--color-text-light);
+    line-height: 1.8;
+}
+
+.ctc-privacy svg { flex: 0 0 auto; margin-top: 0.3rem; }
+
 /* --- کد تخفیف --- */
 .coupon-form__row { display: flex; gap: var(--space-xs); }
 .coupon-form__row .btn { flex: 0 0 auto; }

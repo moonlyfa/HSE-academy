@@ -23,6 +23,11 @@ urlpatterns = [
         name="payment_start",
     ),
     path(
+        "orders/<str:order_number>/card/",
+        views_payment.card_transfer,
+        name="card_transfer",
+    ),
+    path(
         "payments/mock/<str:authority>/",
         views_payment.mock_gateway,
         name="mock_gateway",

@@ -16,8 +16,12 @@ import secrets
 from datetime import timedelta
 
 from django.db import models
+from django.db.models.signals import post_delete
+from django.dispatch import receiver
 from django.urls import reverse
 from django.utils import timezone
+
+from apps.courses.storages import protected_storage
 
 # حروف و ارقامی که در شماره سفارش استفاده می‌شوند.
 # حروف مبهم (I، O، ۰، ۱) عمداً حذف شده‌اند تا وقتی کاربر شماره سفارش را
@@ -446,3 +450,178 @@ class Payment(models.Model):
         if not self.card_pan:
             return ""
         return f"**** **** **** {self.card_pan[-4:]}"
+
+
+# ---------------------------------------------------------------------------
+# پرداخت کارت به کارت
+# ---------------------------------------------------------------------------
+
+
+class CardTransferStatus(models.TextChoices):
+    SUBMITTED = "submitted", "در انتظار بررسی"
+    APPROVED = "approved", "تأیید شده"
+    REJECTED = "rejected", "رد شده"
+
+
+def card_receipt_path(instance, filename: str) -> str:
+    """
+    نام فایل رسید تصادفی است، نه نام فایلی که کاربر فرستاده.
+
+    نام اصلی ممکن است اطلاعات شخصی داشته باشد (مثلاً «رسید-علی-رضایی.jpg»)
+    و قابل حدس هم هست.
+    """
+    return f"card-receipts/{secrets.token_hex(16)}.jpg"
+
+
+class CardTransfer(models.Model):
+    """
+    یک پرداخت کارت به کارت که خریدار رسیدش را فرستاده است.
+
+    چرخه:
+        خریدار مبلغ را واریز می‌کند و عکس رسید را می‌فرستد (SUBMITTED)
+        ← مدیر عکس را می‌بیند و تأیید یا رد می‌کند
+        ← با تأیید، یک Payment موفق ثبت و دوره‌ها باز می‌شوند
+        ← در هر دو حالت، عکس رسید همان لحظه از سرور پاک می‌شود.
+
+    چرا عکس پاک می‌شود ولی این ردیف نه؟ عکس فقط برای همان یک بار دیدن لازم
+    است و نگه داشتنش فضای سرور را پر می‌کند. اما رد مالی (مبلغ، چهار رقم
+    آخر کارت پرداخت‌کننده، شماره پیگیری، چه کسی و کِی تأیید کرد) باید
+    بماند تا اگر روزی اختلافی پیش آمد، بشود پیگیری کرد.
+    """
+
+    order = models.ForeignKey(
+        Order,
+        verbose_name="سفارش",
+        on_delete=models.PROTECT,
+        related_name="card_transfers",
+    )
+    amount = models.PositiveIntegerField(
+        "مبلغ سفارش در لحظه ارسال رسید (تومان)",
+        help_text="اگر مبلغ سفارش بعداً عوض شود، تأیید انجام نمی‌شود.",
+    )
+    status = models.CharField(
+        "وضعیت",
+        max_length=20,
+        choices=CardTransferStatus.choices,
+        default=CardTransferStatus.SUBMITTED,
+        db_index=True,
+    )
+
+    # --- اطلاعاتی که خریدار وارد می‌کند ---
+    payer_card_last4 = models.CharField("چهار رقم آخر کارت پرداخت‌کننده", max_length=4)
+    tracking_code = models.CharField("شماره پیگیری / مرجع", max_length=40, blank=True)
+    payer_note = models.CharField("توضیح خریدار", max_length=300, blank=True)
+
+    # --- بررسی مدیر ---
+    reviewed_by = models.ForeignKey(
+        "accounts.User",
+        verbose_name="بررسی‌کننده",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+    reviewed_at = models.DateTimeField("زمان بررسی", null=True, blank=True)
+    reject_reason = models.CharField(
+        "دلیل رد",
+        max_length=300,
+        blank=True,
+        help_text="برای خریدار نمایش داده و پیامک می‌شود.",
+    )
+    payment = models.OneToOneField(
+        Payment,
+        verbose_name="تراکنش ثبت‌شده",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="card_transfer",
+    )
+    receipts_deleted_at = models.DateTimeField(
+        "زمان پاک شدن عکس رسید", null=True, blank=True
+    )
+
+    created_at = models.DateTimeField("زمان ارسال رسید", auto_now_add=True)
+    updated_at = models.DateTimeField("آخرین تغییر", auto_now=True)
+
+    class Meta:
+        verbose_name = "پرداخت کارت به کارت"
+        verbose_name_plural = "پرداخت‌های کارت به کارت"
+        ordering = ["-created_at"]
+        constraints = [
+            # هر سفارش در هر لحظه فقط یک رسید در انتظار بررسی دارد؛ وگرنه
+            # ممکن بود دو رسید یک واریز، دو بار تأیید شوند.
+            models.UniqueConstraint(
+                fields=["order"],
+                condition=models.Q(status="submitted"),
+                name="one_pending_card_transfer_per_order",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.order.order_number} — {self.get_status_display()}"
+
+    @property
+    def is_pending(self) -> bool:
+        return self.status == CardTransferStatus.SUBMITTED
+
+    def delete_receipt_files(self) -> int:
+        """
+        عکس‌های رسید را از دیسک و دیتابیس پاک می‌کند.
+
+        فایلی که قبلاً دستی پاک شده خطا نمی‌دهد (FileSystemStorage آن را
+        نادیده می‌گیرد). خروجی: تعداد رسیدهای پاک‌شده.
+        """
+        deleted = 0
+        for receipt in self.receipts.all():
+            receipt.delete()  # فایل را سیگنال post_delete پاک می‌کند
+            deleted += 1
+
+        if self.receipts_deleted_at is None:
+            self.receipts_deleted_at = timezone.now()
+            self.save(update_fields=["receipts_deleted_at", "updated_at"])
+        return deleted
+
+
+class CardTransferReceipt(models.Model):
+    """
+    عکس رسید. موقت است: بعد از بررسی مدیر، فایل و همین ردیف پاک می‌شوند.
+
+    کاربر می‌تواند تا سه عکس بفرستد؛ مبلغ بیشتر از سقف روزانه کارت به
+    کارت معمولاً در چند واریز جدا پرداخت می‌شود.
+    """
+
+    transfer = models.ForeignKey(
+        CardTransfer,
+        verbose_name="پرداخت",
+        on_delete=models.CASCADE,
+        related_name="receipts",
+    )
+    # فایل بیرون از پوشه عمومی ذخیره می‌شود و فقط مدیر از راه نمای
+    # مخصوص می‌تواند آن را ببیند.
+    image = models.FileField(
+        "عکس رسید",
+        storage=protected_storage,
+        upload_to=card_receipt_path,
+    )
+    size_bytes = models.PositiveIntegerField("حجم پس از فشرده‌سازی (بایت)", default=0)
+    created_at = models.DateTimeField("زمان ارسال", auto_now_add=True)
+
+    class Meta:
+        verbose_name = "عکس رسید"
+        verbose_name_plural = "عکس‌های رسید"
+        ordering = ["pk"]
+
+    def __str__(self) -> str:
+        return f"رسید {self.pk}"
+
+
+@receiver(post_delete, sender=CardTransferReceipt)
+def _delete_receipt_file(sender, instance: CardTransferReceipt, **kwargs) -> None:
+    """
+    پاک شدن ردیف رسید، از هر راهی (مثلاً حذف آبشاری)، فایلش را هم پاک کند.
+
+    جنگو فایل FileField را با حذف ردیف پاک نمی‌کند؛ بدون این، فایل یتیم
+    روی دیسک می‌ماند — همان چیزی که این قابلیت قرار است جلویش را بگیرد.
+    """
+    if instance.image:
+        instance.image.storage.delete(instance.image.name)

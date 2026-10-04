@@ -316,6 +316,30 @@
             announce(legacyCopy(url) ? "لینک کپی شد" : "کپی نشد؛ نشانی را از نوار آدرس بردارید.");
         });
     });
+
+    // دکمه کپی عمومی: <button data-copy-text="..." data-copy-done="کپی شد">
+    // (شماره کارت و شبا در صفحه کارت به کارت)
+    document.querySelectorAll("[data-copy-text]").forEach(function (button) {
+        const original = button.textContent;
+        const text = button.getAttribute("data-copy-text");
+        const done = button.getAttribute("data-copy-done") || "کپی شد";
+
+        function flash(message) {
+            button.textContent = message;
+            window.setTimeout(function () { button.textContent = original; }, 2000);
+        }
+
+        button.addEventListener("click", function () {
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(text).then(
+                    function () { flash(done); },
+                    function () { flash(legacyCopy(text) ? done : "کپی نشد"); }
+                );
+                return;
+            }
+            flash(legacyCopy(text) ? done : "کپی نشد");
+        });
+    });
 })();
 
 

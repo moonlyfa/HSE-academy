@@ -130,6 +130,38 @@ class SiteSetting(models.Model):
         "تعداد دسته‌بندی در صفحه اصلی", default=8
     )
 
+    # --- پرداخت کارت به کارت ---
+    card_transfer_enabled = models.BooleanField(
+        "فعال بودن پرداخت کارت به کارت",
+        default=False,
+        help_text="تا شماره کارت وارد نشده باشد، این گزینه به خریدار نمایش داده نمی‌شود.",
+    )
+    card_transfer_number = models.CharField(
+        "شماره کارت مقصد",
+        max_length=19,
+        blank=True,
+        help_text="۱۶ رقم؛ با یا بدون فاصله.",
+    )
+    card_transfer_holder = models.CharField("نام صاحب کارت", max_length=100, blank=True)
+    card_transfer_bank = models.CharField("نام بانک", max_length=50, blank=True)
+    card_transfer_sheba = models.CharField(
+        "شماره شبا (اختیاری)",
+        max_length=34,
+        blank=True,
+        help_text="برای مبالغ بیشتر از سقف کارت به کارت. مثال: IR000000000000000000000000",
+    )
+    card_transfer_note = models.TextField(
+        "توضیح برای خریدار (اختیاری)",
+        blank=True,
+        help_text="زیر اطلاعات کارت نمایش داده می‌شود.",
+    )
+    card_transfer_notify_mobile = models.CharField(
+        "موبایل مدیر برای اطلاع از رسید جدید",
+        max_length=11,
+        blank=True,
+        help_text="با ثبت هر رسید، به این شماره پیامک می‌رود. خالی یعنی پیامک نرود.",
+    )
+
     # --- سئو ---
     meta_title = models.CharField("عنوان سئو", max_length=70, blank=True)
     meta_description = models.CharField("توضیحات سئو", max_length=160, blank=True)
@@ -147,6 +179,30 @@ class SiteSetting(models.Model):
         """اجازه ساخت بیش از یک ردیف تنظیمات را نمی‌دهیم."""
         if not self.pk and SiteSetting.objects.exists():
             raise ValidationError("فقط یک ردیف تنظیمات سایت می‌تواند وجود داشته باشد.")
+
+        if self.card_transfer_enabled and len(self.card_transfer_digits) != 16:
+            raise ValidationError(
+                {"card_transfer_number": "برای فعال کردن کارت به کارت، شماره کارت ۱۶ رقمی را وارد کنید."}
+            )
+
+    @property
+    def card_transfer_available(self) -> bool:
+        """گزینه کارت به کارت فقط وقتی دیده می‌شود که روشن باشد و کارت داشته باشد."""
+        return self.card_transfer_enabled and len(self.card_transfer_digits) == 16
+
+    @property
+    def card_transfer_digits(self) -> str:
+        """شماره کارت فقط به‌صورت رقم انگلیسی، بدون فاصله و خط تیره."""
+        digits = self.card_transfer_number.translate(
+            str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "01234567890123456789")
+        )
+        return "".join(ch for ch in digits if ch.isdigit())
+
+    @property
+    def card_transfer_display(self) -> str:
+        """شماره کارت در چهار گروه چهاررقمی، برای خواندن راحت."""
+        digits = self.card_transfer_digits
+        return " ".join(digits[i : i + 4] for i in range(0, len(digits), 4))
 
     @property
     def hero_slider_interval_ms(self) -> int:

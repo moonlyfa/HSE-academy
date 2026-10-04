@@ -493,6 +493,14 @@ def start_payment(order: Order, callback_url: str) -> PaymentResult:
             success=False, message="مبلغ این سفارش صفر است و نیازی به پرداخت ندارد."
         )
 
+    # رسید کارت به کارتِ همین سفارش در انتظار بررسی است؛ پرداخت آنلاین
+    # هم‌زمان یعنی خریدار دو بار پول بدهد.
+    if order.card_transfers.filter(status="submitted").exists():
+        return PaymentResult(
+            success=False,
+            message="رسید کارت به کارت این سفارش در حال بررسی است و نیازی به پرداخت دوباره نیست.",
+        )
+
     from apps.courses.capacity import full_message, lock_and_find_full
 
     gateway = get_payment_gateway()

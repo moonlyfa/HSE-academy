@@ -46,6 +46,25 @@ class SiteSettingAdmin(admin.ModelAdmin):
         ),
         ("درباره ما", {"fields": ("about_short", "about_full")}),
         (
+            "پرداخت کارت به کارت",
+            {
+                "description": (
+                    "خریدار مبلغ را به این کارت واریز می‌کند و عکس رسید را می‌فرستد. "
+                    "رسیدها در «سفارش‌ها › پرداخت‌های کارت به کارت» بررسی می‌شوند و "
+                    "پس از تأیید یا رد، عکس رسید خودکار از سرور پاک می‌شود."
+                ),
+                "fields": (
+                    "card_transfer_enabled",
+                    "card_transfer_number",
+                    "card_transfer_holder",
+                    "card_transfer_bank",
+                    "card_transfer_sheba",
+                    "card_transfer_note",
+                    "card_transfer_notify_mobile",
+                ),
+            },
+        ),
+        (
             "تنظیمات اسلایدر صفحه اصلی",
             {
                 "description": "سرعت چرخش و نرمی جابه‌جایی اسلایدها از اینجا کنترل می‌شود.",

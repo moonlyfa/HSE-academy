@@ -19,6 +19,7 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from apps.core.jalali import to_persian_digits
+from apps.core.models import SiteSetting
 from apps.courses.capacity import full_courses, full_message, has_seat, lock_and_find_full
 from apps.courses.models import Course
 
@@ -28,6 +29,7 @@ from .services import (
     check_coupon,
     create_order,
     mark_order_paid,
+    pending_transfer,
     purchased_course_ids,
 )
 
@@ -324,6 +326,11 @@ def order_detail(request: HttpRequest, order_number: str) -> HttpResponse:
             "order": order,
             "statuses": OrderStatus,
             "payments": order.payments.order_by("-created_at"),
+            "pending_transfer": pending_transfer(order),
+            "last_rejected_transfer": order.card_transfers.filter(status="rejected")
+            .order_by("-reviewed_at")
+            .first(),
+            "card_transfer_available": SiteSetting.load().card_transfer_available,
             # برای اینکه در محیط آزمایشی، کاربر بداند پرداخت واقعی نیست.
             "mock_payment": settings.USE_MOCK_PAYMENT,
         },
@@ -340,6 +347,12 @@ def order_cancel(request: HttpRequest, order_number: str) -> HttpResponse:
         messages.error(request, "سفارش پرداخت‌شده قابل لغو نیست.")
     elif order.status == OrderStatus.CANCELED:
         messages.info(request, "این سفارش قبلاً لغو شده است.")
+    elif pending_transfer(order):
+        # رسید فرستاده شده و شاید پول واریز شده؛ لغو یک‌طرفه، رد مالی را گم می‌کرد.
+        messages.error(
+            request,
+            "رسید کارت به کارت این سفارش در حال بررسی است. برای لغو با پشتیبانی تماس بگیرید.",
+        )
     else:
         order.status = OrderStatus.CANCELED
         order.save(update_fields=["status", "updated_at"])
