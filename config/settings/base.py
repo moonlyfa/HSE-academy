@@ -212,7 +212,7 @@ MESSAGE_TAGS = {
 # آدرس پنل مدیریت. در Production آن را به چیزی غیرقابل حدس تغییر دهید.
 ADMIN_URL = env("DJANGO_ADMIN_URL", default="admin").strip("/")
 
-SITE_NAME = env("SITE_NAME", default="HSE Tech")
+SITE_NAME = env("SITE_NAME", default="سپر آکادمی")
 SITE_DOMAIN = env("SITE_DOMAIN", default="127.0.0.1:8000")
 SITE_SUPPORT_PHONE = env("SITE_SUPPORT_PHONE", default="۰۲۱-۰۰۰۰۰۰۰۰")
 SITE_SUPPORT_EMAIL = env("SITE_SUPPORT_EMAIL", default="info@example.com")

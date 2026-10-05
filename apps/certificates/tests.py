@@ -318,7 +318,7 @@ class PdfTests(CertificateTestMixin, TestCase):
         content = render_certificate(
             self.certificate,
             verification_url="https://example.ir/certificate/verify/?token=x",
-            site_name="HSE Tech",
+            site_name="سپر آکادمی",
         )
 
         self.assertTrue(content.startswith(b"%PDF"))

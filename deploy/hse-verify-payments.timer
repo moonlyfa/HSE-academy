@@ -5,7 +5,7 @@
 #     journalctl -u hse-verify-payments.service -n 30
 
 [Unit]
-Description=Re-verify pending HSE Academy payments every 10 minutes
+Description=Re-verify pending Separ Academy payments every 10 minutes
 
 [Timer]
 OnBootSec=5min

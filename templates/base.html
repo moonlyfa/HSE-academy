@@ -25,7 +25,7 @@
     <meta property="og:type" content="{% block og_type %}website{% endblock %}">
     <meta property="og:title" content="{% block og_title %}{{ site.site_name }}{% endblock %}">
     <meta property="og:description" content="{% block og_description %}{{ site.site_tagline }}{% endblock %}">
-    {% block og_image %}{% if site.logo %}<meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{{ site.logo.url }}">{% endif %}{% endblock %}
+    {% block og_image %}{% if site.logo %}<meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{{ site.logo.url }}">{% else %}<meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{% static 'img/brand/separ-og.png' %}">{% endif %}{% endblock %}
 
     {# توییتر وقتی تگ اختصاصی نداشته باشد، خودش سراغ همین og:* بالا #}
     {# می‌رود؛ پس فقط نوع کارت را اعلام می‌کنیم و عنوان و توضیح در یک #}
@@ -36,8 +36,11 @@
     {% if site.favicon %}
         <link rel="icon" href="{{ site.favicon.url }}">
     {% else %}
-        <link rel="icon" href="{% static 'img/favicon.png' %}">
+        <link rel="icon" href="{% static 'img/brand/separ-mark.svg' %}" type="image/svg+xml">
+        <link rel="icon" href="{% static 'img/favicon.png' %}" sizes="64x64">
     {% endif %}
+    <link rel="apple-touch-icon" href="{% static 'img/apple-touch-icon.png' %}">
+    <meta name="theme-color" content="#88261B">
 
     {# --- همه فایل‌ها محلی هستند؛ هیچ CDN خارجی در مسیر بحرانی سایت نیست --- #}
     <link rel="stylesheet" href="{% static_v 'vendor/bootstrap/css/bootstrap.rtl.min.css' %}">

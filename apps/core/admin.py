@@ -209,6 +209,6 @@ class ContactMessageAdmin(admin.ModelAdmin):
 
 
 # --- شخصی‌سازی عنوان‌های پنل مدیریت ---
-admin.site.site_header = "پنل مدیریت HSE Tech"
-admin.site.site_title = "HSE Tech"
+admin.site.site_header = "پنل مدیریت سپر آکادمی"
+admin.site.site_title = "سپر آکادمی"
 admin.site.index_title = "مدیریت سایت"

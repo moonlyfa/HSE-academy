@@ -1,6 +1,6 @@
 @echo off
 REM ===========================================================================
-REM   HSE Academy - local run script (Windows)
+REM   Separ Academy - local run script (Windows)
 REM   ------------------------------------------------------------------------
 REM   اجرای سایت روی سیستم خودتان: کافی است روی همین فایل دوبار کلیک کنید.
 REM
@@ -13,7 +13,7 @@ cd /d "%~dp0"
 
 echo.
 echo ===========================================
-echo    HSE Academy - starting local site
+echo    Separ Academy - starting local site
 echo ===========================================
 echo.
 
@@ -45,6 +45,9 @@ REM جدول‌های جدید را می‌سازد. اگر چیزی برای ا
 echo [3/4] Updating database ...
 .venv\Scripts\python.exe manage.py migrate --noinput
 if errorlevel 1 goto migrate_failed
+
+REM تصویرهای نمونه قدیمی (رنگ‌های قبلی) با رنگ‌های برند فعلی؛ عکس‌های آپلودی دست نمی‌خورند.
+.venv\Scripts\python.exe manage.py refresh_demo_images >nul 2>&1
 
 REM --- 3b. Demo data ------------------------------------------------------
 REM اولین اجرا نباید سایت خالی نشان بدهد. کد خروج بررسی:

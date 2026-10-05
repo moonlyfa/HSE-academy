@@ -1,0 +1,23 @@
+{% extends "admin/base.html" %}
+{% load static %}
+{# پنل مدیریت با رنگ و نشان «سپر آکادمی»؛ بقیه رفتار همان قالب خود جنگو است. #}
+
+{% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/admin-brand.css' %}">{% endblock %}
+
+{% block extrahead %}{{ block.super }}<link rel="icon" href="{% static 'img/brand/separ-mark.svg' %}" type="image/svg+xml">{% endblock %}
+
+{% block branding %}
+<div id="site-name">
+    <a href="{% url 'admin:index' %}" class="separ-admin-brand">
+        <img src="{% static 'img/brand/separ-mark.svg' %}" alt="" width="30" height="30">
+        <span>{{ site_header|default:_('Django administration') }}</span>
+    </a>
+</div>
+{% if user.is_anonymous %}
+  {% include "admin/color_theme_toggle.html" %}
+{% endif %}
+{% endblock %}
+
+{% block nav-global %}{% endblock %}

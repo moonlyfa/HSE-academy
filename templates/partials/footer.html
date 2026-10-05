@@ -1,11 +1,14 @@
-{% load core_extras %}
+{% load static core_extras %}
 <footer class="site-footer">
     <div class="container">
         <div class="row g-4">
 
             {# --- معرفی --- #}
             <div class="col-lg-4 col-md-6">
-                <h5>{{ site.site_name }}</h5>
+                <a href="{% url 'core:home' %}" class="footer-brand">
+                    <img src="{% static 'img/brand/separ-logo-light.svg' %}" alt="{{ site.site_name }}"
+                         width="113" height="64">
+                </a>
                 <p>{{ site.about_short }}</p>
 
                 {% if site.instagram_url or site.telegram_url or site.linkedin_url or site.whatsapp_url %}

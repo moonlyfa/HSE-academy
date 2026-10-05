@@ -1,5 +1,5 @@
 /* =========================================================================
-   HSE Tech — شیوه‌نامه طراحی (Design System)
+   سپر آکادمی — شیوه‌نامه طراحی (Design System)
    -------------------------------------------------------------------------
    ترتیب فایل:
      ۱. فونت محلی
@@ -51,38 +51,52 @@
    ۲. توکن‌های طراحی
    ========================================================================= */
 :root {
-    /* --- رنگ اصلی: سبز تیره صنعتی --- */
-    --color-primary: #0f4c3a;
-    --color-primary-dark: #093023;
-    --color-primary-light: #1a6b52;
-    --color-primary-soft: #e8f1ee;
+    /*
+     * رنگ‌ها از شیوه‌نامه برند «سپر آکادمی» آمده‌اند: قرمز سپر (#88261B)
+     * با سهم ۷۰٪ و مشکی (#231F20) با سهم ۳۰٪. بقیه رنگ‌ها فقط سایه‌روشن
+     * همین دو هستند؛ رنگ تازه‌ای به برند اضافه نشده است.
+     *
+     *   قرمز ← هر جا که چشم باید برود: دکمه اقدام، لینک فعال، آیکون، نشان
+     *   مشکی ← متن، تیتر، فوتر و سطوح تیره؛ قرمز روی آن بهتر دیده می‌شود
+     */
 
-    /* --- رنگ مکمل: آبی نفتی --- */
-    --color-secondary: #14425c;
-    --color-secondary-light: #1d5a7d;
-    --color-secondary-soft: #e9f0f4;
+    /* --- رنگ اصلی: قرمز سپر --- */
+    --color-primary: #88261B;
+    --color-primary-light: #A33022;      /* Hover دکمه قرمز */
+    --color-primary-soft: #F7EBE9;       /* زمینه چیپ و حالت Hover */
+    --color-primary-bright: #D4594C;     /* قرمز روی زمینه مشکی (فوتر، بنر تیره) */
 
-    /* --- رنگ تأکید: نارنجی ایمنی (فقط CTA و هشدار) --- */
-    --color-accent: #e07b16;
-    --color-accent-dark: #b96110;
-    --color-accent-soft: #fdf1e3;
+    /* --- مشکی برند: تیترها، فوتر، سطوح تیره --- */
+    /* نام «primary-dark» حفظ شده چون در تمام قالب‌ها همین نقش را دارد. */
+    --color-primary-dark: #231F20;
+
+    /* --- رنگ مکمل: مشکی برند و سایه‌هایش --- */
+    --color-secondary: #231F20;
+    --color-secondary-light: #3B3536;
+    --color-secondary-soft: #EFEDED;
+
+    /* --- رنگ اقدام (CTA): همان قرمز برند --- */
+    --color-accent: #88261B;
+    --color-accent-dark: #6C1E15;
+    --color-accent-soft: #F7EBE9;
 
     /* --- رنگ‌های وضعیت --- */
+    /* خطا عمداً روشن‌تر از قرمز برند است تا با آن اشتباه گرفته نشود. */
     --color-success: #1e8449;
-    --color-warning: #d99400;
-    --color-danger: #c0392b;
-    --color-info: #1d5a7d;
+    --color-warning: #c98a00;
+    --color-danger: #d1352b;
+    --color-info: #3b5b74;
 
-    /* --- خنثی‌ها --- */
+    /* --- خنثی‌ها: خاکستری گرم، هم‌خانواده مشکی برند --- */
     --color-white: #ffffff;
-    --color-bg: #f7f9f8;
+    --color-bg: #f6f5f5;
     --color-surface: #ffffff;
-    --color-surface-alt: #f1f5f4;
-    --color-border: #e3eae8;
-    --color-border-strong: #cdd8d5;
-    --color-text: #17211f;
-    --color-text-muted: #5f6f6b;
-    --color-text-light: #8b9995;
+    --color-surface-alt: #f0eeee;
+    --color-border: #e6e2e2;
+    --color-border-strong: #d2cbcb;
+    --color-text: #231F20;
+    --color-text-muted: #615a5b;
+    --color-text-light: #8c8586;
 
     /* --- تایپوگرافی --- */
     --font-family-base: "Vazirmatn", Tahoma, "Segoe UI", sans-serif;
@@ -106,10 +120,10 @@
     --radius-full: 999px;
 
     /* --- سایه‌های بسیار نرم --- */
-    --shadow-xs: 0 1px 2px rgba(13, 40, 32, 0.04);
-    --shadow-sm: 0 2px 8px rgba(13, 40, 32, 0.05);
-    --shadow-md: 0 6px 20px rgba(13, 40, 32, 0.07);
-    --shadow-lg: 0 14px 38px rgba(13, 40, 32, 0.10);
+    --shadow-xs: 0 1px 2px rgba(35, 31, 32, 0.05);
+    --shadow-sm: 0 2px 8px rgba(35, 31, 32, 0.06);
+    --shadow-md: 0 6px 20px rgba(35, 31, 32, 0.08);
+    --shadow-lg: 0 14px 38px rgba(35, 31, 32, 0.12);
 
     /* --- انیمیشن --- */
     --transition-fast: 150ms ease;
@@ -353,19 +367,10 @@ img { max-width: 100%; height: auto; }
 
 .brand-logo:hover { color: var(--color-primary); }
 
-.brand-logo img { max-height: 46px; width: auto; }
+.brand-logo img { height: 58px; max-height: 58px; width: auto; }
 
-.brand-mark {
-    width: 42px;
-    height: 42px;
-    border-radius: var(--radius-md);
-    background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
-    color: var(--color-white);
-    display: grid;
-    place-items: center;
-    font-weight: 700;
-    font-size: 0.9rem;
-    letter-spacing: 0.5px;
+@media (max-width: 575.98px) {
+    .brand-logo img { height: 48px; max-height: 48px; }
 }
 
 .site-nav .nav-link {
@@ -389,10 +394,14 @@ img { max-width: 100%; height: auto; }
    ========================================================================= */
 .site-footer {
     background: var(--color-primary-dark);
+    border-top: 4px solid var(--color-primary);
     color: rgba(255, 255, 255, 0.75);
     padding-top: var(--space-2xl);
     margin-top: var(--space-3xl);
 }
+
+.footer-brand { display: inline-block; margin-bottom: var(--space-md); }
+.footer-brand img { height: 64px; width: auto; }
 
 .site-footer h5 {
     color: var(--color-white);
@@ -419,7 +428,7 @@ img { max-width: 100%; height: auto; }
     margin-bottom: var(--space-md);
 }
 
-.footer-contact-item .icon { margin-top: 6px; color: var(--color-accent); }
+.footer-contact-item .icon { margin-top: 6px; color: var(--color-primary-bright); }
 
 .social-links { display: flex; gap: var(--space-sm); }
 
@@ -433,7 +442,7 @@ img { max-width: 100%; height: auto; }
     transition: background-color var(--transition-base), transform var(--transition-base);
 }
 
-.social-links a:hover { background: var(--color-accent); transform: translateY(-3px); }
+.social-links a:hover { background: var(--color-primary); transform: translateY(-3px); }
 
 .footer-bottom {
     border-top: 1px solid rgba(255, 255, 255, 0.12);
@@ -451,6 +460,23 @@ img { max-width: 100%; height: auto; }
 .section-head { margin-bottom: var(--space-xl); }
 
 .section-head h2 { margin-bottom: var(--space-sm); }
+
+/*
+ * نشانه برند کنار تیتر هر بخش: نوار قرمز با گوشه‌های پَخ، همان علامتی
+ * که در شیوه‌نامه کنار عنوان هر صفحه آمده است.
+ */
+.section-head h1::before,
+.section-head h2::before {
+    content: "";
+    display: inline-block;
+    width: 0.32em;
+    height: 0.95em;
+    margin-inline-end: 0.45em;
+    vertical-align: -0.08em;
+    background: var(--color-primary);
+    /* پَخ سمت راست، یعنی رو به بیرون تیتر (سایت راست‌به‌چپ است) */
+    clip-path: polygon(0 0, 55% 0, 100% 22%, 100% 78%, 55% 100%, 0 100%);
+}
 
 .section-head p {
     max-width: 620px;
@@ -771,7 +797,7 @@ img { max-width: 100%; height: auto; }
     font-weight: 600;
     font-size: 0.92rem;
     text-align: center;
-    box-shadow: 0 3px 8px rgba(23, 33, 31, 0.15);
+    box-shadow: 0 3px 8px rgba(35, 31, 32, 0.15);
     transition: background-color var(--transition-fast);
 }
 
@@ -1547,7 +1573,7 @@ img { max-width: 100%; height: auto; }
 }
 
 .dash-nav__logout { color: var(--color-danger); cursor: pointer; }
-.dash-nav__logout:hover { background: rgba(192, 57, 43, 0.08); color: var(--color-danger); }
+.dash-nav__logout:hover { background: rgba(209, 53, 43, 0.08); color: var(--color-danger); }
 
 .dash-welcome {
     background: linear-gradient(120deg, var(--color-primary), var(--color-secondary));
@@ -1633,7 +1659,7 @@ img { max-width: 100%; height: auto; }
 }
 
 .auth-icon--warning {
-    background: rgba(192, 57, 43, 0.10);
+    background: rgba(209, 53, 43, 0.10);
     color: var(--color-danger);
 }
 
@@ -1645,8 +1671,8 @@ img { max-width: 100%; height: auto; }
 }
 
 .btn-danger:hover {
-    background: #a33326;
-    border-color: #a33326;
+    background: #b02a22;
+    border-color: #b02a22;
     color: var(--color-white);
     box-shadow: var(--shadow-md);
 }
@@ -2013,7 +2039,7 @@ a.purchase-card__instructor:hover strong { color: var(--color-primary); }
     padding: var(--space-sm) var(--space-md);
     background: var(--color-surface);
     border-top: 1px solid var(--color-border);
-    box-shadow: 0 -2px 12px rgba(13, 40, 32, 0.08);
+    box-shadow: 0 -2px 12px rgba(35, 31, 32, 0.08);
 }
 
 .mobile-buy-bar__price { font-size: 1.05rem; }
@@ -2624,7 +2650,7 @@ a.curriculum__lesson-link:hover { color: var(--color-primary); }
 }
 
 .order-status--paid { background: #e6f4ec; color: var(--color-success); }
-.order-status--pending { background: var(--color-accent-soft); color: var(--color-accent-dark); }
+.order-status--pending { background: #fdf3dc; color: #8a5d00; }
 .order-status--failed,
 .order-status--canceled { background: #fbe9e7; color: var(--color-danger); }
 
@@ -2913,7 +2939,7 @@ a.curriculum__lesson-link:hover { color: var(--color-primary); }
 
 .exam-timer.is-urgent {
     color: var(--color-danger);
-    background: rgba(192, 57, 43, 0.08);
+    background: rgba(209, 53, 43, 0.08);
 }
 
 .exam-question {
@@ -3004,7 +3030,7 @@ a.curriculum__lesson-link:hover { color: var(--color-primary); }
 
 .exam-review li.is-chosen {
     border-color: var(--color-danger);
-    background: rgba(192, 57, 43, 0.06);
+    background: rgba(209, 53, 43, 0.06);
 }
 
 .exam-review small { color: var(--color-text-light); }
@@ -3123,7 +3149,7 @@ a.curriculum__lesson-link:hover { color: var(--color-primary); }
 
 .certificate-status--revoked {
     color: var(--color-danger);
-    background: rgba(192, 57, 43, 0.1);
+    background: rgba(209, 53, 43, 0.1);
 }
 
 @media (max-width: 575.98px) {

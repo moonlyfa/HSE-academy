@@ -8,8 +8,8 @@
                 {% if site.logo %}
                     <img src="{{ site.logo.url }}" alt="{{ site.site_name }}">
                 {% else %}
-                    <span class="brand-mark" aria-hidden="true">HSE</span>
-                    <span>{{ site.site_name }}</span>
+                    <img src="{% static 'img/brand/separ-logo.svg' %}" alt="{{ site.site_name }}"
+                         width="102" height="58">
                 {% endif %}
             </a>
 

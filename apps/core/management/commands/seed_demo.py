@@ -326,39 +326,44 @@ PARTNERS = [
     "دانشگاه صنعتی شریف", "سازمان نظام مهندسی", "شرکت گاز استانی",
 ]
 
+# پیشوند نام فایل تصویرهای نمونه. تصویری که با «demo-» شروع شود
+# جای‌نگهدار است، نه عکسی که مدیر آپلود کرده؛ refresh_demo_images فقط
+# همین‌ها را با رنگ‌های فعلی برند دوباره می‌سازد.
+PLACEHOLDER_PREFIX = "demo-separ-"
+
 # اسلایدهای نمونه: (عنوان، رنگ شروع، رنگ پایان، لینک)
 # این‌ها فقط جای‌نگهدارند تا اسلایدر خالی نماند؛ تصاویر واقعی را از پنل
 # مدیریت آپلود می‌کنید و هر کدام را نخواستید غیرفعال یا حذف کنید.
 SLIDES = [
-    ("دوره‌های تخصصی HSE", (15, 76, 58), (20, 66, 92), "/courses/"),
-    ("تقویم آموزشی نیمه دوم سال", (20, 66, 92), (29, 90, 125), "/calendar/"),
-    ("گواهی معتبر و قابل استعلام", (9, 48, 35), (224, 123, 22), "/certificate/verify/"),
-    ("دوره ارزیابی ریسک", (26, 107, 82), (15, 76, 58), "/courses/?category=risk-assessment"),
-    ("ایمنی صنعتی برای پیمانکاران", (20, 66, 92), (15, 76, 58), "/courses/?category=industrial-safety"),
-    ("استانداردهای ISO 45001", (9, 48, 35), (29, 90, 125), "/courses/?category=iso-standards"),
-    ("بهداشت حرفه‌ای در محیط کار", (30, 132, 73), (15, 76, 58), "/courses/?category=occupational-health"),
-    ("دوره‌های سازمانی و درون‌سازمانی", (185, 97, 16), (15, 76, 58), "/contact/"),
-    ("کلاس‌های حضوری با تمرین عملی", (29, 90, 125), (9, 48, 35), "/courses/"),
-    ("ثبت‌نام آنلاین در دوره‌های حضوری", (15, 76, 58), (26, 107, 82), "/calendar/"),
+    ("دوره‌های تخصصی HSE", (136, 38, 27), (35, 31, 32), "/courses/"),
+    ("تقویم آموزشی نیمه دوم سال", (35, 31, 32), (59, 53, 54), "/calendar/"),
+    ("گواهی معتبر و قابل استعلام", (108, 30, 21), (163, 48, 34), "/certificate/verify/"),
+    ("دوره ارزیابی ریسک", (163, 48, 34), (136, 38, 27), "/courses/?category=risk-assessment"),
+    ("ایمنی صنعتی برای پیمانکاران", (35, 31, 32), (136, 38, 27), "/courses/?category=industrial-safety"),
+    ("استانداردهای ISO 45001", (108, 30, 21), (59, 53, 54), "/courses/?category=iso-standards"),
+    ("بهداشت حرفه‌ای در محیط کار", (90, 84, 85), (136, 38, 27), "/courses/?category=occupational-health"),
+    ("دوره‌های سازمانی و درون‌سازمانی", (163, 48, 34), (136, 38, 27), "/contact/"),
+    ("کلاس‌های حضوری با تمرین عملی", (59, 53, 54), (108, 30, 21), "/courses/"),
+    ("ثبت‌نام آنلاین در دوره‌های حضوری", (136, 38, 27), (163, 48, 34), "/calendar/"),
 ]
 
 # اسلایدهای دوره‌های غیرحضوری؛ فقط وقتی بخش آنلاین روشن است فعال می‌شوند.
 ONLINE_SLIDES = [
-    ("کلاس‌های آنلاین زنده", (29, 90, 125), (9, 48, 35), "/courses/?type=online_live"),
-    ("محتوای آفلاین و همیشه در دسترس", (15, 76, 58), (26, 107, 82), "/courses/?type=offline_recorded"),
+    ("کلاس‌های آنلاین زنده", (59, 53, 54), (108, 30, 21), "/courses/?type=online_live"),
+    ("محتوای آفلاین و همیشه در دسترس", (136, 38, 27), (163, 48, 34), "/courses/?type=offline_recorded"),
 ]
 
 # رنگ گرادیان تصویر نمونه هر دسته‌بندی
 CATEGORY_COLORS = {
-    "hse-general": ((15, 76, 58), (26, 107, 82)),
-    "industrial-safety": ((20, 66, 92), (29, 90, 125)),
-    "risk-assessment": ((9, 48, 35), (20, 66, 92)),
-    "occupational-health": ((26, 107, 82), (15, 76, 58)),
-    "environment": ((30, 132, 73), (15, 76, 58)),
-    "iso-standards": ((20, 66, 92), (15, 76, 58)),
-    "crisis-management": ((185, 97, 16), (15, 76, 58)),
-    "equipment-inspection": ((29, 90, 125), (9, 48, 35)),
-    "corporate": ((15, 76, 58), (20, 66, 92)),
+    "hse-general": ((136, 38, 27), (163, 48, 34)),
+    "industrial-safety": ((35, 31, 32), (59, 53, 54)),
+    "risk-assessment": ((108, 30, 21), (35, 31, 32)),
+    "occupational-health": ((163, 48, 34), (136, 38, 27)),
+    "environment": ((90, 84, 85), (136, 38, 27)),
+    "iso-standards": ((35, 31, 32), (136, 38, 27)),
+    "crisis-management": ((163, 48, 34), (136, 38, 27)),
+    "equipment-inspection": ((59, 53, 54), (108, 30, 21)),
+    "corporate": ((136, 38, 27), (35, 31, 32)),
 }
 
 SYLLABUS = """مبانی و تعاریف پایه
@@ -421,10 +426,10 @@ class Command(BaseCommand):
 
     def _seed_site_setting(self):
         site = SiteSetting.load()
-        site.site_name = "HSE Tech"
+        site.site_name = "سپر آکادمی"
         site.site_tagline = "آموزش تخصصی ایمنی، بهداشت و محیط زیست"
         site.phone = "021-12345678"
-        site.email = "info@hsetech.ir"
+        site.email = "info@separ.academy"
         site.address = "تهران، خیابان ولیعصر، پلاک ۱۰۰، واحد ۵"
         site.working_hours = "شنبه تا چهارشنبه، ۹ تا ۱۷"
         site.hero_slider_interval_seconds = 6
@@ -485,7 +490,7 @@ class Command(BaseCommand):
             )
             if created or not slide.image:
                 slide.image.save(
-                    f"demo-slide-{index + 1}.jpg",
+                    f"{PLACEHOLDER_PREFIX}slide-{index + 1}.jpg",
                     self._make_gradient_image(1920, 650, start_rgb, end_rgb, "SAMPLE"),
                     save=True,
                 )
@@ -588,10 +593,10 @@ class Command(BaseCommand):
             # تا تصویر واقعی آپلودشده توسط ادمین بازنویسی نشود.
             if not course.thumbnail:
                 start_rgb, end_rgb = CATEGORY_COLORS.get(
-                    category_slug, ((15, 76, 58), (20, 66, 92))
+                    category_slug, ((136, 38, 27), (35, 31, 32))
                 )
                 course.thumbnail.save(
-                    f"demo-{slug}.jpg",
+                    f"{PLACEHOLDER_PREFIX}{slug}.jpg",
                     self._make_gradient_image(800, 450, start_rgb, end_rgb, "COURSE"),
                     save=True,
                 )

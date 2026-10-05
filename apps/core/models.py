@@ -54,7 +54,7 @@ class SiteSetting(models.Model):
     """
 
     # --- هویت سایت ---
-    site_name = models.CharField("نام سایت", max_length=100, default="HSE Tech")
+    site_name = models.CharField("نام سایت", max_length=100, default="سپر آکادمی")
     site_tagline = models.CharField(
         "شعار سایت",
         max_length=200,

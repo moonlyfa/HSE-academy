@@ -5,7 +5,7 @@
 #     sudo systemctl enable --now hse.socket
 
 [Unit]
-Description=HSE Academy gunicorn socket
+Description=Separ Academy gunicorn socket
 
 [Socket]
 ListenStream=/run/hse/gunicorn.sock

@@ -1,0 +1,75 @@
+/*
+ * رنگ‌های پنل مدیریت با برند «سپر آکادمی»: قرمز سپر (#88261B) و مشکی
+ * برند (#231F20). فقط متغیرهای خود جنگو بازنویسی شده‌اند؛ هیچ ساختاری
+ * عوض نشده است.
+ */
+:root {
+    --primary: #88261B;
+    --secondary: #231F20;
+    --accent: #F2C6C0;
+    --primary-fg: #fff;
+
+    --header-color: #f3e9e8;
+    --header-branding-color: #fff;
+    --header-bg: #231F20;
+    --header-link-color: #fff;
+
+    --breadcrumbs-fg: #f3d9d5;
+    --breadcrumbs-link-fg: #fff;
+    --breadcrumbs-bg: #88261B;
+
+    --link-fg: #88261B;
+    --link-hover-color: #5a1912;
+    --link-selected-fg: #231F20;
+
+    --selected-row: #f7ebe9;
+
+    --button-bg: #88261B;
+    --button-hover-bg: #6C1E15;
+    --default-button-bg: #231F20;
+    --default-button-hover-bg: #3B3536;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+        --primary: #D4594C;
+        --link-fg: #E07A6E;
+        --link-hover-color: #F2A79E;
+        --link-selected-fg: #F2A79E;
+        --header-bg: #161314;
+        --breadcrumbs-bg: #5f1a13;
+        --selected-row: #3a1f1c;
+    }
+}
+
+:root[data-theme="dark"] {
+    --primary: #D4594C;
+    --link-fg: #E07A6E;
+    --link-hover-color: #F2A79E;
+    --link-selected-fg: #F2A79E;
+    --header-bg: #161314;
+    --breadcrumbs-bg: #5f1a13;
+    --selected-row: #3a1f1c;
+}
+
+/* نوار قرمز زیر هدر، مثل نوار برند در شیوه‌نامه */
+#header { border-bottom: 4px solid #88261B; }
+
+.separ-admin-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.separ-admin-brand img {
+    background: #fff;
+    border-radius: 6px;
+    padding: 3px;
+}
+
+/* سرتیتر جدول‌ها و ماژول‌های کناری */
+.module h2,
+.module caption,
+.inline-group h2 {
+    background: #231F20;
+}

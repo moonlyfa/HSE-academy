@@ -5,7 +5,7 @@
 #     sudo systemctl enable --now hse-verify-payments.timer
 
 [Unit]
-Description=HSE Academy - re-verify pending payments
+Description=Separ Academy - re-verify pending payments
 After=network-online.target postgresql.service
 
 [Service]

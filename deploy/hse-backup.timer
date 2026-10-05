@@ -4,7 +4,7 @@
 #  دیدن نتیجه آخرین اجرا:        journalctl -u hse-backup.service
 
 [Unit]
-Description=Nightly HSE Academy backup
+Description=Nightly Separ Academy backup
 
 [Timer]
 # ساعت ۳ بامداد به وقت سرور؛ کم‌ترافیک‌ترین ساعت.

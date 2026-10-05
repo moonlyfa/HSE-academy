@@ -38,12 +38,22 @@ FONT_DIR = settings.BASE_DIR / "static" / "fonts" / "vazirmatn"
 FONT_REGULAR = "Vazirmatn"
 FONT_BOLD = "Vazirmatn-Bold"
 
-# رنگ‌ها از همان شیوه‌نامه سایت گرفته شده‌اند تا گواهی و سایت یک خانواده
-# دیده شوند.
-COLOR_BRAND = HexColor("#0f6b4f")
-COLOR_SECONDARY = HexColor("#14425c")
-COLOR_TEXT = HexColor("#1f2b28")
-COLOR_MUTED = HexColor("#6b7a76")
+# رنگ‌ها از شیوه‌نامه برند «سپر آکادمی» گرفته شده‌اند تا گواهی و سایت یک
+# خانواده دیده شوند: قرمز سپر و مشکی برند.
+COLOR_BRAND = HexColor("#88261B")
+COLOR_SECONDARY = HexColor("#231F20")
+COLOR_TEXT = HexColor("#231F20")
+COLOR_MUTED = HexColor("#6b6465")
+
+# نشان سپر (سه ستون HSE) — همان شکل static/img/brand/separ-mark.svg، با
+# مختصات کادر ۳۹۵×۳۹۵ و محور y رو به پایین. گوشه‌های گرد ریز فایل SVG در
+# این اندازه دیده نمی‌شوند و حذف شده‌اند.
+SHIELD_MARK = (
+    ((87.9, 0), (182.9, 0), (182.9, 383.8), (39.05, 280.5), (39.05, 48.9)),
+    ((197.4, 0), (266.9, 0), (266.9, 345.0), (197.4, 394.9)),
+    ((281.4, 0), (306.9, 0), (355.8, 48.9), (355.8, 279.5), (281.4, 333.4)),
+)
+SHIELD_MARK_BOX = 394.88
 
 
 @lru_cache(maxsize=1)
@@ -121,6 +131,7 @@ def render_certificate(certificate, verification_url: str, site_name: str) -> by
     pdf.rect(34, 34, width - 68, height - 68)
 
     # --- سربرگ ---
+    _shield_mark(pdf, x=width - 130, top=height - 62, size=64)
     _centered(pdf, site_name, height - 90, 20, bold=True, color=COLOR_SECONDARY)
     _centered(pdf, "گواهی پایان دوره", height - 145, 32, bold=True, color=COLOR_BRAND)
 
@@ -186,6 +197,22 @@ def render_certificate(certificate, verification_url: str, site_name: str) -> by
     return buffer.getvalue()
 
 
+def _shield_mark(pdf: canvas.Canvas, *, x: float, top: float, size: float) -> None:
+    """نشان سپر را در کادری مربعی به ضلع size می‌کشد؛ (x, top) گوشه بالا-چپ است."""
+    scale = size / SHIELD_MARK_BOX
+    pdf.saveState()
+    pdf.setFillColor(COLOR_BRAND)
+    for points in SHIELD_MARK:
+        path = pdf.beginPath()
+        first, *rest = points
+        path.moveTo(x + first[0] * scale, top - first[1] * scale)
+        for px, py in rest:
+            path.lineTo(x + px * scale, top - py * scale)
+        path.close()
+        pdf.drawPath(path, stroke=0, fill=1)
+    pdf.restoreState()
+
+
 def _stamp(pdf: canvas.Canvas, width: float, height: float, label: str) -> None:
     """
     مهر «باطل‌شده» روی گواهی‌های بی‌اعتبار.
@@ -197,6 +224,6 @@ def _stamp(pdf: canvas.Canvas, width: float, height: float, label: str) -> None:
     pdf.translate(width / 2, height / 2)
     pdf.rotate(30)
     pdf.setFont(_font(bold=True), 72)
-    pdf.setFillColor(HexColor("#c0392b"), alpha=0.28)
+    pdf.setFillColor(HexColor("#d1352b"), alpha=0.28)
     pdf.drawCentredString(0, 0, fa(label))
     pdf.restoreState()

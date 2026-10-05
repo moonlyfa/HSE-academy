@@ -5,7 +5,7 @@
 #     sudo systemctl enable --now hse-backup.timer
 
 [Unit]
-Description=HSE Academy backup
+Description=Separ Academy backup
 After=postgresql.service
 
 [Service]

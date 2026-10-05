@@ -12,7 +12,7 @@
 # =============================================================================
 
 [Unit]
-Description=HSE Academy (Gunicorn)
+Description=Separ Academy (Gunicorn)
 Requires=hse.socket
 After=network.target postgresql.service
 
